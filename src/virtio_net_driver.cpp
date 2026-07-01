@@ -3,6 +3,8 @@
 #include "virtqueue.hpp"
 #include "virtqueue_ops.hpp"
 #include "dma.hpp"
+#include "virtio_notify.hpp"
+#include "virtio_service.hpp"
 #include <efi.h>
 #include <efilib.h>
 #include <string.h>
@@ -38,6 +40,13 @@ static inline void* tx_pool_pop() {
     return p;
 }
 
+// TX tracking per descriptor
+struct TxSlot {
+    void* buf;
+    uint64_t submit_tick;
+};
+static TxSlot g_tx_slots[64];
+
 // Local helper to program legacy queue PFN (best-effort)
 static bool program_queue_pfn_local(const virtio_common::DeviceHandle* h, uint16_t queue_sel, void* pfn_mem) {
     const uint32_t QUEUE_SELECT = 0x0C; // 16-bit
@@ -68,20 +77,10 @@ static bool program_queue_pfn_local(const virtio_common::DeviceHandle* h, uint16
     return true;
 }
 
-// Helper: notify device (best-effort). Legacy spec uses QUEUE_NOTIFY at different offsets; try common offsets.
-static void notify_device_local(const virtio_common::DeviceHandle* h, uint16_t queue_index) {
-    uint16_t v = queue_index;
-    uint32_t TRY_OFFSETS[] = {0x12, 0x10};
-    for (int i = 0; i < 2; ++i) {
-        uint32_t off = TRY_OFFSETS[i];
-        if (h->mmio) {
-            volatile uint16_t* p = (volatile uint16_t*)(UINTN)(h->bar0 + off);
-            *p = v;
-        } else {
-            uint16_t port = (uint16_t)(h->bar0 + off);
-            __asm__ volatile ("outw %0, %1" : : "a" (v), "dN" (port));
-        }
-    }
+// Helper: notify device (use virtio_notify abstraction)
+static void notify_device(const virtio_common::DeviceHandle* h, uint16_t qidx) {
+    virtio_common::DeviceHandle hh = *h; // make non-const for API
+    virtio_notify::notify(&hh, qidx);
 }
 
 bool virtio_net::init() {
@@ -96,7 +95,6 @@ bool virtio_net::init() {
     }
 
     // Attempt basic feature negotiation (example: no features requested yet)
-    // We'll read host features and write zero guest features for conservative start
     extern uint32_t virtio_common::read_host_features(void* bar0, bool mmio);
     extern bool virtio_common::negotiate_features(void* bar0, bool mmio, uint32_t want_mask);
     uint32_t host_feats = virtio_common::read_host_features((void*)(UINTN)g_net_handle.bar0, g_net_handle.mmio);
@@ -138,7 +136,10 @@ bool virtio_net::init() {
     }
 
     // Notify device RX queue
-    notify_device_local(&g_net_handle, 0);
+    notify_device(&g_net_handle, 0);
+
+    // initialize tx slots
+    for (uint32_t i = 0; i < sizeof(g_tx_slots)/sizeof(g_tx_slots[0]); ++i) { g_tx_slots[i].buf = NULL; g_tx_slots[i].submit_tick = 0; }
 
     g_ready = true;
     Print(L"virtio-net: initialized (RX/TX queues allocated and RX buffers submitted)\n");
@@ -151,13 +152,38 @@ bool virtio_net::is_available() { return g_ready; }
 void virtio_net::reclaim_tx() {
     if (!g_ready) return;
     uint32_t id; uint32_t len;
+    // drain used ring
     while (virtqueue_ops::try_dequeue_used(&g_tx_vq, &id, &len)) {
-        uint64_t addr = g_tx_vq.desc[id].addr;
-        void* buf = (void*)(UINTN)addr;
-        // Mark descriptor as free
-        virtqueue_ops::set_descriptor(&g_tx_vq, id, 0, 0, 0, 0);
-        // Recycle buffer to pool
-        tx_pool_push(buf);
+        if (id < (uint32_t)(sizeof(g_tx_slots)/sizeof(g_tx_slots[0]))) {
+            uint64_t addr = g_tx_vq.desc[id].addr;
+            void* buf = (void*)(UINTN)addr;
+            // clear descriptor
+            virtqueue_ops::set_descriptor(&g_tx_vq, id, 0, 0, 0, 0);
+            // recycle buffer if it's ours (non-null)
+            if (g_tx_slots[id].buf == buf) {
+                tx_pool_push(buf);
+                g_tx_slots[id].buf = NULL;
+                g_tx_slots[id].submit_tick = 0;
+            } else {
+                // unknown buffer address - try to recycle anyway
+                tx_pool_push(buf);
+            }
+        }
+    }
+
+    // timeout-based reclaim for slots that haven't completed
+    uint64_t now = virtio_service::now_ticks();
+    const uint64_t TIMEOUT_TICKS = 10; // if not completed after these many poll iterations, reclaim
+    for (uint32_t i = 0; i < g_tx_vq.size && i < (uint32_t)(sizeof(g_tx_slots)/sizeof(g_tx_slots[0])); ++i) {
+        if (g_tx_slots[i].buf != NULL) {
+            if ((now - g_tx_slots[i].submit_tick) > TIMEOUT_TICKS) {
+                // Force reclaim: push buffer to pool and clear descriptor
+                tx_pool_push(g_tx_slots[i].buf);
+                g_tx_slots[i].buf = NULL;
+                g_tx_slots[i].submit_tick = 0;
+                virtqueue_ops::set_descriptor(&g_tx_vq, i, 0, 0, 0, 0);
+            }
+        }
     }
 }
 
@@ -184,9 +210,12 @@ bool virtio_net::send_packet(const void* data, unsigned len) {
 
     // Set descriptor and submit
     virtqueue_ops::set_descriptor(&g_tx_vq, idx, (uint64_t)(UINTN)buf, len, 0, 0);
+    // record ownership and tick
+    g_tx_slots[idx].buf = buf;
+    g_tx_slots[idx].submit_tick = virtio_service::now_ticks();
     virtqueue_ops::submit_descriptor(&g_tx_vq, idx);
-    // Notify device on TX queue (best-effort queue index 1)
-    notify_device_local(&g_net_handle, 1);
+    // Notify device on TX queue using notify abstraction
+    notify_device(&g_net_handle, 1);
 
     // Do not wait for completion here; reclaim_tx() will collect and recycle
     return true;
@@ -201,7 +230,7 @@ int virtio_net::receive_packet(void* buf, unsigned buf_len) {
         uint64_t addr = g_rx_vq.desc[id].addr;
         virtqueue_ops::set_descriptor(&g_rx_vq, id, addr, 1536, 2, 0);
         virtqueue_ops::submit_descriptor(&g_rx_vq, id);
-        notify_device_local(&g_net_handle, 0);
+        notify_device(&g_net_handle, 0);
         return -1;
     }
     // copy packet
@@ -210,6 +239,6 @@ int virtio_net::receive_packet(void* buf, unsigned buf_len) {
     // resubmit buffer
     virtqueue_ops::set_descriptor(&g_rx_vq, id, addr, 1536, 2, 0);
     virtqueue_ops::submit_descriptor(&g_rx_vq, id);
-    notify_device_local(&g_net_handle, 0);
+    notify_device(&g_net_handle, 0);
     return (int)len;
 }
