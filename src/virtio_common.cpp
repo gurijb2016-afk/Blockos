@@ -12,13 +12,20 @@ static inline uint8_t inb_io(uint16_t port) {
     __asm__ volatile ("inb %1, %0" : "=a" (val) : "dN" (port));
     return val;
 }
-
 static inline void outl_io(uint16_t port, uint32_t val) {
     __asm__ volatile ("outl %0, %1" : : "a" (val), "dN" (port));
 }
 static inline uint32_t inl_io(uint16_t port) {
     uint32_t val;
     __asm__ volatile ("inl %1, %0" : "=a" (val) : "dN" (port));
+    return val;
+}
+static inline void outw_io(uint16_t port, uint16_t val) {
+    __asm__ volatile ("outw %0, %1" : : "a" (val), "dN" (port));
+}
+static inline uint16_t inw_io(uint16_t port) {
+    uint16_t val;
+    __asm__ volatile ("inw %1, %0" : "=a" (val) : "dN" (port));
     return val;
 }
 
@@ -28,6 +35,15 @@ static uint8_t read_reg8_mmio(uint64_t base, uint32_t offset) {
 }
 static void write_reg8_mmio(uint64_t base, uint32_t offset, uint8_t v) {
     volatile uint8_t* p = (volatile uint8_t*)(UINTN)(base + offset);
+    *p = v;
+}
+
+static uint16_t read_reg16_mmio(uint64_t base, uint32_t offset) {
+    volatile uint16_t* p = (volatile uint16_t*)(UINTN)(base + offset);
+    return *p;
+}
+static void write_reg16_mmio(uint64_t base, uint32_t offset, uint16_t v) {
+    volatile uint16_t* p = (volatile uint16_t*)(UINTN)(base + offset);
     *p = v;
 }
 
@@ -49,6 +65,14 @@ static void virtio_write8(const virtio_common::DeviceHandle* h, uint32_t offset,
     if (h->mmio) write_reg8_mmio(h->bar0, offset, v);
     else outb_io((uint16_t)(h->bar0 + offset), v);
 }
+static uint16_t virtio_read16(const virtio_common::DeviceHandle* h, uint32_t offset) {
+    if (h->mmio) return read_reg16_mmio(h->bar0, offset);
+    else return inw_io((uint16_t)(h->bar0 + offset));
+}
+static void virtio_write16(const virtio_common::DeviceHandle* h, uint32_t offset, uint16_t v) {
+    if (h->mmio) write_reg16_mmio(h->bar0, offset, v);
+    else outw_io((uint16_t)(h->bar0 + offset), v);
+}
 static uint32_t virtio_read32(const virtio_common::DeviceHandle* h, uint32_t offset) {
     if (h->mmio) return read_reg32_mmio(h->bar0, offset);
     else return inl_io((uint16_t)(h->bar0 + offset));
@@ -65,29 +89,41 @@ bool virtio_common::device_init(virtio_common::DeviceHandle* h) {
                  h->device_id, h->bus, h->slot, h->func, h->bar0, h->mmio);
     Print(buf);
 
-    // Try minimal legacy virtio status sequence if device appears to be legacy PCI virtio
-    // Legacy status register is at offset 0x12 (per virtio legacy spec) for IO-space devices
-    // For MMIO devices the layout differs; we attempt to write to a few common offsets conservatively.
+    // Legacy virtio PCI register offsets (legacy spec)
+    const uint32_t HOST_FEATURES = 0x00; // 32-bit
+    const uint32_t GUEST_FEATURES = 0x04; // 32-bit
+    const uint32_t GUEST_PAGE_SIZE = 0x08; // 32-bit
+    const uint32_t QUEUE_SELECT = 0x0C; // 16-bit
+    const uint32_t QUEUE_NUM = 0x0E; // 16-bit
+    const uint32_t QUEUE_PFN = 0x10; // 32-bit
+    const uint32_t STATUS = 0x12; // 8-bit
 
-    const uint32_t STATUS_OFFSET_LEGACY = 0x12;
     const uint8_t STATUS_ACK = 1;
     const uint8_t STATUS_DRIVER = 2;
+    const uint8_t STATUS_DRIVER_OK = 4;
 
     // Read current status
-    uint8_t status = virtio_read8(h, STATUS_OFFSET_LEGACY);
+    uint8_t status = virtio_read8(h, STATUS);
     UnicodeSPrint(buf, sizeof(buf), L"virtio_common: current status=0x%02x\n", status);
     Print(buf);
 
-    // Write ACK
-    virtio_write8(h, STATUS_OFFSET_LEGACY, (uint8_t)(status | STATUS_ACK));
-    // Write DRIVER
-    virtio_write8(h, STATUS_OFFSET_LEGACY, (uint8_t)(status | STATUS_ACK | STATUS_DRIVER));
+    // ACK + DRIVER
+    status |= STATUS_ACK;
+    virtio_write8(h, STATUS, status);
+    status |= STATUS_DRIVER;
+    virtio_write8(h, STATUS, status);
 
-    uint8_t newstatus = virtio_read8(h, STATUS_OFFSET_LEGACY);
+    uint8_t newstatus = virtio_read8(h, STATUS);
     UnicodeSPrint(buf, sizeof(buf), L"virtio_common: updated status=0x%02x\n", newstatus);
     Print(buf);
 
-    // Allocate a small DMA buffer for virtqueue use as a test (drivers will allocate proper queues)
+    // Set guest page size to 4096
+    virtio_write32(h, GUEST_PAGE_SIZE, 4096);
+    uint32_t gps = virtio_read32(h, GUEST_PAGE_SIZE);
+    UnicodeSPrint(buf, sizeof(buf), L"virtio_common: guest_page_size=%u\n", gps);
+    Print(buf);
+
+    // DMA test allocation
     void* dq = dma::alloc(4096);
     if (!dq) {
         Print(L"virtio_common: dma::alloc failed (virtqueue test)\n");
@@ -97,5 +133,10 @@ bool virtio_common::device_init(virtio_common::DeviceHandle* h) {
     }
 
     // Note: full feature negotiation and virtqueue setup is implemented in specific drivers
+    // The drivers will use QUEUE_SELECT/QUEUE_NUM/QUEUE_PFN to program queues.
+
+    // Optionally set DRIVER_OK here, but better set after queues/features setup by driver
+    // status |= STATUS_DRIVER_OK; virtio_write8(h, STATUS, status);
+
     return true;
 }
