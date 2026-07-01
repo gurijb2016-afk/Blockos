@@ -30,7 +30,6 @@ bool virtio_common::negotiate_features(void* bar0, bool mmio, uint32_t want_mask
     const uint32_t GUEST_FEATURES = 0x04;
     uint32_t host = virtio_common::read_host_features(bar0, mmio);
     uint32_t agreed = host & want_mask;
-    if (mmio) virtio_common::negotiate_features; // no-op to keep symbol referenced
     if (mmio) write_reg32_mmio((uint64_t)(UINTN)bar0, GUEST_FEATURES, agreed);
     else outl_io((uint16_t)((uint64_t)(UINTN)bar0 + GUEST_FEATURES), agreed);
     CHAR16 buf[128];
