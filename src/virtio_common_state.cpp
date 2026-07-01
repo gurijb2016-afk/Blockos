@@ -1,5 +1,6 @@
 #include "virtio_common_state.hpp"
 #include "virtio_common_features.hpp"
+#include "virtio_notify.hpp"
 #include <efi.h>
 #include <efilib.h>
 
@@ -57,6 +58,14 @@ bool virtio_common::perform_device_initialization(virtio_common::DeviceHandle* h
         // Attempt rollback
         set_device_status(h, 0);
         return false;
+    }
+
+    // Attempt to enable MSI-X if available to improve interrupt handling.
+    bool msix_ok = virtio_notify::setup_msix_if_available(h);
+    if (msix_ok) {
+        Print(L"virtio_common: MSI-X setup succeeded or found\n");
+    } else {
+        Print(L"virtio_common: MSI-X not available or not configured, using legacy/notify fallback\n");
     }
 
     CHAR16 buf[128];

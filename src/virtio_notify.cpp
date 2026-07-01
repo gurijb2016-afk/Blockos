@@ -28,13 +28,16 @@ bool virtio_notify::notify(virtio_common::DeviceHandle* h, uint16_t queue_index)
 
 bool virtio_notify::setup_msix_if_available(virtio_common::DeviceHandle* h) {
     if (!h) return false;
-    // Best-effort: try to detect MSI-X by scanning PCI space to locate the device with matching BAR0, then
-    // inspect the MSI-X capability and (optionally) enable function mask clearing. We do not attempt to
-    // allocate OS IRQ vectors here; this is a platform-specific step.
-    bool found = pci_msix_detect_and_configure(h, false);
+    // Best-effort: try to detect and enable MSI-X by scanning PCI space to locate the device with matching BAR0,
+    // then inspect the MSI-X capability and attempt to clear the Function Mask so MSI-X deliveries are enabled.
+    // WARNING: This performs PCI config-space writes via CF8/CFC and should only be used in controlled
+    // environments (QEMU or when you have explicit permission to touch PCI config space).
+
+    bool found = pci_msix_detect_and_configure(h, true);
     if (found) {
-        Print(L"virtio_notify: MSI-X capability detected (not enabled)\n");
+        Print(L"virtio_notify: MSI-X capability detected and configured (function mask cleared if present)\n");
         return true;
     }
+    Print(L"virtio_notify: MSI-X not detected or not configurable\n");
     return false;
 }
