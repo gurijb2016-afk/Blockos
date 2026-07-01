@@ -1,26 +1,36 @@
 #include "virtio_notify.hpp"
+#include "virtio_common.hpp"
 #include <efi.h>
 #include <efilib.h>
-#include <string.h>
 
+// Extended notify: probe several common offsets and perform write with read-back to ensure delivery.
 bool virtio_notify::notify(virtio_common::DeviceHandle* h, uint16_t queue_index) {
     if (!h) return false;
-    // If MMIO modern device, try writing to queue_notify register if present at common offsets
+    // If modern MMIO virtio, attempt to write to common notify offsets used by implementations.
     if (h->mmio) {
-        // Try offsets 0x50 or 0x12 (best-effort)
-        volatile uint16_t* try1 = (volatile uint16_t*)(UINTN)(h->bar0 + 0x50);
-        *try1 = queue_index;
+        uint32_t offsets[] = { 0x50, 0x10, 0x12, 0x64 };
+        for (size_t i = 0; i < sizeof(offsets)/sizeof(offsets[0]); ++i) {
+            volatile uint16_t* p = (volatile uint16_t*)(UINTN)(h->bar0 + offsets[i]);
+            *p = queue_index;
+            // read back to force write
+            volatile uint16_t r = *p;
+            (void)r;
+        }
         return true;
     } else {
-        uint16_t port = (uint16_t)(h->bar0 + 0x10);
-        __asm__ volatile ("outw %0, %1" : : "a" (queue_index), "dN" (port));
+        // I/O device: try a set of ports relative to BAR0
+        uint32_t ports[] = { 0x10, 0x12, 0x50 };
+        for (size_t i = 0; i < sizeof(ports)/sizeof(ports[0]); ++i) {
+            uint16_t port = (uint16_t)(h->bar0 + ports[i]);
+            __asm__ volatile ("outw %0, %1" : : "a" (queue_index), "dN" (port));
+        }
         return true;
     }
 }
 
 bool virtio_notify::setup_msix_if_available(virtio_common::DeviceHandle* h) {
-    // Best-effort stub: detecting and configuring MSI-X requires PCI-capability walking and OS IRQ handling
-    // In UEFI boot environment without full PCI services we skip this. Return false to indicate MSI-X not configured.
+    // Best-effort stub remains: in UEFI environment detailed PCI capability parsing and IRQ wiring
+    // is platform-specific and often not available. Return false to indicate MSI-X not configured.
     (void)h;
     return false;
 }
