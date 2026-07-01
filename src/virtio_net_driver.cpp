@@ -17,6 +17,27 @@ static VirtQueueView g_rx_vq;
 static VirtQueueView g_tx_vq;
 static virtio_common::DeviceHandle g_net_handle;
 
+// Simple TX buffer pool
+static void* g_tx_pool[32];
+static int g_tx_pool_head = 0;
+static int g_tx_pool_count = 0;
+
+static inline void tx_pool_push(void* p) {
+    if (g_tx_pool_count >= (int)(sizeof(g_tx_pool)/sizeof(g_tx_pool[0]))) return;
+    g_tx_pool[g_tx_pool_head] = p;
+    g_tx_pool_head = (g_tx_pool_head + 1) % (int)(sizeof(g_tx_pool)/sizeof(g_tx_pool[0]));
+    g_tx_pool_count++;
+}
+static inline void* tx_pool_pop() {
+    if (g_tx_pool_count == 0) return NULL;
+    int tail = (g_tx_pool_head - g_tx_pool_count) % (int)(sizeof(g_tx_pool)/sizeof(g_tx_pool[0]));
+    if (tail < 0) tail += (int)(sizeof(g_tx_pool)/sizeof(g_tx_pool[0]));
+    void* p = g_tx_pool[tail];
+    g_tx_pool[tail] = NULL;
+    g_tx_pool_count--;
+    return p;
+}
+
 // Local helper to program legacy queue PFN (best-effort)
 static bool program_queue_pfn_local(const virtio_common::DeviceHandle* h, uint16_t queue_sel, void* pfn_mem) {
     const uint32_t QUEUE_SELECT = 0x0C; // 16-bit
@@ -49,9 +70,7 @@ static bool program_queue_pfn_local(const virtio_common::DeviceHandle* h, uint16
 
 // Helper: notify device (best-effort). Legacy spec uses QUEUE_NOTIFY at different offsets; try common offsets.
 static void notify_device_local(const virtio_common::DeviceHandle* h, uint16_t queue_index) {
-    // Try legacy I/O notify via writing queue index to I/O port at bar+0x12 or bar+0x10 — best-effort
     uint16_t v = queue_index;
-    // Try offset 0x12 then 0x10
     uint32_t TRY_OFFSETS[] = {0x12, 0x10};
     for (int i = 0; i < 2; ++i) {
         uint32_t off = TRY_OFFSETS[i];
@@ -75,6 +94,14 @@ bool virtio_net::init() {
         Print(L"virtio-net: device_init failed\n");
         return false;
     }
+
+    // Attempt basic feature negotiation (example: no features requested yet)
+    // We'll read host features and write zero guest features for conservative start
+    extern uint32_t virtio_common::read_host_features(void* bar0, bool mmio);
+    extern bool virtio_common::negotiate_features(void* bar0, bool mmio, uint32_t want_mask);
+    uint32_t host_feats = virtio_common::read_host_features((void*)(UINTN)g_net_handle.bar0, g_net_handle.mmio);
+    (void)host_feats;
+    virtio_common::negotiate_features((void*)(UINTN)g_net_handle.bar0, g_net_handle.mmio, 0u);
 
     // allocate queue memory for rx and tx
     size_t perq = (sizeof(VirtqDesc) * g_qsize) + (sizeof(uint16_t) * g_qsize) + (sizeof(VirtqUsedElem) * g_qsize) + 4096;
@@ -120,19 +147,39 @@ bool virtio_net::init() {
 
 bool virtio_net::is_available() { return g_ready; }
 
+// Reclaim completed TX descriptors and recycle their buffers into pool
+void virtio_net::reclaim_tx() {
+    if (!g_ready) return;
+    uint32_t id; uint32_t len;
+    while (virtqueue_ops::try_dequeue_used(&g_tx_vq, &id, &len)) {
+        uint64_t addr = g_tx_vq.desc[id].addr;
+        void* buf = (void*)(UINTN)addr;
+        // Mark descriptor as free
+        virtqueue_ops::set_descriptor(&g_tx_vq, id, 0, 0, 0, 0);
+        // Recycle buffer to pool
+        tx_pool_push(buf);
+    }
+}
+
 bool virtio_net::send_packet(const void* data, unsigned len) {
     if (!g_ready) return false;
     if (len > 1536) return false; // too big
 
-    // Find a free descriptor index — simple linear scan for a zero-length descriptor
+    // Reclaim any completed TX first
+    virtio_net::reclaim_tx();
+
+    // Try to find a free descriptor index — simple linear scan for a zero-length descriptor
     uint32_t idx = UINT32_MAX;
     for (uint32_t i = 0; i < g_tx_vq.size; ++i) {
         if (g_tx_vq.desc[i].len == 0) { idx = i; break; }
     }
     if (idx == UINT32_MAX) return false;
 
-    void* buf = dma::alloc(len, 64);
-    if (!buf) return false;
+    void* buf = tx_pool_pop();
+    if (!buf) {
+        buf = dma::alloc(len, 64);
+        if (!buf) return false;
+    }
     memcpy(buf, data, len);
 
     // Set descriptor and submit
@@ -141,7 +188,7 @@ bool virtio_net::send_packet(const void* data, unsigned len) {
     // Notify device on TX queue (best-effort queue index 1)
     notify_device_local(&g_net_handle, 1);
 
-    // For now, don't wait for completion — assume device will send
+    // Do not wait for completion here; reclaim_tx() will collect and recycle
     return true;
 }
 
