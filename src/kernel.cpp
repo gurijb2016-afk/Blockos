@@ -1,13 +1,9 @@
-// src/kernel.cpp - updated to initialize PS/2 mouse and a movable window + ramfs usage
-
-extern "C" {
-    #include <efi.h>
-    #include <efilib.h>
-}
-
+#include "ps2mouse.hpp"
 #include "fb.h"
-#include "ps2mouse.h"
-#include "ramfs.h"
+#include "ramfs.hpp"
+#include "font8x8.h"
+#include <efi.h>
+#include <efilib.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -16,6 +12,10 @@ struct Window {
     bool dragging;
     int drag_offset_x, drag_offset_y;
 };
+
+// small buffer for saving cursor background (8x8x4)
+static uint8_t cursor_save[8*8*4];
+static int prev_cursor_x = -1, prev_cursor_y = -1;
 
 extern "C" EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
     InitializeLib(ImageHandle, SystemTable);
@@ -70,13 +70,13 @@ extern "C" EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *
         return EFI_ABORTED;
     }
 
-    // Initialize our simple ramfs (files are embedded)
-    // Example: read a text file and we'll display its content in the window
+    // Initialize ramfs (C++ wrapper)
     uint32_t file_size = 0;
-    const uint8_t* file_data = ramfs_get("readme.txt", &file_size);
+    const uint8_t* file_data = ramfs::get("readme.txt", &file_size);
 
-    // Initialize PS/2 mouse (uses port I/O; QEMU provides PS/2 emulation)
-    ps2_init();
+    // Initialize PS/2 mouse
+    PS2Mouse mouse;
+    mouse.init();
 
     // Initial GUI state
     fb_draw_clear(&fb, 0x00303030);
@@ -89,9 +89,8 @@ extern "C" EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *
 
     // Display file content as text inside the window (simple wrapping)
     if (file_data) {
-        // Convert to null-terminated string safely
         size_t max_display = (size_t)file_size;
-        char *buf = (char*)file_data; // our ramfs stores ASCII
+        const char *buf = (const char*)file_data; // our ramfs stores ASCII
         int text_x = win.x + 8;
         int text_y = win.y + 32;
         int cols = (win.w - 16) / 8;
@@ -113,7 +112,7 @@ extern "C" EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *
     bool left_pressed = false;
 
     while (1) {
-        int8_t b = ps2_read_byte_nonblocking();
+        int8_t b = mouse.read_byte_nonblocking();
         if (b != INT8_MIN) {
             packet[pk_idx++] = (uint8_t)b;
             if (pk_idx == 3) {
@@ -121,7 +120,6 @@ extern "C" EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *
                 uint8_t st = packet[0];
                 int8_t dx = (int8_t)packet[1];
                 int8_t dy = (int8_t)packet[2];
-                // PS/2: Y is negative when moving up; invert for screen coords
                 cursor_x += dx;
                 cursor_y -= dy;
                 if (cursor_x < 0) cursor_x = 0; if (cursor_x >= (int)fb.Width) cursor_x = fb.Width-1;
@@ -158,7 +156,7 @@ extern "C" EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *
                     // redraw file text inside
                     if (file_data) {
                         size_t max_display = (size_t)file_size;
-                        char *buf = (char*)file_data;
+                        const char *buf = (const char*)file_data;
                         int text_x = win.x + 8;
                         int text_y = win.y + 32;
                         int cols = (win.w - 16) / 8;
@@ -172,12 +170,18 @@ extern "C" EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *
                     }
                 }
 
-                // Draw cursor as a small 8x8 white square (we redraw only cursor area for simplicity)
-                // For a real compositor you'd maintain backbuffer; here we simply draw it on top
+                // Draw cursor as an 8x8 white square using save/restore
+                // First restore previous cursor
+                if (prev_cursor_x >= 0 && prev_cursor_y >= 0) {
+                    fb_restore_area(&fb, prev_cursor_x, prev_cursor_y, 8, 8, cursor_save);
+                }
+                // Save new area
+                fb_save_area(&fb, cursor_x, cursor_y, 8, 8, cursor_save);
+                // Draw cursor
                 fb_draw_rect(&fb, cursor_x, cursor_y, 8, 8, 0x00FFFFFF);
+                prev_cursor_x = cursor_x; prev_cursor_y = cursor_y;
             }
         }
-        // halt to reduce CPU usage
         __asm__ volatile ("hlt");
     }
 
