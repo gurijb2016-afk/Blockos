@@ -1,4 +1,4 @@
-# Simple Makefile for building a GNU-EFI based EFI application
+# Simple Makefile for building a GNU-EFI based EFI application (compile all src/*.cpp)
 
 # You may need to adjust these include and library paths depending on your distribution.
 EFI_INCL = /usr/include/efi
@@ -13,8 +13,8 @@ OBJCOPY = objcopy
 CXXFLAGS = -fno-exceptions -fno-rtti -fshort-wchar -DEFI_FUNCTION_WRAPPER -I$(EFI_INCL) -I$(EFI_INCL_X86) -ffreestanding -O2 -Wall -Wextra
 LDFLAGS = -nostdlib -znocombreloc -T $(GNU_EFI_LDS)
 
-SRC = src/kernel.cpp src/fb.cpp src/ps2mouse.cpp src/ramfs.cpp src/files.cpp
-OBJ = $(SRC:.cpp=.o)
+SRC = $(wildcard src/*.cpp)
+OBJ = $(patsubst %.cpp,%.o,$(SRC))
 
 BUILD_DIR = build
 EFI_OUT = $(BUILD_DIR)/BOOTX64.EFI

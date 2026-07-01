@@ -2,7 +2,9 @@
 #include "events.hpp"
 #include "ps2mouse.hpp"
 #include "ps2keyboard.hpp"
+#include "virtio_input.hpp"
 #include "vfs.hpp"
+#include "allocator.hpp"
 #include "font8x8.h"
 #include <efi.h>
 #include <efilib.h>
@@ -50,7 +52,7 @@ extern "C" EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *
     }
 
     // Allocate pool for memory map + backbuffer + allocator heap
-    mapSize += descSize * 16;
+    mapSize += descSize * 20;
     void *memMap = NULL;
     void *backbuf = NULL;
     void *heapbuf = NULL;
@@ -82,11 +84,9 @@ extern "C" EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *
     }
 
     // Initialize allocator
-    extern void allocator::init(void*, size_t);
     allocator::init(heapbuf, heap_size);
 
     // Initialize VFS from embedded ramfs
-    extern void vfs_init_from_ramfs();
     vfs_init_from_ramfs();
 
     // Exit Boot Services
@@ -96,14 +96,13 @@ extern "C" EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *
         return EFI_ABORTED;
     }
 
-    // Initialize VFS / ramfs
-    // Note: vfs was initialized before ExitBootServices using allocator
-
-    // Initialize PS/2 mouse and keyboard
+    // Initialize input devices
     PS2Mouse mouse;
     PS2Keyboard keyboard;
+    VirtioInput virtio;
     mouse.init();
     keyboard.init();
+    virtio.init();
 
     // GUI state
     Window win{ (int)fb.Width/4, (int)fb.Height/4, (int)(fb.Width/2), (int)(fb.Height/2), false, 0, 0 };
@@ -136,12 +135,27 @@ extern "C" EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *
 
     int cursor_x = fb.Width/2; int cursor_y = fb.Height/2;
 
+    // editor state
+    bool in_editor = false;
+    char* editor_name = nullptr;
+    char* editor_buf = nullptr;
+    size_t editor_len = 0;
+    size_t editor_cap = 0;
+    int editor_cursor_x = 0;
+    int editor_cursor_y = 0;
+
     // mouse packet assembly
     uint8_t packet[3]; int pk_idx = 0;
     bool left_pressed = false;
 
     // Main loop: poll mouse and keyboard, process
     while (1) {
+        // Prefer virtio input if it provides data; fall back to PS/2 for keyboard/mouse
+        int8_t vb = virtio.read_byte_nonblocking();
+        int8_t kb = INT8_MIN;
+        if (vb == INT8_MIN) kb = keyboard.read_byte_nonblocking();
+        else kb = vb;
+
         int8_t mb = mouse.read_byte_nonblocking();
         if (mb != INT8_MIN) {
             packet[pk_idx++] = (uint8_t)mb;
@@ -158,113 +172,139 @@ extern "C" EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *
 
                 if (new_left && !left_pressed) {
                     // press start
-                    if (cursor_x >= win.x && cursor_x < win.x + win.w && cursor_y >= win.y && cursor_y < win.y + 24) {
-                        win.dragging = true;
-                        win.drag_offset_x = cursor_x - win.x;
-                        win.drag_offset_y = cursor_y - win.y;
-                    }
-                }
-                if (!new_left && left_pressed) win.dragging = false;
-                left_pressed = new_left;
+                    if (!in_editor) {
+                        // if listing is currently visible (we used 'L'), clicking in list area opens editor
+                        // compute list area coords
+                        int list_x = win.x + 8;
+                        int list_y = win.y + 32;
+                        int list_w = win.w - 16;
+                        int list_h = win.h - 36;
+                        if (cursor_x >= list_x && cursor_x < list_x + list_w && cursor_y >= list_y && cursor_y < list_y + list_h) {
+                            // compute index based on last displayed list: assume files were listed previously
+                            int idx = (cursor_y - list_y) / 10;
+                            size_t nf = vfs::count_files();
+                            if ((size_t)idx < nf) {
+                                const char* name = vfs::name_at(idx);
+                                uint32_t fsz = 0;
+                                const uint8_t* fdata = vfs::read_file(name, &fsz);
+                                // open editor with a writable copy
+                                editor_cap = fsz + 4096;
+                                editor_buf = (char*)allocator::alloc(editor_cap);
+                                if (!editor_buf) {
+                                    // allocation failed
+                                } else {
+                                    memcpy(editor_buf, fdata, fsz);
+                                    editor_len = fsz;
+                                    editor_name = (char*)allocator::alloc(strlen(name)+1);
+                                    strcpy(editor_name, name);
+                                    in_editor = true;
+                                    editor_cursor_x = 0; editor_cursor_y = 0;
 
-                if (win.dragging) {
-                    int nx = cursor_x - win.drag_offset_x;
-                    int ny = cursor_y - win.drag_offset_y;
-                    if (nx < 0) nx = 0; if (ny < 0) ny = 0;
-                    if (nx + win.w > (int)fb.Width) nx = fb.Width - win.w;
-                    if (ny + win.h > (int)fb.Height) ny = fb.Height - win.h;
-                    int oldx = win.x, oldy = win.y;
-                    win.x = nx; win.y = ny;
-
-                    // compute dirty rect covering old window and new window
-                    int dx1 = oldx < win.x ? oldx : win.x;
-                    int dy1 = oldy < win.y ? oldy : win.y;
-                    int dx2 = (oldx + win.w) > (win.x + win.w) ? (oldx + win.w) : (win.x + win.w);
-                    int dy2 = (oldy + win.h) > (win.y + win.h) ? (oldy + win.h) : (win.y + win.h);
-                    int dirty_w = dx2 - dx1;
-                    int dirty_h = dy2 - dy1;
-
-                    // redraw only dirty region into backbuffer
-                    // For simplicity, clear and redraw window area within dirty rect
-                    // First clear dirty region
-                    for (int yy = dy1; yy < dy1 + dirty_h; ++yy) {
-                        for (int xx = dx1; xx < dx1 + dirty_w; ++xx) {
-                            if (xx >= 0 && xx < (int)fb.Width && yy >= 0 && yy < (int)fb.Height) {
-                                uint32_t bg = 0x00303030;
-                                uint8_t *p = (uint8_t*)backbuf + ((yy * fb.Width + xx) * 4);
-                                memcpy(p, &bg, 4);
+                                    // draw editor UI into backbuffer
+                                    bb_draw_rect((uint8_t*)backbuf, fb.Width, win.x, win.y, win.w, win.h, 0x00E0E0E0);
+                                    bb_draw_rect((uint8_t*)backbuf, fb.Width, win.x, win.y, win.w, 24, 0x00006060);
+                                    // title
+                                    bb_draw_text((uint8_t*)backbuf, fb.Width, win.x+8, win.y+6, editor_name, 0x00FFFFFF);
+                                    // file content area
+                                    bb_draw_rect((uint8_t*)backbuf, fb.Width, win.x+4, win.y+28, win.w-8, win.h-36, 0x00FFFFFF);
+                                    // render content
+                                    int tx = win.x + 8; int ty = win.y + 32; int cols = (win.w-16)/8; int cx = 0;
+                                    for (size_t i=0;i<editor_len;++i) {
+                                        char c = editor_buf[i];
+                                        if (c == '\n' || cx >= cols) { cx = 0; ty += 10; if (c=='\n') continue; }
+                                        bb_draw_char((uint8_t*)backbuf, fb.Width, tx + cx*8, ty, c, 0x00000000);
+                                        ++cx;
+                                    }
+                                    bb_blit_region_to_fb(&fb, (const uint8_t*)backbuf, win.x, win.y, win.w, win.h);
+                                }
                             }
                         }
                     }
-                    // draw new window content inside dirty region
-                    bb_draw_rect((uint8_t*)backbuf, fb.Width, win.x, win.y, win.w, win.h, 0x00C0C0C0);
-                    bb_draw_rect((uint8_t*)backbuf, fb.Width, win.x, win.y, win.w, 24, 0x00008080);
-                    if (file_size>0) {
-                        const char *buf = (const char*)file_data;
-                        int text_x = win.x + 8;
-                        int text_y = win.y + 32;
-                        int cols = (win.w - 16) / 8;
-                        int cx = 0;
-                        for (size_t i = 0; i < (size_t)file_size; ++i) {
-                            char c = buf[i];
-                            if (c == '\n' || cx >= cols) { cx = 0; text_y += 10; if (c=='\n') continue; }
-                            bb_draw_char((uint8_t*)backbuf, fb.Width, text_x + cx*8, text_y, c, 0x00000000);
-                            ++cx;
-                        }
-                    }
-                    // blit only dirty region
-                    bb_blit_region_to_fb(&fb, (const uint8_t*)backbuf, dx1, dy1, dirty_w, dirty_h);
-                } else {
-                    // not dragging: only need to update cursor region and small areas
-                    // blit region around cursor: previous and current
-                    int cx1 = old_cursor_x - 2; int cy1 = old_cursor_y - 2;
-                    int cx2 = cursor_x - 2; int cy2 = cursor_y - 2;
-                    // blit area covering both
-                    int rx = cx1 < cx2 ? cx1 : cx2;
-                    int ry = cy1 < cy2 ? cy1 : cy2;
-                    int rw = ( (cx1+12) > (cx2+12) ) ? (cx1+12 - rx) : (cx2+12 - rx);
-                    int rh = ( (cy1+12) > (cy2+12) ) ? (cy1+12 - ry) : (cy2+12 - ry);
-                    if (rx < 0) rx = 0; if (ry < 0) ry = 0;
-                    if (rx + rw > (int)fb.Width) rw = fb.Width - rx;
-                    if (ry + rh > (int)fb.Height) rh = fb.Height - ry;
-                    bb_blit_region_to_fb(&fb, (const uint8_t*)backbuf, rx, ry, rw, rh);
-                    // draw cursor on top directly
-                    for (int yy=0; yy<8; ++yy) for (int xx=0; xx<8; ++xx) {
-                        uint32_t cx = (uint32_t)(cursor_x + xx);
-                        uint32_t cy = (uint32_t)(cursor_y + yy);
-                        if (cx < fb.Width && cy < fb.Height) {
-                            uint8_t *pixel = fb.Base + (cy * fb.PixelsPerScanLine + cx) * fb.PixelsPerPixel;
-                            uint32_t col = 0x00FFFFFF;
-                            memcpy(pixel, &col, 4);
-                        }
+                }
+                if (!new_left && left_pressed) {
+                    // release
+                    // nothing for now
+                }
+                left_pressed = new_left;
+
+                // redraw cursor region if not dragging etc.
+                bb_blit_region_to_fb(&fb, (const uint8_t*)backbuf, cursor_x-4<0?0:cursor_x-4, cursor_y-4<0?0:cursor_y-4, 12, 12);
+                for (int yy=0; yy<8; ++yy) for (int xx=0; xx<8; ++xx) {
+                    uint32_t cx = (uint32_t)(cursor_x + xx);
+                    uint32_t cy = (uint32_t)(cursor_y + yy);
+                    if (cx < fb.Width && cy < fb.Height) {
+                        uint8_t *pixel = fb.Base + (cy * fb.PixelsPerScanLine + cx) * fb.PixelsPerPixel;
+                        uint32_t col = 0x00FFFFFF;
+                        memcpy(pixel, &col, 4);
                     }
                 }
             }
         }
 
-        int8_t kb = keyboard.read_byte_nonblocking();
         if (kb != INT8_MIN) {
-            // map scancode to ascii
             char ch = PS2Keyboard::scancode_to_ascii((uint8_t)kb);
-            if (ch) {
-                // if 'l' or 'L' -> list files
-                if (ch == 'l' || ch == 'L') {
-                    // clear window content area in backbuffer
-                    bb_draw_rect((uint8_t*)backbuf, fb.Width, win.x+4, win.y+28, win.w-8, win.h-36, 0x00FFFFFF);
-                    int tx = win.x + 8; int ty = win.y + 32;
-                    size_t nf = vfs::count_files();
-                    for (size_t i=0;i<nf;++i) {
-                        const char* name = vfs::name_at(i);
-                        bb_draw_text((uint8_t*)backbuf, fb.Width, tx, ty + (int)i*10, name, 0x00000000);
+            if (in_editor) {
+                if (ch) {
+                    if (ch == '\n') {
+                        if (editor_len + 1 < editor_cap) { editor_buf[editor_len++] = '\n'; }
+                    } else {
+                        if (editor_len + 1 < editor_cap) { editor_buf[editor_len++] = ch; }
                     }
-                    // blit window region only
+                    // redraw editor content region (simple re-render)
+                    bb_draw_rect((uint8_t*)backbuf, fb.Width, win.x+4, win.y+28, win.w-8, win.h-36, 0x00FFFFFF);
+                    int tx = win.x + 8; int ty = win.y + 32; int cols = (win.w-16)/8; int cx = 0;
+                    for (size_t i=0;i<editor_len;++i) {
+                        char c = editor_buf[i];
+                        if (c == '\n' || cx >= cols) { cx = 0; ty += 10; if (c=='\n') continue; }
+                        bb_draw_char((uint8_t*)backbuf, fb.Width, tx + cx*8, ty, c, 0x00000000);
+                        ++cx;
+                    }
                     bb_blit_region_to_fb(&fb, (const uint8_t*)backbuf, win.x, win.y, win.w, win.h);
                 } else {
-                    // display typed char at top-right small box
-                    char buf[2] = { ch, 0 };
-                    bb_draw_rect((uint8_t*)backbuf, fb.Width, win.x + win.w - 48, win.y + 4, 40, 16, 0x00FFFFC0);
-                    bb_draw_text((uint8_t*)backbuf, fb.Width, win.x + win.w - 44, win.y + 6, buf, 0x00000000);
-                    bb_blit_region_to_fb(&fb, (const uint8_t*)backbuf, win.x + win.w - 48, win.y + 4, 40, 16);
+                    // handle special scancodes: Save on 's' or 'S'
+                    // map scancode to lowercase char if applicable
+                    char maybe = PS2Keyboard::scancode_to_ascii((uint8_t)kb);
+                    if (maybe == 's' || maybe == 'S') {
+                        // save
+                        vfs::write_file(editor_name, (const uint8_t*)editor_buf, (uint32_t)editor_len);
+                        // exit editor: redraw main window content from vfs
+                        in_editor = false;
+                        // redraw main window
+                        bb_draw_rect((uint8_t*)backbuf, fb.Width, win.x, win.y, win.w, win.h, 0x00C0C0C0);
+                        bb_draw_rect((uint8_t*)backbuf, fb.Width, win.x, win.y, win.w, 24, 0x00008080);
+                        uint32_t fsz=0; const uint8_t* fd = vfs::read_file("readme.txt", &fsz);
+                        if (fd) {
+                            int text_x = win.x + 8; int text_y = win.y + 32; int cols = (win.w-16)/8; int cx=0;
+                            for (size_t i=0;i<(size_t)fsz;++i) {
+                                char c = fd[i];
+                                if (c=='\n' || cx>=cols) { cx=0; text_y+=10; if (c=='\n') continue; }
+                                bb_draw_char((uint8_t*)backbuf, fb.Width, text_x + cx*8, text_y, c, 0x00000000);
+                                ++cx;
+                            }
+                        }
+                        bb_blit_region_to_fb(&fb, (const uint8_t*)backbuf, win.x, win.y, win.w, win.h);
+                    }
+                }
+            } else {
+                if (ch) {
+                    // if 'l' or 'L' -> list files
+                    if (ch == 'l' || ch == 'L') {
+                        // clear file list area
+                        bb_draw_rect((uint8_t*)backbuf, fb.Width, win.x+4, win.y+28, win.w-8, win.h-36, 0x00FFFFFF);
+                        int tx = win.x + 8; int ty = win.y + 32;
+                        size_t nf = vfs::count_files();
+                        for (size_t i=0;i<nf;++i) {
+                            const char* name = vfs::name_at(i);
+                            bb_draw_text((uint8_t*)backbuf, fb.Width, tx, ty + (int)i*10, name, 0x00000000);
+                        }
+                        bb_blit_region_to_fb(&fb, (const uint8_t*)backbuf, win.x, win.y, win.w, win.h);
+                    } else {
+                        // display typed char at top-right small box
+                        char buf[2] = { ch, 0 };
+                        bb_draw_rect((uint8_t*)backbuf, fb.Width, win.x + win.w - 48, win.y + 4, 40, 16, 0x00FFFFC0);
+                        bb_draw_text((uint8_t*)backbuf, fb.Width, win.x + win.w - 44, win.y + 6, buf, 0x00000000);
+                        bb_blit_region_to_fb(&fb, (const uint8_t*)backbuf, win.x + win.w - 48, win.y + 4, 40, 16);
+                    }
                 }
             }
         }
