@@ -1,6 +1,8 @@
+#include "backbuffer.h"
+#include "events.hpp"
 #include "ps2mouse.hpp"
-#include "fb.h"
-#include "ramfs.hpp"
+#include "ps2keyboard.hpp"
+#include "vfs.hpp"
 #include "font8x8.h"
 #include <efi.h>
 #include <efilib.h>
@@ -12,10 +14,6 @@ struct Window {
     bool dragging;
     int drag_offset_x, drag_offset_y;
 };
-
-// small buffer for saving cursor background (8x8x4)
-static uint8_t cursor_save[8*8*4];
-static int prev_cursor_x = -1, prev_cursor_y = -1;
 
 extern "C" EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
     InitializeLib(ImageHandle, SystemTable);
@@ -36,6 +34,9 @@ extern "C" EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *
     fb.PixelsPerScanLine = gop->Mode->Info->PixelsPerScanLine;
     fb.PixelsPerPixel = 4; // usually 32bpp
 
+    // Compute backbuffer size
+    UINTN bb_size = (UINTN)fb.Width * (UINTN)fb.Height * 4;
+
     // Get memory map size
     UINTN mapSize = 0;
     UINTN mapKey = 0;
@@ -48,12 +49,20 @@ extern "C" EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *
         return EFI_ABORTED;
     }
 
-    // Allocate pool for memory map
-    mapSize += descSize * 4;
+    // Allocate pool for memory map + backbuffer
+    mapSize += descSize * 8;
     void *memMap = NULL;
+    void *backbuf = NULL;
     status = uefi_call_wrapper(BS->AllocatePool, 3, EfiLoaderData, mapSize, &memMap);
     if (EFI_ERROR(status)) {
-        Print(L"AllocatePool failed: %r\n", status);
+        Print(L"AllocatePool failed for memMap: %r\n", status);
+        return EFI_ABORTED;
+    }
+
+    // Allocate backbuffer
+    status = uefi_call_wrapper(BS->AllocatePool, 3, EfiLoaderData, bb_size, &backbuf);
+    if (EFI_ERROR(status)) {
+        Print(L"AllocatePool failed for backbuffer: %r\n", status);
         return EFI_ABORTED;
     }
 
@@ -70,27 +79,27 @@ extern "C" EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *
         return EFI_ABORTED;
     }
 
-    // Initialize ramfs (C++ wrapper)
+    // Initialize VFS / ramfs
     uint32_t file_size = 0;
-    const uint8_t* file_data = ramfs::get("readme.txt", &file_size);
+    const uint8_t* file_data = vfs::read_file("readme.txt", &file_size);
 
-    // Initialize PS/2 mouse
+    // Initialize PS/2 mouse and keyboard
     PS2Mouse mouse;
+    PS2Keyboard keyboard;
     mouse.init();
+    keyboard.init();
 
-    // Initial GUI state
-    fb_draw_clear(&fb, 0x00303030);
-
+    // GUI state
     Window win{ (int)fb.Width/4, (int)fb.Height/4, (int)(fb.Width/2), (int)(fb.Height/2), false, 0, 0 };
 
-    // Draw window frame once
-    fb_draw_rect(&fb, win.x, win.y, win.w, win.h, 0x00C0C0C0); // window background
-    fb_draw_rect(&fb, win.x, win.y, win.w, 24, 0x00008080); // title bar
+    // Render initial scene to backbuffer
+    bb_clear((uint8_t*)backbuf, fb.Width, fb.Height, 0x00303030);
+    bb_draw_rect((uint8_t*)backbuf, fb.Width, win.x, win.y, win.w, win.h, 0x00C0C0C0);
+    bb_draw_rect((uint8_t*)backbuf, fb.Width, win.x, win.y, win.w, 24, 0x00008080);
 
-    // Display file content as text inside the window (simple wrapping)
     if (file_data) {
         size_t max_display = (size_t)file_size;
-        const char *buf = (const char*)file_data; // our ramfs stores ASCII
+        const char *buf = (const char*)file_data;
         int text_x = win.x + 8;
         int text_y = win.y + 32;
         int cols = (win.w - 16) / 8;
@@ -98,47 +107,52 @@ extern "C" EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *
         for (size_t i = 0; i < max_display; ++i) {
             char c = buf[i];
             if (c == '\n' || cx >= cols) { cx = 0; text_y += 10; if (c=='\n') continue; }
-            fb_draw_char(&fb, text_x + cx*8, text_y, c, 0x00000000);
+            bb_draw_char((uint8_t*)backbuf, fb.Width, text_x + cx*8, text_y, c, 0x00000000);
             ++cx;
         }
     }
 
-    // Cursor state
-    int cursor_x = fb.Width / 2;
-    int cursor_y = fb.Height / 2;
+    // Initial blit
+    bb_blit_to_fb(&fb, (const uint8_t*)backbuf);
 
-    // Main loop: poll mouse bytes and update cursor & window dragging
+    int cursor_x = fb.Width/2; int cursor_y = fb.Height/2;
+    int prev_cursor_x = -1, prev_cursor_y = -1;
+
+    // mouse packet assembly
     uint8_t packet[3]; int pk_idx = 0;
     bool left_pressed = false;
 
+    // Main loop: poll mouse and keyboard, push events to global queue, process them
     while (1) {
-        int8_t b = mouse.read_byte_nonblocking();
-        if (b != INT8_MIN) {
-            packet[pk_idx++] = (uint8_t)b;
+        int8_t mb = mouse.read_byte_nonblocking();
+        if (mb != INT8_MIN) {
+            packet[pk_idx++] = (uint8_t)mb;
             if (pk_idx == 3) {
                 pk_idx = 0;
                 uint8_t st = packet[0];
                 int8_t dx = (int8_t)packet[1];
                 int8_t dy = (int8_t)packet[2];
-                cursor_x += dx;
-                cursor_y -= dy;
+                cursor_x += dx; cursor_y -= dy;
                 if (cursor_x < 0) cursor_x = 0; if (cursor_x >= (int)fb.Width) cursor_x = fb.Width-1;
                 if (cursor_y < 0) cursor_y = 0; if (cursor_y >= (int)fb.Height) cursor_y = fb.Height-1;
-
                 bool new_left = (st & 0x1) != 0;
-                // Detect press start
+
+                Event ev{};
+                ev.type = EventType::MouseMove;
+                ev.data.mouse.x = cursor_x;
+                ev.data.mouse.y = cursor_y;
+                ev.data.mouse.buttons = (uint8_t)(st & 0x7);
+                g_event_queue.push(ev);
+
                 if (new_left && !left_pressed) {
-                    // If cursor is inside title bar, start dragging
+                    // press start
                     if (cursor_x >= win.x && cursor_x < win.x + win.w && cursor_y >= win.y && cursor_y < win.y + 24) {
                         win.dragging = true;
                         win.drag_offset_x = cursor_x - win.x;
                         win.drag_offset_y = cursor_y - win.y;
                     }
                 }
-                // Release
-                if (!new_left && left_pressed) {
-                    win.dragging = false;
-                }
+                if (!new_left && left_pressed) win.dragging = false;
                 left_pressed = new_left;
 
                 if (win.dragging) {
@@ -149,11 +163,10 @@ extern "C" EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *
                     if (ny + win.h > (int)fb.Height) ny = fb.Height - win.h;
                     win.x = nx; win.y = ny;
 
-                    // redraw whole screen for simplicity
-                    fb_draw_clear(&fb, 0x00303030);
-                    fb_draw_rect(&fb, win.x, win.y, win.w, win.h, 0x00C0C0C0);
-                    fb_draw_rect(&fb, win.x, win.y, win.w, 24, 0x00008080);
-                    // redraw file text inside
+                    // redraw entire backbuffer
+                    bb_clear((uint8_t*)backbuf, fb.Width, fb.Height, 0x00303030);
+                    bb_draw_rect((uint8_t*)backbuf, fb.Width, win.x, win.y, win.w, win.h, 0x00C0C0C0);
+                    bb_draw_rect((uint8_t*)backbuf, fb.Width, win.x, win.y, win.w, 24, 0x00008080);
                     if (file_data) {
                         size_t max_display = (size_t)file_size;
                         const char *buf = (const char*)file_data;
@@ -164,24 +177,58 @@ extern "C" EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *
                         for (size_t i = 0; i < max_display; ++i) {
                             char c = buf[i];
                             if (c == '\n' || cx >= cols) { cx = 0; text_y += 10; if (c=='\n') continue; }
-                            fb_draw_char(&fb, text_x + cx*8, text_y, c, 0x00000000);
+                            bb_draw_char((uint8_t*)backbuf, fb.Width, text_x + cx*8, text_y, c, 0x00000000);
                             ++cx;
                         }
                     }
+                    // blit after redraw
+                    bb_blit_to_fb(&fb, (const uint8_t*)backbuf);
                 }
-
-                // Draw cursor as an 8x8 white square using save/restore
-                // First restore previous cursor
-                if (prev_cursor_x >= 0 && prev_cursor_y >= 0) {
-                    fb_restore_area(&fb, prev_cursor_x, prev_cursor_y, 8, 8, cursor_save);
+                else {
+                    // Blit cursor move only: we redraw entire backbuffer with cursor then blit
+                    // For simplicity, blit full backbuffer and draw cursor in backbuffer
+                    // First restore previous cursor area by re-blitting backbuffer (we always use backbuffer so it's clean)
+                    // Draw cursor onto backbuffer copy
+                    // Refresh backbuffer rendering of window content (no change), then draw cursor and blit
+                    // Here we simply blit backbuffer and then draw cursor directly to framebuffer on top
+                    bb_blit_to_fb(&fb, (const uint8_t*)backbuf);
+                    // Draw cursor directly
+                    // save area not necessary because we blit full backbuffer each time
+                    for (int yy=0; yy<8; ++yy) for (int xx=0; xx<8; ++xx) {
+                        uint32_t cx = (uint32_t)(cursor_x + xx);
+                        uint32_t cy = (uint32_t)(cursor_y + yy);
+                        if (cx < fb.Width && cy < fb.Height) {
+                            uint8_t *pixel = fb.Base + (cy * fb.PixelsPerScanLine + cx) * fb.PixelsPerPixel;
+                            uint32_t col = 0x00FFFFFF;
+                            memcpy(pixel, &col, 4);
+                        }
+                    }
                 }
-                // Save new area
-                fb_save_area(&fb, cursor_x, cursor_y, 8, 8, cursor_save);
-                // Draw cursor
-                fb_draw_rect(&fb, cursor_x, cursor_y, 8, 8, 0x00FFFFFF);
-                prev_cursor_x = cursor_x; prev_cursor_y = cursor_y;
             }
         }
+
+        int8_t kb = keyboard.read_byte_nonblocking();
+        if (kb != INT8_MIN) {
+            Event ev{};
+            ev.type = EventType::KeyPress;
+            ev.data.key.scancode = (uint8_t)kb;
+            g_event_queue.push(ev);
+
+            // For demo: display scancode hex in top-right of window
+            char buf[16];
+            int n = 0;
+            const char* hex = "0123456789ABCDEF";
+            buf[n++] = hex[(ev.data.key.scancode >> 4) & 0xF];
+            buf[n++] = hex[ev.data.key.scancode & 0xF];
+            buf[n] = '\0';
+
+            // draw onto backbuffer and blit
+            // redraw window area to preserve content
+            bb_draw_rect((uint8_t*)backbuf, fb.Width, win.x + win.w - 48, win.y + 4, 40, 16, 0x00FFFFC0);
+            bb_draw_text((uint8_t*)backbuf, fb.Width, win.x + win.w - 44, win.y + 6, buf, 0x00000000);
+            bb_blit_to_fb(&fb, (const uint8_t*)backbuf);
+        }
+
         __asm__ volatile ("hlt");
     }
 
