@@ -12,3 +12,5 @@ typedef struct Framebuffer {
 void fb_put_pixel(Framebuffer* fb, uint32_t x, uint32_t y, uint32_t color);
 void fb_draw_rect(Framebuffer* fb, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t color);
 void fb_draw_clear(Framebuffer* fb, uint32_t color);
+void fb_draw_char(Framebuffer* fb, uint32_t x, uint32_t y, char c, uint32_t color);
+void fb_draw_text(Framebuffer* fb, uint32_t x, uint32_t y, const char* text, uint32_t color);

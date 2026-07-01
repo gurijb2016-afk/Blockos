@@ -13,8 +13,9 @@ OBJCOPY = objcopy
 CXXFLAGS = -fno-exceptions -fno-rtti -fshort-wchar -DEFI_FUNCTION_WRAPPER -I$(EFI_INCL) -I$(EFI_INCL_X86) -ffreestanding -O2 -Wall -Wextra
 LDFLAGS = -nostdlib -znocombreloc -T $(GNU_EFI_LDS)
 
-SRC = src/kernel.cpp src/fb.cpp
+SRC = src/kernel.cpp src/fb.cpp src/ps2mouse.cpp src/ramfs.cpp src/files.c
 OBJ = $(SRC:.cpp=.o)
+OBJ := $(filter-out %.c.o,$(OBJ))
 
 BUILD_DIR = build
 EFI_OUT = $(BUILD_DIR)/BOOTX64.EFI
@@ -24,6 +25,10 @@ all: $(EFI_OUT)
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# C source
+%.c.o: %.c
+	gcc -c -ffreestanding -O2 -Wall -I/usr/include/efi -I/usr/include/efi/x86_64 $< -o $@
 
 $(SO_OUT): $(OBJ)
 	$(LD) $(LDFLAGS) -shared -Bsymbolic -L$(GNU_EFI_LIBDIR) $(OBJ) -o $(SO_OUT)

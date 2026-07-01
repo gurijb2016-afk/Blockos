@@ -1,5 +1,4 @@
-// Minimal UEFI kernel that locates GOP, fetches the memory map, calls ExitBootServices,
-// then draws directly to the framebuffer. Freestanding C++ code using GNU-EFI headers.
+// src/kernel.cpp - updated to initialize PS/2 mouse and a movable window + ramfs usage
 
 extern "C" {
     #include <efi.h>
@@ -7,7 +6,16 @@ extern "C" {
 }
 
 #include "fb.h"
+#include "ps2mouse.h"
+#include "ramfs.h"
 #include <stdint.h>
+#include <string.h>
+
+struct Window {
+    int x, y, w, h;
+    bool dragging;
+    int drag_offset_x, drag_offset_y;
+};
 
 extern "C" EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
     InitializeLib(ImageHandle, SystemTable);
@@ -62,28 +70,114 @@ extern "C" EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *
         return EFI_ABORTED;
     }
 
-    // Now draw directly to the framebuffer
-    fb_draw_clear(&fb, 0x00102030); // dark bluish background
+    // Initialize our simple ramfs (files are embedded)
+    // Example: read a text file and we'll display its content in the window
+    uint32_t file_size = 0;
+    const uint8_t* file_data = ramfs_get("readme.txt", &file_size);
 
-    // Draw a centered rectangle as a simple GUI element
-    uint32_t rw = fb.Width / 2;
-    uint32_t rh = fb.Height / 6;
-    uint32_t rx = (fb.Width - rw) / 2;
-    uint32_t ry = (fb.Height - rh) / 2;
-    fb_draw_rect(&fb, rx, ry, rw, rh, 0x00FFD700); // gold-ish bar
+    // Initialize PS/2 mouse (uses port I/O; QEMU provides PS/2 emulation)
+    ps2_init();
 
-    // Draw a smaller inner rect
-    fb_draw_rect(&fb, rx + 10, ry + 10, rw - 20, rh - 20, 0x00008000); // dark green
+    // Initial GUI state
+    fb_draw_clear(&fb, 0x00303030);
 
-    // Simple pattern in top-left
-    for (uint32_t y = 0; y < 50; ++y) {
-        for (uint32_t x = 0; x < 50; ++x) {
-            if ((x + y) % 2 == 0) fb_put_pixel(&fb, x, y, 0x00FF0000);
+    Window win{ (int)fb.Width/4, (int)fb.Height/4, (int)(fb.Width/2), (int)(fb.Height/2), false, 0, 0 };
+
+    // Draw window frame once
+    fb_draw_rect(&fb, win.x, win.y, win.w, win.h, 0x00C0C0C0); // window background
+    fb_draw_rect(&fb, win.x, win.y, win.w, 24, 0x00008080); // title bar
+
+    // Display file content as text inside the window (simple wrapping)
+    if (file_data) {
+        // Convert to null-terminated string safely
+        size_t max_display = (size_t)file_size;
+        char *buf = (char*)file_data; // our ramfs stores ASCII
+        int text_x = win.x + 8;
+        int text_y = win.y + 32;
+        int cols = (win.w - 16) / 8;
+        int cx = 0;
+        for (size_t i = 0; i < max_display; ++i) {
+            char c = buf[i];
+            if (c == '\n' || cx >= cols) { cx = 0; text_y += 10; if (c=='\n') continue; }
+            fb_draw_char(&fb, text_x + cx*8, text_y, c, 0x00000000);
+            ++cx;
         }
     }
 
-    // Halt forever
+    // Cursor state
+    int cursor_x = fb.Width / 2;
+    int cursor_y = fb.Height / 2;
+
+    // Main loop: poll mouse bytes and update cursor & window dragging
+    uint8_t packet[3]; int pk_idx = 0;
+    bool left_pressed = false;
+
     while (1) {
+        int8_t b = ps2_read_byte_nonblocking();
+        if (b != INT8_MIN) {
+            packet[pk_idx++] = (uint8_t)b;
+            if (pk_idx == 3) {
+                pk_idx = 0;
+                uint8_t st = packet[0];
+                int8_t dx = (int8_t)packet[1];
+                int8_t dy = (int8_t)packet[2];
+                // PS/2: Y is negative when moving up; invert for screen coords
+                cursor_x += dx;
+                cursor_y -= dy;
+                if (cursor_x < 0) cursor_x = 0; if (cursor_x >= (int)fb.Width) cursor_x = fb.Width-1;
+                if (cursor_y < 0) cursor_y = 0; if (cursor_y >= (int)fb.Height) cursor_y = fb.Height-1;
+
+                bool new_left = (st & 0x1) != 0;
+                // Detect press start
+                if (new_left && !left_pressed) {
+                    // If cursor is inside title bar, start dragging
+                    if (cursor_x >= win.x && cursor_x < win.x + win.w && cursor_y >= win.y && cursor_y < win.y + 24) {
+                        win.dragging = true;
+                        win.drag_offset_x = cursor_x - win.x;
+                        win.drag_offset_y = cursor_y - win.y;
+                    }
+                }
+                // Release
+                if (!new_left && left_pressed) {
+                    win.dragging = false;
+                }
+                left_pressed = new_left;
+
+                if (win.dragging) {
+                    int nx = cursor_x - win.drag_offset_x;
+                    int ny = cursor_y - win.drag_offset_y;
+                    if (nx < 0) nx = 0; if (ny < 0) ny = 0;
+                    if (nx + win.w > (int)fb.Width) nx = fb.Width - win.w;
+                    if (ny + win.h > (int)fb.Height) ny = fb.Height - win.h;
+                    win.x = nx; win.y = ny;
+
+                    // redraw whole screen for simplicity
+                    fb_draw_clear(&fb, 0x00303030);
+                    fb_draw_rect(&fb, win.x, win.y, win.w, win.h, 0x00C0C0C0);
+                    fb_draw_rect(&fb, win.x, win.y, win.w, 24, 0x00008080);
+                    // redraw file text inside
+                    if (file_data) {
+                        size_t max_display = (size_t)file_size;
+                        char *buf = (char*)file_data;
+                        int text_x = win.x + 8;
+                        int text_y = win.y + 32;
+                        int cols = (win.w - 16) / 8;
+                        int cx = 0;
+                        for (size_t i = 0; i < max_display; ++i) {
+                            char c = buf[i];
+                            if (c == '\n' || cx >= cols) { cx = 0; text_y += 10; if (c=='\n') continue; }
+                            fb_draw_char(&fb, text_x + cx*8, text_y, c, 0x00000000);
+                            ++cx;
+                        }
+                    }
+                }
+
+                // Draw cursor as a small 8x8 white square (we redraw only cursor area for simplicity)
+                // For a real compositor you'd maintain backbuffer; here we simply draw it on top
+                fb_draw_rect(&fb, cursor_x, cursor_y, 8, 8, 0x00FFFFFF);
+            }
+        }
+        // halt to reduce CPU usage
         __asm__ volatile ("hlt");
     }
 
