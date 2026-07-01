@@ -1,9 +1,8 @@
 #include "virtio_input.hpp"
 #include "virtio_common.hpp"
 #include "virtqueue.hpp"
+#include "virtqueue_ops.hpp"
 #include "dma.hpp"
-#include "events.hpp"
-#include "pci.hpp"
 #include <efi.h>
 #include <efilib.h>
 #include <string.h>
@@ -12,42 +11,40 @@ static bool inited = false;
 static VirtqDesc* g_input_desc = nullptr;
 static void* g_input_mem = nullptr;
 static uint32_t g_input_qsize = 8;
+static VirtQueueView g_input_vq;
 
-// helper to program legacy virtio queue PFN
-static bool program_queue_pfn(const virtio_common::DeviceHandle* h, uint16_t queue_sel, void* pfn_mem) {
-    const uint32_t QUEUE_SELECT = 0x0C; // 16-bit
-    const uint32_t QUEUE_NUM = 0x0E; // 16-bit
-    const uint32_t QUEUE_PFN = 0x10; // 32-bit
-    uint16_t qsel = (uint16_t)queue_sel;
-    // select queue
-    // write 16-bit
-    if (h->mmio) {
-        volatile uint16_t* sel = (volatile uint16_t*)(UINTN)(h->bar0 + QUEUE_SELECT);
-        *sel = qsel;
-    } else {
-        // IO port access
-        uint16_t port = (uint16_t)(h->bar0 + QUEUE_SELECT);
-        __asm__ volatile ("outw %0, %1" : : "a" (qsel), "dN" (port));
-    }
-    uint16_t qnum;
-    if (h->mmio) qnum = *(volatile uint16_t*)(UINTN)(h->bar0 + QUEUE_NUM);
-    else { uint16_t port = (uint16_t)(h->bar0 + QUEUE_NUM); __asm__ volatile ("inw %1, %0" : "=a" (qnum) : "dN" (port)); }
+// small FIFO for bytes extracted from input buffers
+static uint8_t g_fifo[1024];
+static unsigned g_fifo_head = 0;
+static unsigned g_fifo_tail = 0;
 
-    if (qnum == 0) return false;
-
-    // Calculate PFN (page frame number) for the buffer — assume 4K pages
-    uint64_t addr = (uint64_t)(UINTN)pfn_mem;
-    uint32_t pfn = (uint32_t)(addr / 4096ULL);
-
-    if (h->mmio) {
-        volatile uint32_t* pfn_reg = (volatile uint32_t*)(UINTN)(h->bar0 + QUEUE_PFN);
-        *pfn_reg = pfn;
-    } else {
-        uint16_t port = (uint16_t)(h->bar0 + QUEUE_PFN);
-        uint32_t v = pfn;
-        __asm__ volatile ("outl %0, %1" : : "a" (v), "dN" (port));
-    }
+static inline bool fifo_push(uint8_t b) {
+    unsigned next = (g_fifo_tail + 1) % sizeof(g_fifo);
+    if (next == g_fifo_head) return false; // full
+    g_fifo[g_fifo_tail] = b;
+    g_fifo_tail = next;
     return true;
+}
+static inline int fifo_pop() {
+    if (g_fifo_head == g_fifo_tail) return -1;
+    int v = g_fifo[g_fifo_head];
+    g_fifo_head = (g_fifo_head + 1) % sizeof(g_fifo);
+    return v;
+}
+
+// Helper to submit receive buffers to the virtqueue (legacy layout assumed)
+static void populate_receive_buffers() {
+    // For each descriptor index, allocate a small DMA buffer and submit it as write-only (device -> driver)
+    for (uint32_t i = 0; i < g_input_vq.size; ++i) {
+        // allocate 64 bytes per buffer
+        void* buf = dma::alloc(64, 64);
+        if (!buf) break;
+        uint64_t addr = (uint64_t)(UINTN)buf;
+        // flags: write-only (device writes into buffer). In legacy virtio, write flag is 2.
+        const uint16_t VIRTQ_DESC_F_WRITE = 2;
+        virtqueue_ops::set_descriptor(&g_input_vq, i, addr, 64, VIRTQ_DESC_F_WRITE, 0);
+        virtqueue_ops::submit_descriptor(&g_input_vq, i);
+    }
 }
 
 void virtio_input::init() {
@@ -80,32 +77,40 @@ void virtio_input::init() {
         return;
     }
 
-    // Program queue PFN for queue 0
-    if (!program_queue_pfn(&h, 0, g_input_mem)) {
-        Print(L"virtio_input: program_queue_pfn failed (device may not accept legacy queue programming)\n");
-        // continue anyway; some devices may require different method (modern virtio)
-    } else {
-        Print(L"virtio_input: programmed queue PFN for queue 0\n");
-    }
+    g_input_vq = virtqueue_ops::view_from_mem(g_input_mem, g_input_qsize);
+    virtqueue_ops::init_rings(&g_input_vq);
 
-    // Try to set DRIVER_OK status bit
-    const uint32_t STATUS = 0x12;
-    uint8_t status = 0;
-    if (h.mmio) status = *(volatile uint8_t*)(UINTN)(h.bar0 + STATUS);
-    else { uint16_t port = (uint16_t)(h.bar0 + STATUS); __asm__ volatile ("inb %1, %0" : "=a" (status) : "dN" (port)); }
-    status |= 4; // DRIVER_OK
-    if (h.mmio) *(volatile uint8_t*)(UINTN)(h.bar0 + STATUS) = status;
-    else { uint16_t port = (uint16_t)(h.bar0 + STATUS); __asm__ volatile ("outb %0, %1" : : "a" (status), "dN" (port)); }
-    Print(L"virtio_input: set DRIVER_OK status bit\n");
+    // Try programming queue pfn (legacy) — best effort
+    // Use existing helper; ignore return
+    extern bool program_queue_pfn(const virtio_common::DeviceHandle* h, uint16_t queue_sel, void* pfn_mem);
+    program_queue_pfn(&h, 0, g_input_mem);
 
-    // Note: we still need to populate descriptors with buffers for receive and notify the device.
-    // That will be implemented when integrating full virtqueue operations.
+    // populate receive buffers so device can write events
+    populate_receive_buffers();
 
-    Print(L"virtio_input: initialized (basic legacy queue programming attempted)\n");
     inited = true;
+    Print(L"virtio_input: initialized and receive buffers submitted (legacy best-effort)\n");
 }
 
 int8_t virtio_input::read_byte_nonblocking() {
-    // TODO: poll virtqueue used ring for completed buffers and parse events.
-    return INT8_MIN;
+    if (!inited) return INT8_MIN;
+    // Poll used ring for completed buffers and push their contents into FIFO
+    uint32_t id; uint32_t len;
+    while (virtqueue_ops::try_dequeue_used(&g_input_vq, &id, &len)) {
+        // id is descriptor index; retrieve buffer addr from desc
+        uint64_t addr = g_input_vq.desc[id].addr;
+        uint8_t* buf = (uint8_t*)(UINTN)addr;
+        // push bytes into FIFO
+        for (uint32_t i = 0; i < len; ++i) {
+            if (!fifo_push(buf[i])) break;
+        }
+        // Re-submit buffer for future use
+        const uint16_t VIRTQ_DESC_F_WRITE = 2;
+        virtqueue_ops::set_descriptor(&g_input_vq, id, addr, 64, VIRTQ_DESC_F_WRITE, 0);
+        virtqueue_ops::submit_descriptor(&g_input_vq, id);
+    }
+
+    int v = fifo_pop();
+    if (v < 0) return INT8_MIN;
+    return (int8_t)v;
 }

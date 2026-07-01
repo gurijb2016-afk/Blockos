@@ -35,21 +35,21 @@ bool virtio_blk::init() {
         return false;
     }
 
-    // TODO: set up driver features, queue addresses, and start accepting requests. For now
-    // we return success to indicate the device was found and resources allocated.
+    // For now, we implement no-op read/write; full request building requires request header
+    // and proper queue/notify flow which will be added in subsequent commits.
     blk_ready = true;
-    Print(L"virtio-blk: initialized (virtqueue allocated)\n");
+    Print(L"virtio-blk: initialized (virtqueue allocated) - read/write not yet implemented\n");
     return true;
 }
 
 bool virtio_blk::read_sector(uint64_t sector, uint8_t* out_buf) {
     (void)sector; (void)out_buf;
-    // TODO: construct request, place buffers in descriptor table, notify device, wait for completion.
+    // TODO: implement virtio-blk request building and completion wait
     return false;
 }
 
 bool virtio_blk::write_sector(uint64_t sector, const uint8_t* in_buf) {
     (void)sector; (void)in_buf;
-    // TODO: implement block write via virtqueue.
+    // TODO: implement virtio-blk write
     return false;
 }
