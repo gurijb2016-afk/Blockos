@@ -1,1 +1,1 @@
-Persistent file for Blockos demo
+Persistent file for Blockos microkernel
