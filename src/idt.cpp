@@ -1,6 +1,7 @@
 #include "idt.hpp"
 #include <efi.h>
 #include <efilib.h>
+#include <cstring>
 
 struct IDTEntry {
     uint16_t offset_low;
