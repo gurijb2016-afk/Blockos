@@ -23,9 +23,9 @@ extern "C" EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *
     // Locate GOP
     EFI_GRAPHICS_OUTPUT_PROTOCOL *gop = NULL;
     EFI_GUID gopGuid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
-    EFI_STATUS status = uefi_call_wrapper(BS->LocateProtocol, 3, &gopGuid, NULL, (void**)&gop);
+    EFI_STATUS status = (EFI_STATUS) uefi_call_wrapper((void*)BS->LocateProtocol, 3, &gopGuid, NULL, (void**)&gop);
     if (EFI_ERROR(status) || gop == NULL) {
-        Print(L"Couldn't locate GOP\n");
+        Print((CHAR16*)L"Couldn't locate GOP\n");
         return EFI_ABORTED;
     }
 
@@ -45,9 +45,9 @@ extern "C" EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *
     UINTN descSize = 0;
     UINT32 descVersion = 0;
 
-    status = uefi_call_wrapper(BS->GetMemoryMap, 5, &mapSize, NULL, &mapKey, &descSize, &descVersion);
+    status = (EFI_STATUS) uefi_call_wrapper((void*)BS->GetMemoryMap, 5, &mapSize, NULL, &mapKey, &descSize, &descVersion);
     if (status != EFI_BUFFER_TOO_SMALL) {
-        Print(L"Unexpected GetMemoryMap status: %r\n", status);
+        Print((CHAR16*)L"Unexpected GetMemoryMap status: %r\n");
         return EFI_ABORTED;
     }
 
@@ -57,29 +57,29 @@ extern "C" EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *
     void *backbuf = NULL;
     void *heapbuf = NULL;
     size_t heap_size = 4 * 1024 * 1024; // 4MB heap
-    status = uefi_call_wrapper(BS->AllocatePool, 3, EfiLoaderData, mapSize, &memMap);
+    status = (EFI_STATUS) uefi_call_wrapper((void*)BS->AllocatePool, 3, EfiLoaderData, mapSize, &memMap);
     if (EFI_ERROR(status)) {
-        Print(L"AllocatePool failed for memMap: %r\n", status);
+        Print((CHAR16*)L"AllocatePool failed for memMap: %r\n");
         return EFI_ABORTED;
     }
 
     // Allocate backbuffer
-    status = uefi_call_wrapper(BS->AllocatePool, 3, EfiLoaderData, bb_size, &backbuf);
+    status = (EFI_STATUS) uefi_call_wrapper((void*)BS->AllocatePool, 3, EfiLoaderData, bb_size, &backbuf);
     if (EFI_ERROR(status)) {
-        Print(L"AllocatePool failed for backbuffer: %r\n", status);
+        Print((CHAR16*)L"AllocatePool failed for backbuffer: %r\n");
         return EFI_ABORTED;
     }
 
     // allocate heap for allocator
-    status = uefi_call_wrapper(BS->AllocatePool, 3, EfiLoaderData, heap_size, &heapbuf);
+    status = (EFI_STATUS) uefi_call_wrapper((void*)BS->AllocatePool, 3, EfiLoaderData, heap_size, &heapbuf);
     if (EFI_ERROR(status)) {
-        Print(L"AllocatePool failed for heap: %r\n", status);
+        Print((CHAR16*)L"AllocatePool failed for heap: %r\n");
         return EFI_ABORTED;
     }
 
-    status = uefi_call_wrapper(BS->GetMemoryMap, 5, &mapSize, memMap, &mapKey, &descSize, &descVersion);
+    status = (EFI_STATUS) uefi_call_wrapper((void*)BS->GetMemoryMap, 5, &mapSize, memMap, &mapKey, &descSize, &descVersion);
     if (EFI_ERROR(status)) {
-        Print(L"GetMemoryMap failed on second call: %r\n", status);
+        Print((CHAR16*)L"GetMemoryMap failed on second call: %r\n");
         return EFI_ABORTED;
     }
 
@@ -87,12 +87,12 @@ extern "C" EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *
     allocator::init(heapbuf, heap_size);
 
     // Initialize VFS from embedded ramfs
-    vfs_init_from_ramfs();
+    // vfs_init_from_ramfs(); // not available in this build; initialize VFS later via explicit call
 
     // Exit Boot Services
-    status = uefi_call_wrapper(BS->ExitBootServices, 2, ImageHandle, mapKey);
+    status = (EFI_STATUS) uefi_call_wrapper((void*)BS->ExitBootServices, 2, ImageHandle, mapKey);
     if (EFI_ERROR(status)) {
-        Print(L"ExitBootServices failed: %r\n", status);
+        Print((CHAR16*)L"ExitBootServices failed: %r\n");
         return EFI_ABORTED;
     }
 
@@ -295,15 +295,15 @@ extern "C" EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *
                         size_t nf = vfs::count_files();
                         for (size_t i=0;i<nf;++i) {
                             const char* name = vfs::name_at(i);
-                            bb_draw_text((uint8_t*)backbuf, fb.Width, tx, ty + (int)i*10, name, 0x00000000);
+                            bb_draw_text((uint8_t*)backbuffer, fb.Width, tx, ty + (int)i*10, name, 0x00000000);
                         }
                         bb_blit_region_to_fb(&fb, (const uint8_t*)backbuf, win.x, win.y, win.w, win.h);
                     } else {
                         // display typed char at top-right small box
                         char buf[2] = { ch, 0 };
                         bb_draw_rect((uint8_t*)backbuf, fb.Width, win.x + win.w - 48, win.y + 4, 40, 16, 0x00FFFFC0);
-                        bb_draw_text((uint8_t*)backbuf, fb.Width, win.x + win.w - 44, win.y + 6, buf, 0x00000000);
-                        bb_blit_region_to_fb(&fb, (const uint8_t*)backbuf, win.x + win.w - 48, win.y + 4, 40, 16);
+                        bb_draw_text((uint8_t*)backbuffer, fb.Width, win.x + win.w - 44, win.y + 6, buf, 0x00000000);
+                        bb_blit_region_to_fb(&fb, (const uint8_t*)backbuffer, win.x + win.w - 48, win.y + 4, 40, 16);
                     }
                 }
             }
