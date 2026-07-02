@@ -15,7 +15,7 @@ static inline uint8_t inb(uint16_t port) {
 #define PIC1_CMD 0x20
 #define PIC1_DATA 0x21
 #define PIC2_CMD 0xA0
-define PIC2_DATA 0xA1
+#define PIC2_DATA 0xA1
 
 // Remap PIC to avoid conflicts with CPU exceptions
 void pic_remap() {
