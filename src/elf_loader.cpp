@@ -45,11 +45,11 @@ bool elf_loader::load_elf64_from_mem(const void* elf_buf, size_t elf_size, uint6
     if (!elf_buf || elf_size < sizeof(Elf64_Ehdr)) return false;
     const Elf64_Ehdr* eh = (const Elf64_Ehdr*)elf_buf;
     if (eh->e_ident[0] != 0x7f || eh->e_ident[1] != 'E' || eh->e_ident[2] != 'L' || eh->e_ident[3] != 'F') {
-        Print(L"elf_loader: invalid ELF magic\n");
+        Print((CHAR16*)L"elf_loader: invalid ELF magic\n");
         return false;
     }
     if (eh->e_ident[4] != 2) { // ELFCLASS64
-        Print(L"elf_loader: not ELF64\n");
+        Print((CHAR16*)L"elf_loader: not ELF64\n");
         return false;
     }
 
@@ -84,7 +84,7 @@ bool elf_loader::load_elf64_from_mem(const void* elf_buf, size_t elf_size, uint6
     if (entry_out) *entry_out = eh->e_entry;
     if (pml4_out) *pml4_out = pml4;
     CHAR16 buf[128];
-    UnicodeSPrint(buf, sizeof(buf), L"elf_loader: loaded ELF entry=0x%016lx pml4=0x%016lx\n", eh->e_entry, pml4);
+    UnicodeSPrint(buf, sizeof(buf), (CHAR16*)L"elf_loader: loaded ELF entry=0x%016lx pml4=0x%016lx\n", eh->e_entry, pml4);
     Print(buf);
     return true;
 }
