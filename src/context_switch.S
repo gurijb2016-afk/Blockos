@@ -1,8 +1,9 @@
     .text
     .global context_switch
-// context_switch(old_sp_ptr, new_sp)
+// context_switch(old_sp_ptr, new_sp, new_cr3)
 // old_sp_ptr: pointer to uint64_t where current rsp will be stored
 // new_sp: value of rsp to load
+// new_cr3: new CR3 value to load before switching stacks
 context_switch:
     // Save callee-saved registers onto stack
     push %rbp
@@ -14,6 +15,9 @@ context_switch:
 
     // Store current rsp into *old_sp_ptr (first arg in rdi)
     mov %rsp, (%rdi)
+
+    // Load new CR3 from rdx
+    mov %rdx, %cr3
 
     // Load new stack pointer from rsi
     mov %rsi, %rsp

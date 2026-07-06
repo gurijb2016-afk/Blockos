@@ -3,8 +3,9 @@
 #include <efilib.h>
 #include <string.h>
 #include "irq.hpp"
+#include "elf_loader.hpp"
 
-extern void context_switch(uint64_t* old_sp_ptr, uint64_t new_sp);
+extern void context_switch(uint64_t* old_sp_ptr, uint64_t new_sp, uint64_t new_cr3);
 extern void task_start_trampoline();
 
 struct Task {
@@ -16,6 +17,7 @@ struct Task {
     Task* next;
     void (*entry)(void*);
     void* arg;
+    uint64_t pml4; // CR3 value for this task's address space
 };
 
 static Task* runqueue_head = nullptr;
@@ -23,6 +25,12 @@ static Task* current = nullptr;
 static int next_task_id = 1;
 static volatile uint64_t ticks = 0;
 static const size_t TASK_STACK_SIZE = 16 * 1024;
+
+static uint64_t read_cr3() {
+    uint64_t cr3;
+    __asm__ volatile ("mov %%cr3, %0" : "=r" (cr3));
+    return cr3;
+}
 
 int preempt_create_task(void (*entry)(void*), void* arg) {
     Task* t = (Task*)AllocatePool(sizeof(Task));
@@ -43,7 +51,6 @@ int preempt_create_task(void (*entry)(void*), void* arg) {
     // Stack grows down. We'll place the callee-saved slots, then the return address (trampoline), then entry and arg.
     // Order of pushes (low addr -> high addr): rbp, rbx, r12, r13, r14, r15, return_addr, entry_addr, arg
 
-    // We'll write them in memory from high to low
     uint64_t* p = (uint64_t*)sp;
     // push arg
     *(--p) = (uint64_t)arg;
@@ -64,12 +71,61 @@ int preempt_create_task(void (*entry)(void*), void* arg) {
     if (!t->sp_ptr) return -1;
     *(t->sp_ptr) = t->sp;
 
+    // default to current CR3 (kernel address space)
+    t->pml4 = read_cr3();
+
     // push to runqueue
     if (!runqueue_head) { runqueue_head = t; t->next = t; }
     else { t->next = runqueue_head->next; runqueue_head->next = t; }
 
     CHAR16 buf[128];
-    UnicodeSPrint(buf, sizeof(buf), L"preempt: created task %d sp=0x%016lx\n", t->id, t->sp);
+    UnicodeSPrint(buf, sizeof(buf), (CHAR16*)L"preempt: created task %d sp=0x%016lx\n", t->id, t->sp);
+    Print(buf);
+    return t->id;
+}
+
+int preempt_create_process_from_elf(const void* elf_buf, size_t elf_size) {
+    uint64_t entry = 0, pml4 = 0;
+    if (!elf_loader::load_elf64_from_mem(elf_buf, elf_size, &entry, &pml4)) {
+        Print((CHAR16*)L"preempt: elf_loader failed to create process\n");
+        return -1;
+    }
+
+    Task* t = (Task*)AllocatePool(sizeof(Task));
+    if (!t) return -1;
+    memset(t, 0, sizeof(Task));
+    t->id = next_task_id++;
+    t->state = 0;
+    // allocate stack
+    void* stack = AllocatePool(TASK_STACK_SIZE);
+    if (!stack) return -1;
+    memset(stack, 0, TASK_STACK_SIZE);
+    t->stack_mem = stack;
+    uint8_t* sp = (uint8_t*)stack + TASK_STACK_SIZE;
+
+    uint64_t* p = (uint64_t*)sp;
+    // push arg (NULL)
+    *(--p) = (uint64_t)0;
+    // push entry (virtual address in new pml4)
+    *(--p) = (uint64_t)entry;
+    // push return address = trampoline
+    *(--p) = (uint64_t)task_start_trampoline;
+    // push callee-saved
+    *(--p) = 0; *(--p) = 0; *(--p) = 0; *(--p) = 0; *(--p) = 0; *(--p) = 0;
+
+    t->sp = (uint64_t)(UINTN)p;
+    t->sp_ptr = (uint64_t*)AllocatePool(sizeof(uint64_t));
+    if (!t->sp_ptr) return -1;
+    *(t->sp_ptr) = t->sp;
+
+    t->pml4 = pml4;
+
+    // push to runqueue
+    if (!runqueue_head) { runqueue_head = t; t->next = t; }
+    else { t->next = runqueue_head->next; runqueue_head->next = t; }
+
+    CHAR16 buf[128];
+    UnicodeSPrint(buf, sizeof(buf), (CHAR16*)L"preempt: created process %d entry=0x%016lx pml4=0x%016lx\n", t->id, entry, pml4);
     Print(buf);
     return t->id;
 }
@@ -89,21 +145,18 @@ void schedule_next() {
     if (!current || current->state != 0) return; // nothing to run
 
     CHAR16 buf[128];
-    UnicodeSPrint(buf, sizeof(buf), L"preempt: switching to task %d\n", current->id);
+    UnicodeSPrint(buf, sizeof(buf), (CHAR16*)L"preempt: switching to task %d\n", current->id);
     Print(buf);
 
     // perform context switch
     if (prev) {
-        // save prev sp into prev->sp_ptr is done by context_switch
-        uint64_t old_sp_loc = (prev->sp_ptr != nullptr) ? *(prev->sp_ptr) : 0;
-        // call context_switch(&prev->sp, current->sp)
-        context_switch(prev->sp_ptr, current->sp);
+        context_switch(prev->sp_ptr, current->sp, current->pml4);
         // when we return here, we've been switched back
         return;
     } else {
         // no previous (initial), just set up current and jump via fake switch
         uint64_t dummy_old_sp = 0;
-        context_switch(&dummy_old_sp, current->sp);
+        context_switch(&dummy_old_sp, current->sp, current->pml4);
     }
 }
 
@@ -123,7 +176,7 @@ void task_exit() {
     // mark current finished and remove from runqueue
     if (!current) return;
     CHAR16 buf[128];
-    UnicodeSPrint(buf, sizeof(buf), L"preempt: task %d exiting\n", current->id);
+    UnicodeSPrint(buf, sizeof(buf), (CHAR16*)L"preempt: task %d exiting\n", current->id);
     Print(buf);
     current->state = 2;
     // remove from runqueue (simple removal)
@@ -157,6 +210,6 @@ void preempt_init(uint32_t timer_hz) {
     irq_register_timer_handler(timer_irq_cb);
     enable_interrupts();
     CHAR16 buf[128];
-    UnicodeSPrint(buf, sizeof(buf), L"preempt: initialized timer %u Hz\n", timer_hz);
+    UnicodeSPrint(buf, sizeof(buf), (CHAR16*)L"preempt: initialized timer %u Hz\n", timer_hz);
     Print(buf);
 }
