@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<BlockOS>
+
+<SecurityManager version="3.0">
+
+    <!-- Kernel Protection -->
+    <KernelSecurity>
+
+        <Mode>protected</Mode>
+
+        <KernelIsolation>true</KernelIsolation>
+        <UserKernelSeparation>true</UserKernelSeparation>
+
+        <MemoryProtection>
+            <NXBit>true</NXBit>
+            <StackGuard>true</StackGuard>
+            <HeapValidation>true</HeapValidation>
+            <PagePermission>true</PagePermission>
+        </MemoryProtection>
+
+        <Integrity>
+            <KernelCheck>true</KernelCheck>
+            <ModuleVerification>true</ModuleVerification>
+            <Checksum>true</Checksum>
+        </Integrity>
+
+    </KernelSecurity>
+
+
+    <!-- Process Security -->
+    <ProcessSecurity>
+
+        <Isolation>true</Isolation>
+
+        <PermissionModel>
+            <User>true</User>
+            <Kernel>true</Kernel>
+            <Service>true</Service>
+        </PermissionModel>
+
+        <ProcessControl>
+            <ValidateExecutable>true</ValidateExecutable>
+            <LimitResources>true</LimitResources>
+            <SecureContextSwitch>true</SecureContextSwitch>
+        </ProcessControl>
+
+        <Signals>
+            <Validate>true</Validate>
+            <ProtectKernel>true</ProtectKernel>
+        </Signals>
+
+    </ProcessSecurity>
+
+
+    <!-- Memory Security -->
+    <MemorySecurity>
+
+        <PagingProtection>true</PagingProtection>
+
+        <VirtualMemory>
+            <UserPages>true</UserPages>
+            <KernelPages>true</KernelPages>
+            <GuardPages>true</GuardPages>
+        </VirtualMemory>
+
+        <Allocator>
+            <DoubleFreeCheck>true</DoubleFreeCheck>
+            <OverflowDetection>true</OverflowDetection>
+            <AllocationTracking>true</AllocationTracking>
+        </Allocator>
+
+    </MemorySecurity>
+
+
+    <!-- Filesystem Security -->
+    <FilesystemSecurity>
+
+        <AccessControl>true</AccessControl>
+
+        <Permissions>
+            <Read>true</Read>
+            <Write>true</Write>
+            <Execute>true</Execute>
+        </Permissions>
+
+        <Validation>
+            <PathCheck>true</PathCheck>
+            <FilenameCheck>true</FilenameCheck>
+            <MetadataCheck>true</MetadataCheck>
+        </Validation>
+
+        <JournalProtection>
+            <Integrity>true</Integrity>
+            <Recovery>true</Recovery>
+        </JournalProtection>
+
+    </FilesystemSecurity>
+
+
+    <!-- Driver Security -->
+    <DriverSecurity>
+
+        <DriverValidation>true</DriverValidation>
+
+        <SignedDrivers>false</SignedDrivers>
+
+        <Isolation>
+            <CheckMemoryAccess>true</CheckMemoryAccess>
+            <CheckDMA>true</CheckDMA>
+        </Isolation>
+
+        <VirtIO>
+            <QueueValidation>true</QueueValidation>
+            <BufferValidation>true</BufferValidation>
+        </VirtIO>
+
+    </DriverSecurity>
+
+
+    <!-- System Call Security -->
+    <SyscallSecurity>
+
+        <Validation>true</Validation>
+
+        <CheckArguments>true</CheckArguments>
+        <CheckPointers>true</CheckPointers>
+        <PermissionCheck>true</PermissionCheck>
+
+        <ABI>
+            <Stable>true</Stable>
+            <Version>1</Version>
+        </ABI>
+
+    </SyscallSecurity>
+
+
+    <!-- Logging -->
+    <SecurityLogging>
+
+        <Enabled>true</Enabled>
+
+        <Events>
+            <KernelViolation>true</KernelViolation>
+            <MemoryFault>true</MemoryFault>
+            <AccessDenied>true</AccessDenied>
+            <DriverError>true</DriverError>
+        </Events>
+
+    </SecurityLogging>
+
+
+    <!-- Debug Protection -->
+    <DebugSecurity>
+
+        <DebugMode>false</DebugMode>
+        <KernelDebug>false</KernelDebug>
+        <TraceProtection>true</TraceProtection>
+
+    </DebugSecurity>
+
+
+</SecurityManager>
+
+</BlockOS>
