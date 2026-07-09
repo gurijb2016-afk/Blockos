@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<BlockOS>
+<SchedulerConfiguration version="3.0">
+
+    <Scheduler>
+
+        <Enabled>true</Enabled>
+        <Type>preemptive</Type>
+
+        <Timer>
+            <Enabled>true</Enabled>
+            <Frequency>100</Frequency>
+        </Timer>
+
+        <Tasks>
+
+            <Process>true</Process>
+            <Thread>true</Thread>
+
+            <ContextSwitch>
+                <Enabled>true</Enabled>
+                <SaveRegisters>true</SaveRegisters>
+                <RestoreRegisters>true</RestoreRegisters>
+            </ContextSwitch>
+
+        </Tasks>
+
+
+        <Priority>
+
+            <Levels>10</Levels>
+
+            <Kernel>
+                <Priority>9</Priority>
+            </Kernel>
+
+            <User>
+                <Priority>5</Priority>
+            </User>
+
+            <Idle>
+                <Priority>0</Priority>
+            </Idle>
+
+        </Priority>
+
+    </Scheduler>
+
+</SchedulerConfiguration>
+</BlockOS>
