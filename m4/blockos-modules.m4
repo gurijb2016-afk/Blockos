@@ -1,0 +1,18 @@
+AC_DEFUN([BLOCKOS_MODULE_SYSTEM], [
+
+AC_DEFINE(
+[BLOCKOS_MODULE_LOADER],
+1,
+[Kernel module loader])
+
+AC_DEFINE(
+[BLOCKOS_DRIVER_INTERFACE],
+1,
+[Driver interface])
+
+AC_DEFINE(
+[BLOCKOS_SYMBOL_TABLE],
+1,
+[Kernel symbols])
+
+])
