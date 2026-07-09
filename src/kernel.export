@@ -1,0 +1,296 @@
+# ==================================================
+# BlockOS Kernel Export Configuration
+# Version 3.0
+# ==================================================
+
+[kernel]
+
+enabled=true
+name=BlockOS
+architecture=x86_64
+boot=UEFI
+
+# ==================================================
+# Kernel Core
+# ==================================================
+
+core=true
+kernel_main=true
+initialization=true
+shutdown=true
+panic_handler=true
+kernel_loop=true
+
+# ==================================================
+# Boot System
+# ==================================================
+
+uefi_support=true
+efi_loader=true
+gop_support=true
+memory_map=true
+exit_boot_services=true
+boot_parameters=true
+
+# ==================================================
+# CPU Management
+# ==================================================
+
+cpu_support=true
+x86_64=true
+long_mode=true
+cpuid=true
+feature_detection=true
+msr_support=true
+
+# ==================================================
+# Descriptor Tables
+# ==================================================
+
+gdt=true
+idt=true
+tss=true
+interrupt_gates=true
+exception_handlers=true
+
+# ==================================================
+# Interrupt System
+# ==================================================
+
+interrupts=true
+irq_support=true
+hardware_interrupts=true
+software_interrupts=true
+timer_interrupts=true
+keyboard_interrupts=true
+mouse_interrupts=true
+
+# ==================================================
+# Scheduler
+# ==================================================
+
+scheduler=true
+task_management=true
+thread_support=true
+process_switch=true
+context_switch=true
+priority_scheduler=true
+task_queue=true
+
+# ==================================================
+# Process Management
+# ==================================================
+
+process_manager=true
+process_create=true
+process_destroy=true
+process_states=true
+process_table=true
+pid_support=true
+parent_child_process=true
+
+# ==================================================
+# Memory Management
+# ==================================================
+
+memory_manager=true
+allocator=true
+heap=true
+paging=true
+virtual_memory=true
+page_tables=true
+page_fault=true
+memory_protection=true
+
+# ==================================================
+# Kernel Heap
+# ==================================================
+
+kernel_heap=true
+dynamic_memory=true
+allocation_tracking=true
+free_memory=true
+memory_debug=false
+
+# ==================================================
+# User Mode
+# ==================================================
+
+user_mode=true
+ring3=true
+privilege_levels=true
+user_memory=true
+kernel_isolation=true
+
+# ==================================================
+# System Calls
+# ==================================================
+
+syscalls=true
+syscall_table=true
+syscall_validation=true
+user_kernel_api=true
+
+# ==================================================
+# ABI
+# ==================================================
+
+abi=true
+stable_abi=true
+abi_version=1
+binary_compatibility=true
+
+# ==================================================
+# ELF Loader
+# ==================================================
+
+elf_loader=true
+elf64=true
+program_headers=true
+section_loader=true
+permission_mapping=true
+
+# ==================================================
+# Virtual Filesystem
+# ==================================================
+
+vfs=true
+file_api=true
+filesystem_interface=true
+mount_system=true
+
+# ==================================================
+# Drivers
+# ==================================================
+
+drivers=true
+driver_manager=true
+device_detection=true
+
+# ==================================================
+# Input Drivers
+# ==================================================
+
+ps2_keyboard=true
+ps2_mouse=true
+virtio_input=true
+
+# ==================================================
+# Storage Drivers
+# ==================================================
+
+virtio_block=true
+block_device=true
+storage_manager=true
+
+# ==================================================
+# Graphics
+# ==================================================
+
+framebuffer=true
+graphics_core=true
+font_renderer=true
+backbuffer=true
+double_buffer=true
+
+# ==================================================
+# GUI
+# ==================================================
+
+gui=true
+window_manager=true
+window_system=true
+cursor=true
+events=true
+
+# ==================================================
+# Shell
+# ==================================================
+
+shell=true
+command_parser=true
+command_execution=true
+terminal=true
+
+# ==================================================
+# Security
+# ==================================================
+
+security=true
+permission_system=true
+memory_protection=true
+process_isolation=true
+validation=true
+
+# ==================================================
+# Logging
+# ==================================================
+
+logging=true
+kernel_log=true
+error_log=true
+debug_log=false
+
+# ==================================================
+# Error Handling
+# ==================================================
+
+exceptions=true
+fault_handler=true
+panic_screen=true
+recovery=true
+
+# ==================================================
+# Power Management
+# ==================================================
+
+power=true
+shutdown=true
+restart=true
+sleep=false
+
+# ==================================================
+# Networking
+# ==================================================
+
+network_stack=false
+ethernet=false
+tcp_ip=false
+socket_api=false
+
+# ==================================================
+# Build Options
+# ==================================================
+
+optimization=O2
+debug=false
+warnings=true
+lto=true
+
+# ==================================================
+# Modules
+# ==================================================
+
+module_loader=true
+kernel_modules=false
+
+# ==================================================
+# Performance
+# ==================================================
+
+cache=true
+fast_syscalls=true
+optimized_scheduler=true
+memory_cache=true
+
+# ==================================================
+# Testing
+# ==================================================
+
+kernel_tests=true
+memory_tests=true
+driver_tests=true
+
+# ==================================================
+# End BlockOS Kernel Export
+# ==================================================
