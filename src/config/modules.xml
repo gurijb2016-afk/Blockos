@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<BlockOS>
+
+<ModuleConfiguration version="1.0">
+
+    <Loader>
+
+        <Enabled>true</Enabled>
+
+        <Validation>
+            <HeaderCheck>true</HeaderCheck>
+            <VersionCheck>true</VersionCheck>
+        </Validation>
+
+    </Loader>
+
+
+    <Modules>
+
+
+        <Module id="vfs">
+
+            <Name>Virtual File System</Name>
+            <Type>kernel</Type>
+            <Load>true</Load>
+
+        </Module>
+
+
+        <Module id="virtio">
+
+            <Name>VirtIO Drivers</Name>
+            <Type>driver</Type>
+            <Load>true</Load>
+
+        </Module>
+
+
+        <Module id="network">
+
+            <Name>Network Stack</Name>
+            <Type>system</Type>
+            <Load>false</Load>
+
+        </Module>
+
+
+    </Modules>
+
+
+</ModuleConfiguration>
+
+</BlockOS>
