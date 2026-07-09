@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<BlockOS>
+
+<KernelConfiguration version="3.0">
+
+    <Identity>
+        <Name>BlockOS Kernel</Name>
+        <Version>3.0</Version>
+        <Architecture>x86_64</Architecture>
+        <BuildType>release</BuildType>
+        <BootMode>UEFI</BootMode>
+    </Identity>
+
+
+    <Boot>
+
+        <Loader>EFI</Loader>
+
+        <Services>
+            <MemoryMap>true</MemoryMap>
+            <Framebuffer>true</Framebuffer>
+            <RuntimeServices>false</RuntimeServices>
+        </Services>
+
+        <Startup>
+            <InitializeCPU>true</InitializeCPU>
+            <InitializeMemory>true</InitializeMemory>
+            <InitializeDrivers>true</InitializeDrivers>
+            <StartScheduler>true</StartScheduler>
+        </Startup>
+
+    </Boot>
+
+
+    <CPU>
+
+        <Mode>long64</Mode>
+
+        <Detection>
+            <CPUID>true</CPUID>
+            <VendorCheck>true</VendorCheck>
+            <FeatureCheck>true</FeatureCheck>
+        </Detection>
+
+        <Features>
+            <APIC>true</APIC>
+            <SSE>true</SSE>
+            <SSE2>true</SSE2>
+            <NX>true</NX>
+            <PAT>true</PAT>
+        </Features>
+
+    </CPU>
+
+
+    <MemoryManager>
+
+        <PhysicalMemory>
+
+            <Manager>true</Manager>
+            <FrameAllocator>true</FrameAllocator>
+            <MemoryMapParser>true</MemoryMapParser>
+
+        </PhysicalMemory>
+
+
+        <VirtualMemory>
+
+            <Paging>true</Paging>
+            <FourLevelPaging>true</FourLevelPaging>
+            <PageTables>true</PageTables>
+            <PageFaultHandler>true</PageFaultHandler>
+
+            <Protection>
+                <KernelPages>true</KernelPages>
+                <UserPages>true</UserPages>
+                <ReadOnlyPages>true</ReadOnlyPages>
+            </Protection>
+
+        </VirtualMemory>
+
+
+        <Heap>
+
+            <Enabled>true</Enabled>
+            <DynamicAllocation>true</DynamicAllocation>
+            <Tracking>true</Tracking>
+
+            <Checks>
+                <Overflow>true</Overflow>
+                <DoubleFree>true</DoubleFree>
+            </Checks>
+
+        </Heap>
+
+    </MemoryManager>
+
+
+    <InterruptSystem>
+
+        <GDT>true</GDT>
+        <IDT>true</IDT>
+        <TSS>true</TSS>
+
+        <Exceptions>
+            <DivideError>true</DivideError>
+            <PageFault>true</PageFault>
+            <GeneralProtection>true</GeneralProtection>
+        </Exceptions>
+
+        <IRQ>
+
+            <Timer>true</Timer>
+            <Keyboard>true</Keyboard>
+            <Mouse>true</Mouse>
+            <Storage>true</Storage>
+
+        </IRQ>
+
+    </InterruptSystem>
+
+
+    <Scheduler>
+
+        <Enabled>true</Enabled>
+
+        <Type>preemptive</Type>
+
+        <Tasks>
+
+            <Process>true</Process>
+            <Thread>true</Thread>
+            <ContextSwitch>true</ContextSwitch>
+
+        </Tasks>
+
+        <Priority>
+
+            <Levels>10</Levels>
+            <KernelPriority>high</KernelPriority>
+
+        </Priority>
+
+    </Scheduler>
+
+
+    <ProcessManager>
+
+        <Enabled>true</Enabled>
+
+        <Features>
+            <PID>true</PID>
+            <ProcessTable>true</ProcessTable>
+            <Signals>true</Signals>
+            <Execution>true</Execution>
+        </Features>
+
+    </ProcessManager>
+
+
+    <ExecutableLoader>
+
+        <ELF>
+
+            <Enabled>true</Enabled>
+            <ELF64>true</ELF64>
+            <Validation>true</Validation>
+
+        </ELF>
+
+    </ExecutableLoader>
+
+
+    <SystemCalls>
+
+        <Enabled>true</Enabled>
+
+        <ABI>
+            <Version>1</Version>
+            <Stable>true</Stable>
+        </ABI>
+
+        <Security>
+            <ArgumentCheck>true</ArgumentCheck>
+            <PointerCheck>true</PointerCheck>
+        </Security>
+
+    </SystemCalls>
+
+
+</KernelConfiguration>
+
+</BlockOS>
