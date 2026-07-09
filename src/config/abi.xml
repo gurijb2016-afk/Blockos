@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<BlockOS>
+
+<ABIConfiguration version="1">
+
+    <ABI>
+
+        <Name>BlockOS ABI</Name>
+        <Version>1</Version>
+
+        <Stable>true</Stable>
+
+        <Architecture>x86_64</Architecture>
+
+
+        <CallingConvention>
+
+            <Registers>
+
+                <Argument1>RDI</Argument1>
+                <Argument2>RSI</Argument2>
+                <Argument3>RDX</Argument3>
+                <Return>RAX</Return>
+
+            </Registers>
+
+        </CallingConvention>
+
+
+        <Compatibility>
+
+            <FutureVersions>true</FutureVersions>
+            <Backward>true</Backward>
+
+        </Compatibility>
+
+
+    </ABI>
+
+</ABIConfiguration>
+
+</BlockOS>
