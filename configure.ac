@@ -129,9 +129,6 @@ dnl ==================================================
 
 AC_CONFIG_FILES([
 Makefile
-src/Makefile
-kernel/Makefile
-drivers/Makefile
 ])
 
 AC_OUTPUT
