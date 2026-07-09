@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+
+<BlockOS>
+    <System>
+        <Name>BlockOS</Name>
+        <Version>3.0</Version>
+        <Architecture>x86_64</Architecture>
+        <Boot>UEFI</Boot>
+    </System>
+
+    <Kernel>
+        <Scheduler>true</Scheduler>
+        <Paging>true</Paging>
+        <ProcessManager>true</ProcessManager>
+        <ABI>1</ABI>
+    </Kernel>
+
+    <Graphics>
+        <Framebuffer>true</Framebuffer>
+        <GUI>true</GUI>
+        <WindowManager>true</WindowManager>
+    </Graphics>
+
+    <Drivers>
+        <VirtIO>true</VirtIO>
+        <PS2>true</PS2>
+    </Drivers>
+</BlockOS>
