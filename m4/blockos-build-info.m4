@@ -1,0 +1,20 @@
+AC_DEFUN([BLOCKOS_BUILD_INFO], [
+
+AC_DEFINE_UNQUOTED(
+[BLOCKOS_BUILD_HOST],
+["$build"],
+[Build host])
+
+
+AC_DEFINE_UNQUOTED(
+[BLOCKOS_COMPILER],
+["$CXX"],
+[Compiler name])
+
+
+AC_DEFINE_UNQUOTED(
+[BLOCKOS_CXXFLAGS],
+["$CXXFLAGS"],
+[Compiler flags])
+
+])
