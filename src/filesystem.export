@@ -1,0 +1,224 @@
+# ==================================================
+# BlockOS Filesystem Export Configuration
+# Version 3.0
+# ==================================================
+
+[filesystem]
+
+enabled=true
+version=1
+
+# ------------------------------
+# Core Filesystem Layer
+# ------------------------------
+
+core=true
+filesystem_manager=true
+file_operations=true
+directory_operations=true
+path_parser=true
+mount_manager=true
+
+# ------------------------------
+# VFS Layer
+# ------------------------------
+
+vfs=true
+virtual_filesystem=true
+inode_layer=true
+file_descriptor=true
+directory_cache=true
+mount_points=true
+
+# ------------------------------
+# File Handling
+# ------------------------------
+
+create=true
+open=true
+close=true
+read=true
+write=true
+seek=true
+truncate=true
+rename=true
+delete=true
+copy=true
+
+# ------------------------------
+# Directory Support
+# ------------------------------
+
+directories=true
+create_directory=true
+remove_directory=true
+list_directory=true
+recursive_lookup=true
+
+# ------------------------------
+# Permissions
+# ------------------------------
+
+permissions=true
+file_owner=true
+file_group=true
+read_permission=true
+write_permission=true
+execute_permission=true
+
+# ------------------------------
+# Journaling
+# ------------------------------
+
+journaling=true
+journal_log=true
+transaction=true
+recovery=true
+integrity_check=true
+metadata_backup=true
+
+# ------------------------------
+# Cache System
+# ------------------------------
+
+cache=true
+block_cache=true
+inode_cache=true
+read_cache=true
+write_cache=true
+cache_flush=true
+
+# ------------------------------
+# Storage Layer
+# ------------------------------
+
+block_device=true
+sector_access=true
+block_read=true
+block_write=true
+device_manager=true
+
+# ------------------------------
+# VirtIO Integration
+# ------------------------------
+
+virtio_block=true
+virtio_queue=true
+virtio_storage=true
+async_requests=true
+
+# ------------------------------
+# Memory
+# ------------------------------
+
+buffer_manager=true
+memory_mapping=true
+page_cache=true
+zero_copy=false
+
+# ------------------------------
+# File Types
+# ------------------------------
+
+regular_files=true
+directories_type=true
+device_files=true
+symbolic_links=true
+special_files=true
+
+# ------------------------------
+# Metadata
+# ------------------------------
+
+metadata=true
+timestamps=true
+file_size=true
+attributes=true
+permissions_metadata=true
+
+# ------------------------------
+# Error Handling
+# ------------------------------
+
+error_check=true
+corruption_detection=true
+safe_write=true
+rollback=true
+recovery_mode=true
+
+# ------------------------------
+# Security
+# ------------------------------
+
+secure_mount=true
+access_control=true
+path_validation=true
+filename_validation=true
+
+# ------------------------------
+# Boot Filesystem
+# ------------------------------
+
+boot_filesystem=true
+init_files=true
+kernel_files=true
+config_files=true
+
+# ------------------------------
+# User Space
+# ------------------------------
+
+userspace_access=true
+filesystem_syscalls=true
+file_api=true
+
+# ------------------------------
+# Shell Integration
+# ------------------------------
+
+shell_commands=true
+ls_support=true
+cat_support=true
+mkdir_support=true
+rm_support=true
+cp_support=true
+
+# ------------------------------
+# Debug
+# ------------------------------
+
+debug=false
+filesystem_logs=true
+trace_operations=false
+
+# ------------------------------
+# Performance
+# ------------------------------
+
+prefetch=true
+lazy_loading=true
+parallel_io=true
+write_queue=true
+
+# ------------------------------
+# BlockOS Modules
+# ------------------------------
+
+allocator_integration=true
+scheduler_integration=true
+process_manager_integration=true
+abi_support=true
+
+# ------------------------------
+# Future Features
+# ------------------------------
+
+compression=false
+encryption=false
+snapshots=false
+quotas=false
+network_filesystem=false
+
+# ==================================================
+# End BlockOS Filesystem Export
+# ==================================================
