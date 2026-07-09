@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<BlockOS>
+<MemoryConfiguration version="3.0">
+
+    <PhysicalMemory>
+        <Enabled>true</Enabled>
+        <FrameAllocator>true</FrameAllocator>
+        <MemoryMap>true</MemoryMap>
+        <RegionDetection>true</RegionDetection>
+    </PhysicalMemory>
+
+    <VirtualMemory>
+
+        <Paging>true</Paging>
+        <Architecture>x86_64</Architecture>
+
+        <PageTables>
+            <PML4>true</PML4>
+            <PDPT>true</PDPT>
+            <PD>true</PD>
+            <PT>true</PT>
+        </PageTables>
+
+        <Protection>
+            <KernelPages>true</KernelPages>
+            <UserPages>true</UserPages>
+            <ReadOnly>true</ReadOnly>
+            <NoExecute>true</NoExecute>
+        </Protection>
+
+        <PageFault>
+            <Handler>true</Handler>
+            <Logging>true</Logging>
+        </PageFault>
+
+    </VirtualMemory>
+
+
+    <Heap>
+
+        <Enabled>true</Enabled>
+        <DynamicAllocation>true</DynamicAllocation>
+
+        <Allocator>
+            <Tracking>true</Tracking>
+            <Validation>true</Validation>
+            <Alignment>16</Alignment>
+        </Allocator>
+
+    </Heap>
+
+</MemoryConfiguration>
+</BlockOS>
