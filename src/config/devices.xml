@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<BlockOS>
+
+<DeviceConfiguration version="3.0">
+
+    <DeviceManager>
+
+        <Enabled>true</Enabled>
+
+        <Detection>
+            <PCI>true</PCI>
+            <UEFI>true</UEFI>
+        </Detection>
+
+    </DeviceManager>
+
+
+    <Devices>
+
+
+        <Device id="keyboard">
+
+            <Type>input</Type>
+            <Driver>ps2</Driver>
+            <Enabled>true</Enabled>
+
+        </Device>
+
+
+        <Device id="mouse">
+
+            <Type>input</Type>
+            <Driver>ps2</Driver>
+            <Enabled>true</Enabled>
+
+        </Device>
+
+
+        <Device id="storage">
+
+            <Type>block</Type>
+            <Driver>virtio_block</Driver>
+            <Enabled>true</Enabled>
+
+        </Device>
+
+
+        <Device id="framebuffer">
+
+            <Type>graphics</Type>
+            <Driver>uefi_gop</Driver>
+            <Enabled>true</Enabled>
+
+        </Device>
+
+
+    </Devices>
+
+</DeviceConfiguration>
+
+</BlockOS>
