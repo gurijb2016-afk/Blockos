@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<BlockOS>
+
+<GUIConfiguration version="3.0">
+
+
+<System>
+
+    <Name>BlockOS Desktop GUI</Name>
+    <Version>3.0</Version>
+    <Mode>Desktop</Mode>
+
+    <Startup>
+        <Enabled>true</Enabled>
+        <LoadRenderer>true</LoadRenderer>
+        <LoadWindowManager>true</LoadWindowManager>
+        <LoadInput>true</LoadInput>
+        <LoadFonts>true</LoadFonts>
+    </Startup>
+
+</System>
+
+
+<Framebuffer>
+
+    <Enabled>true</Enabled>
+
+    <Backend>
+        <Type>UEFI_GOP</Type>
+        <BitsPerPixel>32</BitsPerPixel>
+        <DoubleBuffer>true</DoubleBuffer>
+    </Backend>
+
+    <Memory>
+        <Mapped>true</Mapped>
+        <Protected>true</Protected>
+    </Memory>
+
+</Framebuffer>
+
+
+<Renderer>
+
+    <Enabled>true</Enabled>
+
+    <Engine>
+        <Software>true</Software>
+        <Acceleration>false</Acceleration>
+    </Engine>
+
+    <Pipeline>
+
+        <Clear>true</Clear>
+        <Rectangle>true</Rectangle>
+        <Text>true</Text>
+        <Image>true</Image>
+        <Cursor>true</Cursor>
+
+    </Pipeline>
+
+
+    <Layers>
+
+        <Layer>
+            <Name>Background</Name>
+            <Priority>0</Priority>
+        </Layer>
+
+        <Layer>
+            <Name>Windows</Name>
+            <Priority>10</Priority>
+        </Layer>
+
+        <Layer>
+            <Name>Popup</Name>
+            <Priority>50</Priority>
+        </Layer>
+
+        <Layer>
+            <Name>Cursor</Name>
+            <Priority>100</Priority>
+        </Layer>
+
+    </Layers>
+
+</Renderer>
+
+
+<WindowManager>
+
+    <Enabled>true</Enabled>
+
+    <Windows>
+
+        <Create>true</Create>
+        <Move>true</Move>
+        <Resize>true</Resize>
+        <Close>true</Close>
+        <Minimize>true</Minimize>
+        <Maximize>true</Maximize>
+
+    </Windows>
+
+
+    <Frame>
+
+        <TitleBar>true</TitleBar>
+        <Border>true</Border>
+
+        <Buttons>
+
+            <Close>true</Close>
+            <Minimize>true</Minimize>
+            <Maximize>true</Maximize>
+
+        </Buttons>
+
+    </Frame>
+
+
+    <DefaultWindow>
+
+        <Width>640</Width>
+        <Height>480</Height>
+
+        <Position>
+            <Center>true</Center>
+        </Position>
+
+    </DefaultWindow>
+
+</WindowManager>
+
+
+<InputManager>
+
+    <Enabled>true</Enabled>
+
+    <Mouse>
+
+        <Enabled>true</Enabled>
+
+        <Buttons>
+            <Left>true</Left>
+            <Right>true</Right>
+            <Middle>true</Middle>
+        </Buttons>
+
+        <Movement>
+            <Relative>true</Relative>
+        </Movement>
+
+    </Mouse>
+
+
+    <Keyboard>
+
+        <Enabled>true</Enabled>
+
+        <Layout>US</Layout>
+
+        <Events>
+            <KeyPress>true</KeyPress>
+            <KeyRelease>true</KeyRelease>
+        </Events>
+
+    </Keyboard>
+
+</InputManager>
