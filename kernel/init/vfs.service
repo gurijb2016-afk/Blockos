@@ -1,0 +1,6 @@
+[Unit]
+Description=Virtualis fajlrendszer inicializalasa
+
+[Service]
+ExecStart=/system/bin/vfsd
+Type=simple

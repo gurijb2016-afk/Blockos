@@ -1,0 +1,12 @@
+[Unit]
+Description=Ablakkezelo / GUI
+After=network.service
+After=vfs.service
+Requires=network.service
+
+[Service]
+ExecStart=/system/bin/guid
+Type=simple
+
+[Install]
+WantedBy=multi-user.target

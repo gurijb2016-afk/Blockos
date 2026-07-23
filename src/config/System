@@ -1,6 +1,0 @@
-v 1.0.0.0.0 version
-#the system version is reinstall the condig packages the pkc exec
-#reinstall pkc exec admin reinstall pck-exec-full -owmof -132mb
-
-#If an error occurs during reinstallation—specifically a "system failed install -2441980" message—you should delete and remove the files; in this case, perform an "admin remove." after run admin install pck-exec-full
-

@@ -1,0 +1,11 @@
+[Unit]
+Description=Halozati alrendszer
+After=vfs.service
+Requires=vfs.service
+
+[Service]
+ExecStart=/system/bin/networkd
+Type=simple
+
+[Install]
+WantedBy=multi-user.target
