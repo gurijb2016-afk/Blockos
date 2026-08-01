@@ -1,0 +1,13 @@
+diff --git a/drivers/network.cpp b/drivers/network.cpp
+index 0000000..0000000 100644
+--- a/drivers/network.cpp
++++ b/drivers/network.cpp
+@@
+-        ip->checksum = 0; ip->checksum = compute_checksum((uint16_t*)ip, 20);
++        ip->checksum = 0; ip->checksum = checksum_bytes((const uint8_t*)ip, 20);
+@@
+-        ip->checksum = 0; ip->checksum = compute_checksum((uint16_t*)ip, 20);
++        ip->checksum = 0; ip->checksum = checksum_bytes((const uint8_t*)ip, 20);
+@@
+-        ip->checksum = 0; ip->checksum = compute_checksum((uint16_t*)ip, 20);
++        ip->checksum = 0; ip->checksum = checksum_bytes((const uint8_t*)ip, 20);

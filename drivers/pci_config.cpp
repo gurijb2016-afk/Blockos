@@ -35,6 +35,7 @@ uint8_t pci_find_capability(uint8_t bus, uint8_t device, uint8_t function, uint8
     // Read header type to ensure this device has capabilities list
     uint32_t header0 = pci_config_read32(bus, device, function, 0x0);
     uint8_t header_type = (uint8_t)((pci_config_read32(bus, device, function, 0xC) >> 16) & 0xFF);
+    (void)header0; (void)header_type;
     // Status register bit 4 indicates capabilities list
     uint16_t status = (uint16_t)((pci_config_read32(bus, device, function, 0x4) >> 16) & 0xFFFF);
     if ((status & (1 << 4)) == 0) return 0;
