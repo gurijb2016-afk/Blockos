@@ -33,7 +33,7 @@ bool virtio_common::negotiate_features(void* bar0, bool mmio, uint32_t want_mask
     if (mmio) write_reg32_mmio((uint64_t)(UINTN)bar0, GUEST_FEATURES, agreed);
     else outl_io((uint16_t)((uint64_t)(UINTN)bar0 + GUEST_FEATURES), agreed);
     CHAR16 buf[128];
-    UnicodeSPrint(buf, sizeof(buf), L"virtio_common: host_features=0x%08x want=0x%08x agreed=0x%08x\n", host, want_mask, agreed);
+    UnicodeSPrint(buf, sizeof(buf), (CHAR16*)L"virtio_common: host_features=0x%08x want=0x%08x agreed=0x%08x\n", host, want_mask, agreed);
     Print(buf);
     return true;
 }

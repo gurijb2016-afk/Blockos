@@ -24,7 +24,6 @@ bool virtio_common::perform_device_initialization(virtio_common::DeviceHandle* h
 
     // Negotiate features (try modern first, then legacy)
     bool modern_ok = false;
-    extern bool virtio_common::negotiate_modern_features(virtio_common::DeviceHandle* h, uint64_t want_mask_low);
     if (h->mmio) {
         modern_ok = virtio_common::negotiate_modern_features(h, want_features_low);
     }
@@ -41,7 +40,7 @@ bool virtio_common::perform_device_initialization(virtio_common::DeviceHandle* h
     if (st & VIRTIO_STATUS_FAILED) {
         // Device rejected features. Roll back and report failure.
         CHAR16 buf[128];
-        UnicodeSPrint(buf, sizeof(buf), L"virtio_common: device rejected FEATURES_OK (status=0x%02x), rolling back\n", st);
+        UnicodeSPrint(buf, sizeof(buf), (CHAR16*)L"virtio_common: device rejected FEATURES_OK (status=0x%02x), rolling back\n", st);
         Print(buf);
         // Reset device status to 0 to leave device in a known state
         set_device_status(h, 0);
@@ -53,7 +52,7 @@ bool virtio_common::perform_device_initialization(virtio_common::DeviceHandle* h
     st = get_device_status(h);
     if (st & VIRTIO_STATUS_FAILED) {
         CHAR16 buf[128];
-        UnicodeSPrint(buf, sizeof(buf), L"virtio_common: device FAILED after DRIVER_OK (status=0x%02x)\n", st);
+        UnicodeSPrint(buf, sizeof(buf), (CHAR16*)L"virtio_common: device FAILED after DRIVER_OK (status=0x%02x)\n", st);
         Print(buf);
         // Attempt rollback
         set_device_status(h, 0);
@@ -63,13 +62,13 @@ bool virtio_common::perform_device_initialization(virtio_common::DeviceHandle* h
     // Attempt to enable MSI-X if available to improve interrupt handling.
     bool msix_ok = virtio_notify::setup_msix_if_available(h);
     if (msix_ok) {
-        Print(L"virtio_common: MSI-X setup succeeded or found\n");
+        Print((CHAR16*)L"virtio_common: MSI-X setup succeeded or found\n");
     } else {
-        Print(L"virtio_common: MSI-X not available or not configured, using legacy/notify fallback\n");
+        Print((CHAR16*)L"virtio_common: MSI-X not available or not configured, using legacy/notify fallback\n");
     }
 
     CHAR16 buf[128];
-    UnicodeSPrint(buf, sizeof(buf), L"virtio_common: device initialized successfully (status=0x%02x)\n", st);
+    UnicodeSPrint(buf, sizeof(buf), (CHAR16*)L"virtio_common: device initialized successfully (status=0x%02x)\n", st);
     Print(buf);
     return true;
 }
