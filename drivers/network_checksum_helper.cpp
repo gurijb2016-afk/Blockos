@@ -1,4 +1,7 @@
 // safe checksum over bytes to avoid unaligned 16-bit accesses on packed structs
+#include <stdint.h>
+#include <stddef.h>
+
 static uint16_t checksum_bytes(const uint8_t* data, size_t len) {
     uint32_t sum = 0;
     size_t i;
