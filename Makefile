@@ -20,7 +20,12 @@ CXXFLAGS = \
 	-ffreestanding \
 	-O2 \
 	-Wall \
-	-Wextra
+	-Wextra \
+	-Iarch/86_64x \
+	-Ikernel \
+	-Idrivers \
+	-Ifs \
+	-Iexamples
 
 LDFLAGS = \
 	-nostdlib \
