@@ -30,13 +30,15 @@ LDFLAGS = \
 
 # Forrás könyvtárak
 SRC_DIRS = drivers examples fs kernel
+S_SRC_DIRS = drivers examples fs kernel
 
 # Összes cpp fájl
 SRC = $(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.cpp))
+# Összes assembly (.S) fájl
+S_SRC = $(foreach dir,$(S_SRC_DIRS),$(wildcard $(dir)/*.S))
 
 # Objektum fájlok
-OBJ = $(SRC:.cpp=.o)
-
+OBJ = $(SRC:.cpp=.o) $(S_SRC:.S=.o)
 
 BUILD_DIR = build
 
@@ -49,6 +51,11 @@ all: $(EFI_OUT)
 
 # C++ fordítás
 %.o: %.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Assembly fordítás
+%.o: %.S
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
