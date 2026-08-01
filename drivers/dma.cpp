@@ -1,5 +1,5 @@
 #include "dma.hpp"
-#include "allocator.hpp"
+#include "kernel/allocator.hpp"
 #include <stddef.h>
 
 static inline size_t align_up(size_t v, size_t a) { return (v + (a-1)) & ~(a-1); }
