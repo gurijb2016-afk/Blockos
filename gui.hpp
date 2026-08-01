@@ -4,6 +4,11 @@
 // Minimal GUI header placeholder so sources can include "gui.hpp".
 // The real implementation should provide definitions (methods) in a .cpp file.
 
+// Color macro: pack ARGB into 32-bit
+#ifndef COLOR_ARGB
+#define COLOR_ARGB(a,r,g,b) (((uint32_t)(a) << 24) | ((uint32_t)(r) << 16) | ((uint32_t)(g) << 8) | (uint32_t)(b))
+#endif
+
 class GuiEngine {
 public:
     GuiEngine() = default;
