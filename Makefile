@@ -15,6 +15,7 @@ CXXFLAGS = \
 	-fno-rtti \
 	-fshort-wchar \
 	-DEFI_FUNCTION_WRAPPER \
+	-I. \
 	-I$(EFI_INCL) \
 	-I$(EFI_INCL_X86) \
 	-ffreestanding \
