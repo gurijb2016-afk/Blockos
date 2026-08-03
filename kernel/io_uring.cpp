@@ -1,101 +1,412 @@
-#include "kernel/allocator.hpp"
-#include "kernel/scheduler.hpp"
+#include "kernel/io_uring.hpp"
 #include "spinlock.hpp"
+
+#include <cstdint>
+#include <cstddef>
 
 namespace Blockos {
 
-// io_uring struktúrák a Ring 3 (User) és Ring 0 (Kernel) közötti megosztott memóriához
-struct io_uring_sqe { // Submission Queue Entry (Kérés)
-    uint8_t  opcode;    // Pl. 0 = READ, 1 = WRITE, 2 = NET_RECV
-    int      fd;        // Fájl vagy socket leíró
-    uint64_t addr;      // Felhasználói puffer címe (Ring 3)
-    uint32_t len;       // Adat hossza bájtokban
-    uint64_t user_data; // Egyedi azonosító a visszakövetéshez
-};
+// ============================================================
+// Kernel memóriafoglalás
+// ============================================================
 
-struct io_uring_cqe { // Completion Queue Entry (Eredmény)
-    uint64_t user_data; // A kérésből visszakapott azonosító
-    int32_t  res;       // Eredmény bájtok száma, vagy negatív hibakód
-};
+void* io_uring::allocate(size_t size)
+{
+    return ::operator new(size);
+}
 
-class io_uring {
-private:
-    Spinlock m_lock;
-    
-    // Osztott memóriás körkörös pufferek (Ring Buffers)
-    io_uring_sqe* m_sqes;
-    io_uring_cqe* m_cqes;
-    
-    uint32_t m_queue_depth;
-    
-    // Atomi indexek a lockless működéshez (User és Kernel egyszerre írhatja/olvashatja)
-    volatile uint32_t* m_sq_head;
-    volatile uint32_t* m_sq_tail;
-    volatile uint32_t* m_cq_head;
-    volatile uint32_t* m_cq_tail;
+void io_uring::deallocate(void* ptr)
+{
+    ::operator delete(ptr);
+}
 
-    bool m_running;
-    Task* m_io_kthread;
+// ============================================================
+// Konstruktor
+// ============================================================
 
-public:
-    io_uring(uint32_t depth) : m_queue_depth(depth), m_running(false), m_io_kthread(nullptr) {
-        // Nagy, laphoz igazított (Page-aligned) memóriát foglalunk, amit az mmap át tud adni Ring 3-nak
-        m_sqes = reinterpret_cast<io_uring_sqe*>(KernelAllocator::alloc(depth * sizeof(io_uring_sqe)));
-        m_cqes = reinterpret_cast<io_uring_cqe*>(KernelAllocator::alloc(depth * sizeof(io_uring_cqe)));
-        
-        // Atomi kontroll indexek allokálása
-        m_sq_head = reinterpret_cast<volatile uint32_t*>(KernelAllocator::alloc(sizeof(uint32_t)));
-        m_sq_tail = reinterpret_cast<volatile uint32_t*>(KernelAllocator::alloc(sizeof(uint32_t)));
-        m_cq_head = reinterpret_cast<volatile uint32_t*>(KernelAllocator::alloc(sizeof(uint32_t)));
-        m_cq_tail = reinterpret_cast<volatile uint32_t*>(KernelAllocator::alloc(sizeof(uint32_t)));
+io_uring::io_uring(uint32_t depth)
+    : m_lock(nullptr),
+      m_sqes(nullptr),
+      m_cqes(nullptr),
+      m_queue_depth(depth),
+      m_sq_head(nullptr),
+      m_sq_tail(nullptr),
+      m_cq_head(nullptr),
+      m_cq_tail(nullptr),
+      m_running(false)
+{
+    if (depth == 0)
+        return;
 
-        *m_sq_head = 0; *m_sq_tail = 0;
-        *m_cq_head = 0; *m_cq_tail = 0;
+    m_lock = new Spinlock();
+
+    m_sqes = reinterpret_cast<io_uring_sqe*>(
+        allocate(sizeof(io_uring_sqe) * depth)
+    );
+
+    m_cqes = reinterpret_cast<io_uring_cqe*>(
+        allocate(sizeof(io_uring_cqe) * depth)
+    );
+
+    m_sq_head = reinterpret_cast<volatile uint32_t*>(
+        allocate(sizeof(uint32_t))
+    );
+
+    m_sq_tail = reinterpret_cast<volatile uint32_t*>(
+        allocate(sizeof(uint32_t))
+    );
+
+    m_cq_head = reinterpret_cast<volatile uint32_t*>(
+        allocate(sizeof(uint32_t))
+    );
+
+    m_cq_tail = reinterpret_cast<volatile uint32_t*>(
+        allocate(sizeof(uint32_t))
+    );
+
+    if (!m_sqes ||
+        !m_cqes ||
+        !m_sq_head ||
+        !m_sq_tail ||
+        !m_cq_head ||
+        !m_cq_tail) {
+
+        m_running = false;
+        return;
     }
 
-    // A kernel belső aszinkron I/O szállának magja (Kernel Thread) [source: 1]
-    static void io_worker_routine(void* arg) {
-        auto* self = reinterpret_cast<io_uring*>(arg);
-        
-        while (self->m_running) {
-            uint32_t sq_head = *self->m_sq_head;
-            uint32_t sq_tail = *self->m_sq_tail;
+    *m_sq_head = 0;
+    *m_sq_tail = 0;
+    *m_cq_head = 0;
+    *m_cq_tail = 0;
 
-            // Ellenőrizzük, hogy van-e új kérés a Submission Queue-ban (Lockless olvasás)
-            if (sq_head != sq_tail) {
-                uint32_t index = sq_head % self->m_queue_depth;
-                io_uring_sqe sqe = self->m_sqes[index];
-
-                // 1. Kérés kivétele (Atomi léptetés memóriakorláttal)
-                __atomic_store_n(self->m_sq_head, sq_head + 1, __ATOMIC_RELEASE);
-
-                // 2. Aszinkron végrehajtás a hardveres drivereken keresztül
-                int32_t result = 0;
-                if (sqe.opcode == 0) { // ASYNC READ
-                    // Itt meghívódik a te virtuális VFS / Ext4 drivered [source: 1]
-                    // result = VFS::read(sqe.fd, reinterpret_cast<void*>(sqe.addr), sqe.len);
-                }
-
-                // 3. Eredmény beírása a Completion Queue-ba (CQ)
-                uint32_t cq_tail = *self->m_cq_tail;
-                uint32_t cq_index = cq_tail % self->m_queue_depth;
-                
-                self->m_cqes[cq_index].user_data = sqe.user_data;
-                self->m_cqes[cq_index].res = result;
-
-                // CQ tail frissítése, hogy a felhasználói program (Ring 3) lássa a kész eredményt
-                __atomic_store_n(self->m_cq_tail, cq_tail + 1, __ATOMIC_RELEASE);
-            } else {
-                // Ha nincs dolga az I/O motornak, átadja a futást, nem terheli a CPU-t
-                Scheduler::yield();
-            }
-        }
+    for (uint32_t i = 0; i < depth; ++i) {
+        m_sqes[i] = {};
+        m_cqes[i] = {};
     }
+}
 
-    void start() {
-        m_running = true;
-        m_io_kthread = Scheduler::create_kernel_thread("kio_uringd", &io_uring::io_worker_routine, this);
+// ============================================================
+// Destruktor
+// ============================================================
+
+io_uring::~io_uring()
+{
+    m_running = false;
+
+    if (m_sqes)
+        deallocate(m_sqes);
+
+    if (m_cqes)
+        deallocate(m_cqes);
+
+    if (m_sq_head)
+        deallocate(const_cast<uint32_t*>(m_sq_head));
+
+    if (m_sq_tail)
+        deallocate(const_cast<uint32_t*>(m_sq_tail));
+
+    if (m_cq_head)
+        deallocate(const_cast<uint32_t*>(m_cq_head));
+
+    if (m_cq_tail)
+        deallocate(const_cast<uint32_t*>(m_cq_tail));
+
+    delete m_lock;
+
+    m_sqes = nullptr;
+    m_cqes = nullptr;
+
+    m_sq_head = nullptr;
+    m_sq_tail = nullptr;
+    m_cq_head = nullptr;
+    m_cq_tail = nullptr;
+
+    m_lock = nullptr;
+}
+
+// ============================================================
+// Queue index
+// ============================================================
+
+uint32_t io_uring::next_index(uint32_t index) const
+{
+    if (m_queue_depth == 0)
+        return 0;
+
+    return index % m_queue_depth;
+}
+
+// ============================================================
+// SQE végrehajtása
+// ============================================================
+
+int32_t io_uring::process_sqe(const io_uring_sqe& sqe)
+{
+    switch (sqe.opcode) {
+
+        case 0:
+            // READ
+            //
+            // Később ide kerülhet:
+            // VFS read -> filesystem -> block device
+            //
+            return 0;
+
+        case 1:
+            // WRITE
+            //
+            // Később:
+            // VFS write -> filesystem -> block device
+            //
+            return 0;
+
+        case 2:
+            // NETWORK RECEIVE
+            return 0;
+
+        default:
+            return -1;
     }
-};
+}
+
+// ============================================================
+// Start
+// ============================================================
+
+void io_uring::start()
+{
+    if (m_queue_depth == 0)
+        return;
+
+    if (!m_sqes || !m_cqes)
+        return;
+
+    m_running = true;
+}
+
+// ============================================================
+// Stop
+// ============================================================
+
+void io_uring::stop()
+{
+    m_running = false;
+}
+
+// ============================================================
+// Running
+// ============================================================
+
+bool io_uring::running() const
+{
+    return m_running;
+}
+
+// ============================================================
+// Submit
+// ============================================================
+
+bool io_uring::submit(
+    uint8_t opcode,
+    int32_t fd,
+    uint64_t addr,
+    uint32_t len,
+    uint64_t user_data)
+{
+    if (!m_running)
+        return false;
+
+    if (!m_sqes ||
+        !m_sq_head ||
+        !m_sq_tail)
+        return false;
+
+    ScopedLock guard(*m_lock);
+
+    uint32_t head = *m_sq_head;
+    uint32_t tail = *m_sq_tail;
+
+    if ((tail - head) >= m_queue_depth)
+        return false;
+
+    uint32_t index = next_index(tail);
+
+    m_sqes[index].opcode = opcode;
+    m_sqes[index].fd = fd;
+    m_sqes[index].addr = addr;
+    m_sqes[index].len = len;
+    m_sqes[index].user_data = user_data;
+
+    __atomic_store_n(
+        m_sq_tail,
+        tail + 1,
+        __ATOMIC_RELEASE
+    );
+
+    return true;
+}
+
+// ============================================================
+// Poll
+// ============================================================
+
+void io_uring::poll()
+{
+    if (!m_running)
+        return;
+
+    if (!m_sqes ||
+        !m_cqes ||
+        !m_sq_head ||
+        !m_sq_tail ||
+        !m_cq_head ||
+        !m_cq_tail)
+        return;
+
+    while (true) {
+
+        uint32_t sq_head =
+            __atomic_load_n(
+                m_sq_head,
+                __ATOMIC_ACQUIRE
+            );
+
+        uint32_t sq_tail =
+            __atomic_load_n(
+                m_sq_tail,
+                __ATOMIC_ACQUIRE
+            );
+
+        if (sq_head == sq_tail)
+            break;
+
+        uint32_t sq_index =
+            next_index(sq_head);
+
+        io_uring_sqe sqe =
+            m_sqes[sq_index];
+
+        __atomic_store_n(
+            m_sq_head,
+            sq_head + 1,
+            __ATOMIC_RELEASE
+        );
+
+        int32_t result =
+            process_sqe(sqe);
+
+        uint32_t cq_head =
+            __atomic_load_n(
+                m_cq_head,
+                __ATOMIC_ACQUIRE
+            );
+
+        uint32_t cq_tail =
+            __atomic_load_n(
+                m_cq_tail,
+                __ATOMIC_ACQUIRE
+            );
+
+        if ((cq_tail - cq_head) >= m_queue_depth)
+            break;
+
+        uint32_t cq_index =
+            next_index(cq_tail);
+
+        m_cqes[cq_index].user_data =
+            sqe.user_data;
+
+        m_cqes[cq_index].res =
+            result;
+
+        __atomic_store_n(
+            m_cq_tail,
+            cq_tail + 1,
+            __ATOMIC_RELEASE
+        );
+    }
+}
+
+// ============================================================
+// Completion olvasás
+// ============================================================
+
+bool io_uring::get_completion(
+    uint64_t& user_data,
+    int32_t& result)
+{
+    if (!m_cqes ||
+        !m_cq_head ||
+        !m_cq_tail)
+        return false;
+
+    ScopedLock guard(*m_lock);
+
+    uint32_t head =
+        __atomic_load_n(
+            m_cq_head,
+            __ATOMIC_ACQUIRE
+        );
+
+    uint32_t tail =
+        __atomic_load_n(
+            m_cq_tail,
+            __ATOMIC_ACQUIRE
+        );
+
+    if (head == tail)
+        return false;
+
+    uint32_t index =
+        next_index(head);
+
+    user_data =
+        m_cqes[index].user_data;
+
+    result =
+        m_cqes[index].res;
+
+    __atomic_store_n(
+        m_cq_head,
+        head + 1,
+        __ATOMIC_RELEASE
+    );
+
+    return true;
+}
+
+// ============================================================
+// Pending
+// ============================================================
+
+uint32_t io_uring::pending() const
+{
+    if (!m_sq_head || !m_sq_tail)
+        return 0;
+
+    return *m_sq_tail - *m_sq_head;
+}
+
+// ============================================================
+// Completions
+// ============================================================
+
+uint32_t io_uring::completions() const
+{
+    if (!m_cq_head || !m_cq_tail)
+        return 0;
+
+    return *m_cq_tail - *m_cq_head;
+}
+
+// ============================================================
+// Queue depth
+// ============================================================
+
+uint32_t io_uring::depth() const
+{
+    return m_queue_depth;
+}
 
 } // namespace Blockos

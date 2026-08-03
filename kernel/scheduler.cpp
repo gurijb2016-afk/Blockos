@@ -1,60 +1,141 @@
 #include "scheduler.hpp"
+
 #include <efi.h>
 #include <efilib.h>
 #include <string.h>
+#include <stdint.h>
 
-// Minimal round-robin scheduler skeleton. This is a cooperative stub; preemption will be added
-// after timer/interrupt integration.
+namespace {
 
 struct Task {
     int id;
     void (*entry)(void*);
     void* arg;
-    int state; // 0 = ready, 1 = running, 2 = blocked
+
+    // 0 = READY
+    // 1 = RUNNING
+    // 2 = FINISHED
+    int state;
+
     Task* next;
 };
 
 static Task* runqueue_head = nullptr;
 static int next_task_id = 1;
 
-void scheduler::scheduler_init() {
+} // namespace
+
+namespace scheduler {
+
+void scheduler_init()
+{
     runqueue_head = nullptr;
     next_task_id = 1;
 }
 
-int scheduler::create_task(void (*entry)(void*), void* arg) {
-    Task* t = (Task*)AllocatePool(sizeof(Task));
-    if (!t) return -1;
-    memset(t, 0, sizeof(Task));
-    t->id = next_task_id++;
-    t->entry = entry;
-    t->arg = arg;
-    t->state = 0;
-    // push to runqueue
-    if (!runqueue_head) { runqueue_head = t; t->next = t; }
-    else { t->next = runqueue_head->next; runqueue_head->next = t; }
+int create_task(void (*entry)(void*), void* arg)
+{
+    if (!entry)
+        return -1;
+
+    Task* task = (Task*)AllocatePool(sizeof(Task));
+
+    if (!task)
+        return -1;
+
+    memset(task, 0, sizeof(Task));
+
+    task->id = next_task_id++;
+    task->entry = entry;
+    task->arg = arg;
+    task->state = 0;
+    task->next = nullptr;
+
+    /*
+     * Circular linked-list run queue.
+     */
+    if (!runqueue_head)
+    {
+        runqueue_head = task;
+        task->next = task;
+    }
+    else
+    {
+        task->next = runqueue_head->next;
+        runqueue_head->next = task;
+    }
+
+    /*
+     * IMPORTANT:
+     *
+     * EDK2/GCC környezetben a CHAR16 formátumstringet
+     * explicit módon CHAR16-ként adjuk meg.
+     *
+     * Így nem lesz:
+     * invalid conversion from 'const wchar_t*'
+     * to 'const CHAR16*'
+     */
     CHAR16 buf[128];
-    UnicodeSPrint(buf, sizeof(buf), L"scheduler: created task %d\n", t->id);
+
+    const CHAR16 format[] = {
+        's','c','h','e','d','u','l','e','r',
+        ':',' ','c','r','e','a','t','e','d',' ',
+        't','a','s','k',' ',
+        '%','d',
+        '\n',
+        0
+    };
+
+    UnicodeSPrint(
+        buf,
+        sizeof(buf),
+        format,
+        task->id
+    );
+
     Print(buf);
-    return t->id;
+
+    return task->id;
 }
 
-void scheduler::yield() {
-    // move head pointer
-    if (runqueue_head && runqueue_head->next) runqueue_head = runqueue_head->next;
+void yield()
+{
+    /*
+     * Cooperative scheduler:
+     * simply move to the next task.
+     */
+    if (runqueue_head && runqueue_head->next)
+    {
+        runqueue_head = runqueue_head->next;
+    }
 }
 
-void scheduler::run_scheduler_loop() {
-    if (!runqueue_head) return;
+void run_scheduler_loop()
+{
+    if (!runqueue_head)
+        return;
+
     Task* start = runqueue_head;
-    Task* cur = start;
-    do {
-        if (cur->entry && cur->state == 0) {
-            cur->state = 1;
-            // Run the task -- NOTE: this is cooperative and will block here until return
-            cur->entry(cur->arg);
-            cur->state = 2; // finished/blocked
+    Task* current = start;
+
+    do
+    {
+        if (current->entry && current->state == 0)
+        {
+            current->state = 1;
+
+            /*
+             * Cooperative execution.
+             * The task runs until it returns.
+             */
+            current->entry(current->arg);
+
+            current->state = 2;
         }
-        cur = cur->next;
-    } while (cur != start);
+
+        current = current->next;
+
+    } while (current != start);
 }
+
+} // namespace scheduler

@@ -1,19 +1,32 @@
+# ============================================================
 # BlockOS GNU-EFI C++ Build System
+# x86_64 UEFI
+# ============================================================
 
-EFI_INCL = /usr/include/efi
-EFI_INCL_X86 = /usr/include/efi/x86_64
-GNU_EFI_LIBDIR = /usr/lib
-GNU_EFI_LDS = $(GNU_EFI_LIBDIR)/gnu-efi/elf_x86_64_efi.lds
+EFI_INCL       := /usr/include/efi
+EFI_INCL_X86   := /usr/include/efi/x86_64
 
-CXX = g++
-LD = ld
-OBJCOPY = objcopy
-PYTHON = python3
+GNU_EFI_LIBDIR := /usr/lib
+GNU_EFI_LDS    := $(GNU_EFI_LIBDIR)/elf_x86_64_efi.lds
 
-CXXFLAGS = \
+EFI_CRT        := $(GNU_EFI_LIBDIR)/crt0-efi-x86_64.o
+EFI_LIB        := $(GNU_EFI_LIBDIR)/libefi.a
+GNU_EFI_LIB    := $(GNU_EFI_LIBDIR)/libgnuefi.a
+
+CXX      := g++
+LD       := ld
+OBJCOPY  := objcopy
+PYTHON   := python3
+
+# ============================================================
+# C++ FLAGS
+# ============================================================
+
+CXXFLAGS := \
 	-fno-exceptions \
 	-fno-rtti \
 	-fshort-wchar \
+	-fPIC \
 	-DEFI_FUNCTION_WRAPPER \
 	-I. \
 	-I$(EFI_INCL) \
@@ -28,76 +41,189 @@ CXXFLAGS = \
 	-Ifs \
 	-Iexamples
 
-LDFLAGS = \
+# ============================================================
+# ASSEMBLY FLAGS
+# ============================================================
+
+ASFLAGS := \
+	-I. \
+	-I$(EFI_INCL) \
+	-I$(EFI_INCL_X86) \
+	-ffreestanding
+
+# ============================================================
+# LINKER FLAGS
+# ============================================================
+
+LDFLAGS := \
 	-nostdlib \
 	-znocombreloc \
-	-T $(GNU_EFI_LDS)
+	-T$(GNU_EFI_LDS) \
+	-shared \
+	-Bsymbolic
 
+# ============================================================
+# SOURCE DIRECTORIES
+# ============================================================
 
-# Forrás könyvtárak
-SRC_DIRS = drivers examples fs kernel
-S_SRC_DIRS = drivers examples fs kernel
+SRC_DIRS := \
+	drivers \
+	examples \
+	fs \
+	kernel
 
-# Összes cpp fájl
-SRC = $(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.cpp))
-# Összes assembly (.S) fájl
-S_SRC = $(foreach dir,$(S_SRC_DIRS),$(wildcard $(dir)/*.S))
+S_SRC_DIRS := \
+	drivers \
+	examples \
+	fs \
+	kernel
 
-# Objektum fájlok
-OBJ = $(SRC:.cpp=.o) $(S_SRC:.S=.o)
+# ============================================================
+# SOURCE FILES
+# ============================================================
 
-BUILD_DIR = build
+SRC := $(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.cpp))
 
-SO_OUT = $(BUILD_DIR)/kernel.so
-EFI_OUT = $(BUILD_DIR)/BOOTX64.EFI
+S_SRC := $(foreach dir,$(S_SRC_DIRS),$(wildcard $(dir)/*.S))
 
+# ============================================================
+# OBJECT FILES
+# ============================================================
+
+OBJ := \
+	$(SRC:.cpp=.o) \
+	$(S_SRC:.S=.o)
+
+# ============================================================
+# BUILD OUTPUT
+# ============================================================
+
+BUILD_DIR := build
+
+SO_OUT  := $(BUILD_DIR)/kernel.so
+EFI_OUT := $(BUILD_DIR)/BOOTX64.EFI
+
+# ============================================================
+# DEFAULT
+# ============================================================
 
 all: $(EFI_OUT)
 
+# ============================================================
+# C++ COMPILATION
+# ============================================================
 
-# C++ fordítás
 %.o: %.cpp
 	@mkdir -p $(dir $@)
+	@echo "[CXX] $<"
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# Assembly fordítás
+# ============================================================
+# ASSEMBLY COMPILATION
+# ============================================================
+
 %.o: %.S
 	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	@echo "[ASM] $<"
+	$(CXX) $(ASFLAGS) -c $< -o $@
 
+# ============================================================
+# LINK KERNEL.SO
+# ============================================================
 
-# ELF shared kernel
 $(SO_OUT): $(OBJ)
-	mkdir -p $(BUILD_DIR)
-	$(LD) $(LDFLAGS) \
-		-shared \
-		-Bsymbolic \
+	@mkdir -p $(BUILD_DIR)
+	@echo ""
+	@echo "=============================================="
+	@echo " Linking BlockOS kernel.so"
+	@echo "=============================================="
+
+	$(LD) \
+		$(LDFLAGS) \
 		-L$(GNU_EFI_LIBDIR) \
+		$(EFI_CRT) \
 		$(OBJ) \
+		$(GNU_EFI_LIB) \
+		$(EFI_LIB) \
 		-o $@
 
+	@echo ""
+	@echo "[OK] $@"
 
-# EFI image
+# ============================================================
+# CREATE BOOTX64.EFI
+# ============================================================
+
 $(EFI_OUT): $(SO_OUT)
+	@mkdir -p $(BUILD_DIR)
+	@echo ""
+	@echo "=============================================="
+	@echo " Creating BOOTX64.EFI"
+	@echo "=============================================="
+
 	$(OBJCOPY) \
 		-j .text \
 		-j .sdata \
 		-j .data \
 		-j .dynamic \
 		-j .dynsym \
+		-j .rel \
+		-j .rela \
 		--target=efi-app-x86_64 \
 		$(SO_OUT) \
 		$(EFI_OUT)
 
+	@echo ""
+	@echo "[OK] $@"
 
-# Menü konfiguráció
+# ============================================================
+# CHECK GNU-EFI
+# ============================================================
+
+check-efi:
+	@echo "Checking GNU-EFI..."
+
+	@test -f "$(GNU_EFI_LDS)" \
+		&& echo "[OK] Linker script: $(GNU_EFI_LDS)" \
+		|| echo "[ERROR] Missing: $(GNU_EFI_LDS)"
+
+	@test -f "$(EFI_CRT)" \
+		&& echo "[OK] CRT: $(EFI_CRT)" \
+		|| echo "[ERROR] Missing: $(EFI_CRT)"
+
+	@test -f "$(EFI_LIB)" \
+		&& echo "[OK] libefi: $(EFI_LIB)" \
+		|| echo "[ERROR] Missing: $(EFI_LIB)"
+
+	@test -f "$(GNU_EFI_LIB)" \
+		&& echo "[OK] libgnuefi: $(GNU_EFI_LIB)" \
+		|| echo "[ERROR] Missing: $(GNU_EFI_LIB)"
+
+# ============================================================
+# MENUCONFIG
+# ============================================================
+
 menuconfig:
 	$(PYTHON) scripts/menuconfig.py
 
+# ============================================================
+# CLEAN
+# ============================================================
 
 clean:
-	rm -rf $(OBJ)
+	rm -f $(OBJ)
 	rm -rf $(BUILD_DIR)
 
+# ============================================================
+# REBUILD
+# ============================================================
 
-.PHONY: all clean menuconfig
+rebuild:
+	$(MAKE) clean
+	$(MAKE) all
+
+# ============================================================
+# PHONY
+# ============================================================
+
+.PHONY: all clean rebuild menuconfig check-efi

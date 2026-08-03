@@ -1,212 +1,432 @@
 #include "fs/vfs.hpp"
 #include "kernel/allocator.hpp"
-#include "kernel/spinlock.hpp"
 #include "drivers/virtio_blk.hpp"
+
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
 
 namespace Blockos {
 
-// Az Ext2 szabványos belső struktúrái (Hivatalos Linux specifikáció)
+/*
+ * EXT2 superblock.
+ *
+ * Az EXT2 superblock a lemez 1024. bájtján kezdődik.
+ */
 struct ext2_super_block {
-    uint32_t s_inodes_count;      // Összes inode a fájlrendszerben
-    uint32_t s_blocks_count;      // Összes blokk a fájlrendszerben
-    uint32_t s_r_blocks_count;    // Foglalt blokkok a root számára
-    uint32_t s_free_blocks_count; // Szabad blokkok száma
-    uint32_t s_free_inodes_count; // Szabad inode-ok száma
-    uint32_t s_first_data_block;  // Első adatblokk (0 vagy 1)
-    uint32_t s_log_block_size;    // Blokkméret eltolás (1024 << s_log_block_size)
-    uint32_t s_log_frag_size;     // Fragmentméret eltolás
-    uint32_t s_blocks_per_group;  // Blokkok száma csoportonként
-    uint32_t s_frags_per_group;   // Fragmentek száma csoportonként
-    uint32_t s_inodes_per_group;  // Inode-ok száma csoportonként
-    uint32_t s_mtime;             // Utolsó csatolás ideje
-    uint32_t s_wtime;             // Utolsó írás ideje
-    uint16_t s_mnt_count;         // Csatolások száma az utolsó ellenőrzés óta
-    uint16_t s_max_mnt_count;     // Maximális csatolási szám az ellenőrzés előtt
-    uint16_t s_magic;            // Magic szám: 0xEF53
-    uint16_t s_state;            // Fájlrendszer állapota (1 = Tiszta, 2 = Hibás)
-    uint16_t s_errors;           // Mi a teendő hiba esetén
-    uint16_t s_minor_rev_level;   // Minor revíziós szint
-    uint32_t s_lastcheck;         // Utolsó ellenőrzés ideje
-    uint32_t s_checkinterval;     // Maximális idő az ellenőrzések között
-    uint32_t s_creator_os;        // Létrehozó OS (0 = Linux)
-    uint32_t s_rev_level;         // Revíziós szint (0 = Eredeti, 1 = Dinamikus)
-    uint16_t s_def_resuid;        // Alapértelmezett UID a foglalt blokkokhoz
-    uint16_t s_def_resgid;        // Alapértelmezett GID a foglalt blokkokhoz
-    // Dinamikus revízió esetén (s_rev_level >= 1) az alábbi mezők is érvényesek:
-    uint32_t s_first_ino;         // Első nem foglalt inode (Klasszikus EXT2-nél 11)
-    uint16_t s_inode_size;        // Inode struktúra mérete bájtban (Klasszikus: 128)
+    uint32_t s_inodes_count;
+    uint32_t s_blocks_count;
+    uint32_t s_r_blocks_count;
+    uint32_t s_free_blocks_count;
+    uint32_t s_free_inodes_count;
+    uint32_t s_first_data_block;
+    uint32_t s_log_block_size;
+    uint32_t s_log_frag_size;
+    uint32_t s_blocks_per_group;
+    uint32_t s_frags_per_group;
+    uint32_t s_inodes_per_group;
+    uint32_t s_mtime;
+    uint32_t s_wtime;
+    uint16_t s_mnt_count;
+    uint16_t s_max_mnt_count;
+    uint16_t s_magic;
+    uint16_t s_state;
+    uint16_t s_errors;
+    uint16_t s_minor_rev_level;
+    uint32_t s_lastcheck;
+    uint32_t s_checkinterval;
+    uint32_t s_creator_os;
+    uint32_t s_rev_level;
+    uint16_t s_def_resuid;
+    uint16_t s_def_resgid;
+
+    uint32_t s_first_ino;
+    uint16_t s_inode_size;
 };
 
+/*
+ * EXT2 block group descriptor.
+ */
 struct ext2_block_group_desc {
-    uint32_t bg_block_bitmap;      // Blokk bitmap blokkszáma
-    uint32_t bg_inode_bitmap;      // Inode bitmap blokkszáma
-    uint32_t bg_inode_table;       // Inode tábla első blokkszáma
-    uint16_t bg_free_blocks_count; // Szabad blokkok száma a csoportban
-    uint16_t bg_free_inodes_count; // Szabad inode-ok száma a csoportban
-    uint16_t bg_used_dirs_count;   // Könyvtárak száma a csoportban
+    uint32_t bg_block_bitmap;
+    uint32_t bg_inode_bitmap;
+    uint32_t bg_inode_table;
+
+    uint16_t bg_free_blocks_count;
+    uint16_t bg_free_inodes_count;
+    uint16_t bg_used_dirs_count;
     uint16_t bg_pad;
+
     uint32_t bg_reserved[3];
 };
 
+/*
+ * EXT2 inode.
+ */
 struct ext2_inode {
-    uint16_t i_mode;        // Fájl típusa és hozzáférési jogok
-    uint16_t i_uid;         // Felhasználói azonosító (Low 16 bits)
-    uint32_t i_size;        // Fájl mérete bájtban
-    uint32_t i_atime;       // Utolsó hozzáférés ideje
-    uint32_t i_ctime;       // Létrehozás ideje
-    uint32_t i_mtime;       // Utolsó módosítás ideje
-    uint32_t i_dtime;       // Törlés ideje
-    uint16_t i_gid;         // Csoport azonosító (Low 16 bits)
-    uint16_t i_links_count; // Linkek száma
-    uint32_t i_blocks;      // Blokkok száma (512 bájtos szektorokban kifejezve)
-    uint32_t i_flags;       // Fájl flagek
-    uint32_t i_osd1;        // OS specifikus adat
-    uint32_t i_block[15];   // Pointerek az adatblokkokra (12 direkt, 1 egyszeres, 1 kétszeres, 1 háromszoros indirekt)
-    uint32_t i_generation;  // Fájl verzió (NFS-hez)
-    uint32_t i_file_acl;    // Fájl ACL
-    uint32_t i_dir_acl;     // Könyvtár ACL (Könyvtáraknál), Fájl méret high (Fájloknál)
-    uint32_t i_faddr;       // Fragment címe
-    uint8_t  i_osd2[12];     // OS specifikus adat
+    uint16_t i_mode;
+    uint16_t i_uid;
+
+    uint32_t i_size;
+
+    uint32_t i_atime;
+    uint32_t i_ctime;
+    uint32_t i_mtime;
+    uint32_t i_dtime;
+
+    uint16_t i_gid;
+    uint16_t i_links_count;
+
+    uint32_t i_blocks;
+    uint32_t i_flags;
+    uint32_t i_osd1;
+
+    uint32_t i_block[15];
+
+    uint32_t i_generation;
+    uint32_t i_file_acl;
+    uint32_t i_dir_acl;
+    uint32_t i_faddr;
+
+    uint8_t i_osd2[12];
 };
 
-struct ext2_dir_entry {
-    uint32_t inode;     // Inode száma
-    uint16_t rec_len;   // Bejegyzés hossza bájtban (Igazítva a következő elemhez)
-    uint8_t  name_len;  // Fájlnév hossza
-    uint8_t  file_type; // Fájl típusa (1 = Fájl, 2 = Könyvtár stb.)
-    char     name[255]; // Fájlnév (Nem feltétlenül null-terminált lemezen)
-};
+/*
+ * EXT2 filesystem állapota.
+ */
+static ext2_super_block g_superblock;
+static uint32_t g_block_size = 1024;
+static int g_disk_id = 0;
+static bool g_initialized = false;
 
-class Ext2FileSystem : public VFS::FileSystem {
-private:
-    Spinlock m_lock;
-    ext2_super_block m_sb;
-    int m_disk_id;
-    uint32_t m_block_size;
 
-    // Segédfunkció egy konkrét blokk beolvasására a VirtIO meghajtóból [source: 2]
-    bool read_block(uint32_t block_num, uint8_t* buffer) {
-        uint32_t sectors_per_block = m_block_size / 512;
-        uint32_t start_sector = block_num * sectors_per_block;
-        return VirtIOBlk::read_blocks(m_disk_id, start_sector, sectors_per_block, buffer);
-    }
+/*
+ * Egy 512 bájtos szektor beolvasása.
+ */
+static bool read_sector(
+    uint64_t sector,
+    uint8_t* buffer
+) {
+    if (buffer == nullptr)
+        return false;
 
-    // Inode beolvasása az Ext2 Inode táblából a lemezről
-    bool read_inode(uint32_t inode_num, ext2_inode& inode_out) {
-        if (inode_num < 1) return false;
+    return virtio_blk::read_sector(
+        sector,
+        buffer
+    );
+}
 
-        // Kiszámoljuk, melyik Block Group-ban van az inode
-        uint32_t group = (inode_num - 1) / m_sb.s_inodes_per_group;
-        uint32_t index = (inode_num - 1) % m_sb.s_inodes_per_group;
 
-        // Beolvassuk a Group Descriptort (A 2. blokkban kezdődnek, az 1024 bájtos boot szektor után)
-        uint32_t gd_block = (m_block_size == 1024) ? 2 : 1;
-        uint8_t* gd_buffer = reinterpret_cast<uint8_t*>(KernelAllocator::alloc(m_block_size));
-        if (!read_block(gd_block, gd_buffer)) {
-            KernelAllocator::free(gd_buffer);
+/*
+ * EXT2 blokk beolvasása.
+ *
+ * Az EXT2 blokk több 512 bájtos szektorból állhat.
+ */
+static bool read_block(
+    uint32_t block,
+    uint8_t* buffer
+) {
+    if (buffer == nullptr)
+        return false;
+
+    if (g_block_size == 0)
+        return false;
+
+    uint32_t sectors_per_block =
+        g_block_size / 512;
+
+    if (sectors_per_block == 0)
+        return false;
+
+    uint64_t first_sector =
+        static_cast<uint64_t>(block) *
+        sectors_per_block;
+
+    for (uint32_t i = 0;
+         i < sectors_per_block;
+         ++i) {
+
+        if (!read_sector(
+                first_sector + i,
+                buffer + (i * 512)
+            )) {
             return false;
         }
-
-        ext2_block_group_desc* bgd = &reinterpret_cast<ext2_block_group_desc*>(gd_buffer)[group];
-        uint32_t inode_table_block = bgd->bg_inode_table;
-
-        // Kiszámoljuk a pontos pozíciót az inode táblán belül
-        uint32_t inode_size = (m_sb.s_rev_level >= 1) ? m_sb.s_inode_size : 128;
-        uint32_t byte_offset = index * inode_size;
-        uint32_t target_block = inode_table_block + (byte_offset / m_block_size);
-        uint32_t offset_in_block = byte_offset % m_block_size;
-
-        uint8_t* table_buffer = reinterpret_cast<uint8_t*>(KernelAllocator::alloc(m_block_size));
-        if (!read_block(target_block, table_buffer)) {
-            KernelAllocator::free(gd_buffer);
-            KernelAllocator::free(table_buffer);
-            return false;
-        }
-
-        memcpy(&inode_out, table_buffer + offset_in_block, sizeof(ext2_inode));
-
-        KernelAllocator::free(gd_buffer);
-        KernelAllocator::free(table_buffer);
-        return true;
     }
 
-public:
-    Ext2FileSystem(int disk_id) : m_disk_id(disk_id), m_block_size(1024) {}
+    return true;
+}
 
-    bool initialize() {
-        uint8_t* boot_sector = reinterpret_cast<uint8_t*>(KernelAllocator::alloc(1024));
-        
-        // Az Ext2 Superblock fixen az 1024-edik bájtnál kezdődik (a bootloader terület után)
-        if (!VirtIOBlk::read_blocks(m_disk_id, 2, 2, boot_sector)) { // 2 szektor = 1024 bájt
-            KernelAllocator::free(boot_sector);
-            return false;
-        }
 
-        memcpy(&m_sb, boot_sector, sizeof(ext2_super_block));
-        KernelAllocator::free(boot_sector);
+/*
+ * EXT2 superblock beolvasása.
+ */
+static bool read_superblock()
+{
+    uint8_t* buffer =
+        reinterpret_cast<uint8_t*>(
+            allocator::alloc(1024)
+        );
 
-        // Ellenőrizzük az Ext2 Magic értéket: 0xEF53
-        if (m_sb.s_magic != 0xEF53) {
-            return false;
-        }
+    if (buffer == nullptr)
+        return false;
 
-        // Blokkméret kiszámítása: 1024 << s_log_block_size
-        m_block_size = 1024 << m_sb.s_log_block_size;
-        return true;
+    /*
+     * Az EXT2 superblock a 1024. bájtnál
+     * kezdődik, tehát a 2-es 512 bájtos
+     * szektortól kell olvasni.
+     */
+    if (!read_sector(2, buffer) ||
+        !read_sector(3, buffer + 512)) {
+
+        /*
+         * A projekt allocator API-ja nem
+         * tartalmaz free()-t.
+         *
+         * Ezért itt nem hívunk allocator::free()-t.
+         */
+        return false;
     }
 
-    virtual VFS::Node* lookup(const char* path) override {
-        ScopedLock guard(m_lock);
+    memcpy(
+        &g_superblock,
+        buffer,
+        sizeof(ext2_super_block)
+    );
 
-        // Első lépésként beolvassuk a gyökér (Root) Inode-ot, ami az Ext2-nél fixen a 2-es számú
-        ext2_inode root_inode;
-        if (!read_inode(2, root_inode)) return nullptr;
+    /*
+     * EXT2 magic.
+     */
+    if (g_superblock.s_magic != 0xEF53)
+        return false;
 
-        // Csak a "/" gyökér könyvtár alap-szimulációja és tesztfájl leképezése
-        if (strcmp(path, "/linux-init") == 0) {
-            return new VFS::Node("linux-init", false, [this](char* user_buf, size_t max_len) -> size_t {
-                // Példa: beolvassuk a fájl első közvetlen adatblokkját (i_block[0])
-                uint8_t* data_buffer = reinterpret_cast<uint8_t*>(KernelAllocator::alloc(m_block_size));
-                
-                // Csak az egyszerűség kedvéért fixen beégetett Inode 11 (az első szabad felhasználói inode)
-                ext2_inode file_inode;
-                read_inode(11, file_inode);
+    /*
+     * EXT2 blokkméret:
+     *
+     * 1024 << s_log_block_size
+     */
+    if (g_superblock.s_log_block_size > 6)
+        return false;
 
-                read_block(file_inode.i_block[0], data_buffer);
-                
-                size_t to_copy = (max_len < file_inode.i_size) ? max_len : file_inode.i_size;
-                memcpy(user_buf, data_buffer, to_copy);
-                
-                KernelAllocator::free(data_buffer);
-                return to_copy;
-            });
-        }
-        return nullptr;
+    g_block_size =
+        1024u << g_superblock.s_log_block_size;
+
+    if (g_block_size < 1024)
+        return false;
+
+    if ((g_block_size % 512) != 0)
+        return false;
+
+    return true;
+}
+
+
+/*
+ * Block Group Descriptor beolvasása.
+ */
+static bool read_group_descriptor(
+    uint32_t group,
+    ext2_block_group_desc* descriptor
+) {
+    if (descriptor == nullptr)
+        return false;
+
+    uint8_t* buffer =
+        reinterpret_cast<uint8_t*>(
+            allocator::alloc(g_block_size)
+        );
+
+    if (buffer == nullptr)
+        return false;
+
+    /*
+     * 1024 bájtos blokkméretnél a group
+     * descriptor a 2-es blokkon kezdődik.
+     *
+     * Nagyobb blokkméretnél az 1-es blokkon.
+     */
+    uint32_t descriptor_block =
+        (g_block_size == 1024)
+            ? 2
+            : 1;
+
+    if (!read_block(
+            descriptor_block,
+            buffer
+        )) {
+        return false;
     }
 
-    virtual size_t readdir(VFS::Node* dir_node, char* buffer, size_t max_entries) override {
-        ScopedLock guard(m_lock);
-        size_t count = 0;
-        
-        // Gyökérkönyvtár bejegyzések listázása (Egyszerűsített fix makett az Ext2 bájtszerkezet alapján)
-        if (count < max_entries) {
-            const char* entry = "linux-init";
-            memcpy(buffer + (count * 32), entry, strlen(entry) + 1);
-            count++;
-        }
-        return count;
-    }
-};
+    size_t offset =
+        static_cast<size_t>(group) *
+        sizeof(ext2_block_group_desc);
 
-void init_ext2_fs() {
-    VFS::register_filesystem("ext2", [](int disk_id) -> VFS::FileSystem* {
-        Ext2FileSystem* fs = new Ext2FileSystem(disk_id);
-        if (fs->initialize()) {
-            return fs;
-        }
-        delete fs;
-        return nullptr;
-    });
+    if (offset +
+        sizeof(ext2_block_group_desc) >
+        g_block_size) {
+        return false;
+    }
+
+    memcpy(
+        descriptor,
+        buffer + offset,
+        sizeof(ext2_block_group_desc)
+    );
+
+    return true;
+}
+
+
+/*
+ * Inode beolvasása.
+ */
+static bool read_inode(
+    uint32_t inode_number,
+    ext2_inode* inode
+) {
+    if (inode == nullptr)
+        return false;
+
+    if (inode_number == 0)
+        return false;
+
+    if (g_superblock.s_inodes_per_group == 0)
+        return false;
+
+    uint32_t group =
+        (inode_number - 1) /
+        g_superblock.s_inodes_per_group;
+
+    uint32_t index =
+        (inode_number - 1) %
+        g_superblock.s_inodes_per_group;
+
+    ext2_block_group_desc descriptor;
+
+    if (!read_group_descriptor(
+            group,
+            &descriptor
+        )) {
+        return false;
+    }
+
+    uint32_t inode_size = 128;
+
+    if (g_superblock.s_rev_level >= 1 &&
+        g_superblock.s_inode_size != 0) {
+
+        inode_size =
+            g_superblock.s_inode_size;
+    }
+
+    if (inode_size < sizeof(ext2_inode))
+        return false;
+
+    uint32_t byte_offset =
+        index * inode_size;
+
+    uint32_t inode_block =
+        descriptor.bg_inode_table +
+        (byte_offset / g_block_size);
+
+    uint32_t offset_in_block =
+        byte_offset % g_block_size;
+
+    uint8_t* buffer =
+        reinterpret_cast<uint8_t*>(
+            allocator::alloc(g_block_size)
+        );
+
+    if (buffer == nullptr)
+        return false;
+
+    if (!read_block(
+            inode_block,
+            buffer
+        )) {
+        return false;
+    }
+
+    if (offset_in_block +
+        sizeof(ext2_inode) >
+        g_block_size) {
+        return false;
+    }
+
+    memcpy(
+        inode,
+        buffer + offset_in_block,
+        sizeof(ext2_inode)
+    );
+
+    return true;
+}
+
+
+/*
+ * EXT2 inicializálása.
+ */
+bool ext2_initialize(
+    int disk_id
+) {
+    g_disk_id = disk_id;
+
+    if (!read_superblock())
+        return false;
+
+    g_initialized = true;
+
+    return true;
+}
+
+
+/*
+ * EXT2 inode lekérése.
+ */
+bool ext2_get_inode(
+    uint32_t inode_number,
+    ext2_inode* inode
+) {
+    if (!g_initialized)
+        return false;
+
+    return read_inode(
+        inode_number,
+        inode
+    );
+}
+
+
+/*
+ * EXT2 blokkméret lekérése.
+ */
+uint32_t ext2_get_block_size()
+{
+    return g_block_size;
+}
+
+
+/*
+ * EXT2 magic ellenőrzése.
+ */
+bool ext2_is_initialized()
+{
+    return g_initialized;
+}
+
+
+/*
+ * EXT2 root inode.
+ *
+ * Az EXT2 root inode mindig 2.
+ */
+bool ext2_read_root_inode(
+    ext2_inode* inode
+) {
+    return ext2_get_inode(
+        2,
+        inode
+    );
 }
 
 } // namespace Blockos

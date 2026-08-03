@@ -1,0 +1,363 @@
+guri@guri-ESPRIMO-P956:~/Asztal/blockos/blockos 1.0/test/06/Blockos$ make
+[CXX] drivers/backbuffer.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c drivers/backbuffer.cpp -o drivers/backbuffer.o
+[CXX] drivers/device_manager.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c drivers/device_manager.cpp -o drivers/device_manager.o
+[CXX] drivers/dhcp_dns_stack.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c drivers/dhcp_dns_stack.cpp -o drivers/dhcp_dns_stack.o
+[CXX] drivers/dma.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c drivers/dma.cpp -o drivers/dma.o
+[CXX] drivers/fb.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c drivers/fb.cpp -o drivers/fb.o
+[CXX] drivers/lwip_adapter.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c drivers/lwip_adapter.cpp -o drivers/lwip_adapter.o
+[CXX] drivers/network_checksum_helper.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c drivers/network_checksum_helper.cpp -o drivers/network_checksum_helper.o
+drivers/network_checksum_helper.cpp:5:17: warning: ‘uint16_t checksum_bytes(const uint8_t*, size_t)’ defined but not used [-Wunused-function]
+    5 | static uint16_t checksum_bytes(const uint8_t* data, size_t len) {
+      |                 ^~~~~~~~~~~~~~
+[CXX] drivers/network.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c drivers/network.cpp -o drivers/network.o
+drivers/network.cpp: In member function ‘bool NetworkStack::network_connect(uint32_t, uint16_t, const char*)’:
+drivers/network.cpp:156:58: warning: converting a packed ‘IpHeader’ pointer (alignment 1) to a ‘uint16_t’ {aka ‘short unsigned int’} pointer (alignment 2) may result in an unaligned pointer value [-Waddress-of-packed-member]
+  156 |         ip->checksum = 0; ip->checksum = compute_checksum((uint16_t*)ip, 20);
+      |                                          ~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+In file included from drivers/network.cpp:1:
+drivers/network.hpp:59:8: note: defined here
+   59 | struct IpHeader {
+      |        ^~~~~~~~
+drivers/network.cpp: In member function ‘void NetworkStack::send_data(const uint8_t*, size_t, uint32_t, uint16_t, const char*)’:
+drivers/network.cpp:192:58: warning: converting a packed ‘IpHeader’ pointer (alignment 1) to a ‘uint16_t’ {aka ‘short unsigned int’} pointer (alignment 2) may result in an unaligned pointer value [-Waddress-of-packed-member]
+  192 |         ip->checksum = 0; ip->checksum = compute_checksum((uint16_t*)ip, 20);
+      |                                          ~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+drivers/network.hpp:59:8: note: defined here
+   59 | struct IpHeader {
+      |        ^~~~~~~~
+drivers/network.cpp:205:58: warning: converting a packed ‘IpHeader’ pointer (alignment 1) to a ‘uint16_t’ {aka ‘short unsigned int’} pointer (alignment 2) may result in an unaligned pointer value [-Waddress-of-packed-member]
+  205 |         ip->checksum = 0; ip->checksum = compute_checksum((uint16_t*)ip, 20);
+      |                                          ~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+drivers/network.hpp:59:8: note: defined here
+   59 | struct IpHeader {
+      |        ^~~~~~~~
+[CXX] drivers/network_socket.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c drivers/network_socket.cpp -o drivers/network_socket.o
+[CXX] drivers/pci_config.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c drivers/pci_config.cpp -o drivers/pci_config.o
+[CXX] drivers/pci.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c drivers/pci.cpp -o drivers/pci.o
+[CXX] drivers/pci_msix.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c drivers/pci_msix.cpp -o drivers/pci_msix.o
+[CXX] drivers/pci_subsystem.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c drivers/pci_subsystem.cpp -o drivers/pci_subsystem.o
+drivers/pci_subsystem.cpp:1:9: warning: #pragma once in main file
+    1 | #pragma once
+      |         ^~~~
+[CXX] drivers/ps2keyboard.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c drivers/ps2keyboard.cpp -o drivers/ps2keyboard.o
+[CXX] drivers/ps2mouse.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c drivers/ps2mouse.cpp -o drivers/ps2mouse.o
+[CXX] drivers/virtio_blk.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c drivers/virtio_blk.cpp -o drivers/virtio_blk.o
+[CXX] drivers/virtio_blk_full.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c drivers/virtio_blk_full.cpp -o drivers/virtio_blk_full.o
+drivers/virtio_blk_full.cpp:53:13: warning: ‘bool submit_block_request_chain_generic(void*, void*, uint32_t, void*)’ defined but not used [-Wunused-function]
+   53 | static bool submit_block_request_chain_generic(
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+[CXX] drivers/virtio_common.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c drivers/virtio_common.cpp -o drivers/virtio_common.o
+drivers/virtio_common.cpp:195:13: warning: ‘void virtio_write16(const virtio_common::DeviceHandle*, uint32_t, uint16_t)’ defined but not used [-Wunused-function]
+  195 | static void virtio_write16(
+      |             ^~~~~~~~~~~~~~
+drivers/virtio_common.cpp:175:17: warning: ‘uint16_t virtio_read16(const virtio_common::DeviceHandle*, uint32_t)’ defined but not used [-Wunused-function]
+  175 | static uint16_t virtio_read16(
+      |                 ^~~~~~~~~~~~~
+[CXX] drivers/virtio_common_features.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c drivers/virtio_common_features.cpp -o drivers/virtio_common_features.o
+[CXX] drivers/virtio_common_modern.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c drivers/virtio_common_modern.cpp -o drivers/virtio_common_modern.o
+[CXX] drivers/virtio_common_state.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c drivers/virtio_common_state.cpp -o drivers/virtio_common_state.o
+[CXX] drivers/virtio_input.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c drivers/virtio_input.cpp -o drivers/virtio_input.o
+[CXX] drivers/virtio_net_driver.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c drivers/virtio_net_driver.cpp -o drivers/virtio_net_driver.o
+[CXX] drivers/virtio_net_tx.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c drivers/virtio_net_tx.cpp -o drivers/virtio_net_tx.o
+[CXX] drivers/virtio_notify.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c drivers/virtio_notify.cpp -o drivers/virtio_notify.o
+[CXX] drivers/virtio_pci.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c drivers/virtio_pci.cpp -o drivers/virtio_pci.o
+[CXX] drivers/virtio_service.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c drivers/virtio_service.cpp -o drivers/virtio_service.o
+[CXX] drivers/virtqueue_ops.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c drivers/virtqueue_ops.cpp -o drivers/virtqueue_ops.o
+[CXX] examples/brave-start.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c examples/brave-start.cpp -o examples/brave-start.o
+[CXX] fs/autorun.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c fs/autorun.cpp -o fs/autorun.o
+[CXX] fs/ext2.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c fs/ext2.cpp -o fs/ext2.o
+[CXX] fs/ext4.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c fs/ext4.cpp -o fs/ext4.o
+fs/ext4.cpp:714:17: warning: ‘uint32_t find_inode_in_directory(Ext4Reader&, uint32_t, const char*)’ defined but not used [-Wunused-function]
+  714 | static uint32_t find_inode_in_directory(
+      |                 ^~~~~~~~~~~~~~~~~~~~~~~
+fs/ext4.cpp:95:21: warning: ‘uint32_t {anonymous}::min_u32(uint32_t, uint32_t)’ defined but not used [-Wunused-function]
+   95 |     static uint32_t min_u32(
+      |                     ^~~~~~~
+fs/ext4.cpp:88:21: warning: ‘uint64_t {anonymous}::read_u64(const uint8_t*)’ defined but not used [-Wunused-function]
+   88 |     static uint64_t read_u64(const uint8_t* p)
+      |                     ^~~~~~~~
+fs/ext4.cpp:48:17: warning: ‘bool {anonymous}::string_starts_with(const char*, const char*)’ defined but not used [-Wunused-function]
+   48 |     static bool string_starts_with(
+      |                 ^~~~~~~~~~~~~~~~~~
+fs/ext4.cpp:9:21: warning: ‘uint64_t {anonymous}::div_round_up_u64(uint64_t, uint64_t)’ defined but not used [-Wunused-function]
+    9 |     static uint64_t div_round_up_u64(uint64_t value, uint64_t divisor)
+      |                     ^~~~~~~~~~~~~~~~
+[CXX] fs/fat32.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c fs/fat32.cpp -o fs/fat32.o
+[CXX] fs/files.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c fs/files.cpp -o fs/files.o
+[CXX] fs/mount.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c fs/mount.cpp -o fs/mount.o
+[CXX] fs/proc.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c fs/proc.cpp -o fs/proc.o
+fs/proc.cpp:146:13: warning: ‘bool Blockos::proc::append_uint(char*, size_t, size_t&, uint64_t)’ defined but not used [-Wunused-function]
+  146 | static bool append_uint(
+      |             ^~~~~~~~~~~
+fs/proc.cpp:29:13: warning: ‘void Blockos::proc::str_copy(char*, size_t, const char*)’ defined but not used [-Wunused-function]
+   29 | static void str_copy(
+      |             ^~~~~~~~
+[CXX] fs/ramfs.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c fs/ramfs.cpp -o fs/ramfs.o
+[CXX] fs/sqashasfs.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c fs/sqashasfs.cpp -o fs/sqashasfs.o
+fs/sqashasfs.cpp:94:13: warning: ‘bool Blockos::squashfs_decompress(uint16_t, const uint8_t*, size_t, uint8_t*, size_t)’ defined but not used [-Wunused-function]
+   94 | static bool squashfs_decompress(
+      |             ^~~~~~~~~~~~~~~~~~~
+fs/sqashasfs.cpp:37:12: warning: ‘int Blockos::str_cmp(const char*, const char*)’ defined but not used [-Wunused-function]
+   37 | static int str_cmp(const char* a, const char* b)
+      |            ^~~~~~~
+fs/sqashasfs.cpp:15:15: warning: ‘size_t Blockos::str_len(const char*)’ defined but not used [-Wunused-function]
+   15 | static size_t str_len(const char* s)
+      |               ^~~~~~~
+[CXX] fs/system.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c fs/system.cpp -o fs/system.o
+fs/system.cpp:234:15: warning: ‘size_t Blockos::read_mounts(char*, size_t)’ defined but not used [-Wunused-function]
+  234 | static size_t read_mounts(
+      |               ^~~~~~~~~~~
+fs/system.cpp:167:15: warning: ‘size_t Blockos::read_system_info(char*, size_t)’ defined but not used [-Wunused-function]
+  167 | static size_t read_system_info(
+      |               ^~~~~~~~~~~~~~~~
+fs/system.cpp:142:15: warning: ‘size_t Blockos::read_pci_tree(char*, size_t)’ defined but not used [-Wunused-function]
+  142 | static size_t read_pci_tree(
+      |               ^~~~~~~~~~~~~
+fs/system.cpp:117:15: warning: ‘size_t Blockos::read_services_status(char*, size_t)’ defined but not used [-Wunused-function]
+  117 | static size_t read_services_status(
+      |               ^~~~~~~~~~~~~~~~~~~~
+fs/system.cpp:26:12: warning: ‘int Blockos::str_cmp(const char*, const char*)’ defined but not used [-Wunused-function]
+   26 | static int str_cmp(const char* a, const char* b)
+      |            ^~~~~~~
+[CXX] fs/vfs_blk_adapter.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c fs/vfs_blk_adapter.cpp -o fs/vfs_blk_adapter.o
+[CXX] fs/vfs.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c fs/vfs.cpp -o fs/vfs.o
+[CXX] kernel/allocator.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c kernel/allocator.cpp -o kernel/allocator.o
+kernel/allocator.cpp:36:6: warning: the program should also define ‘void operator delete(void*, long unsigned int)’ [-Wsized-deallocation]
+   36 | void operator delete(void* ptr) noexcept {
+      |      ^~~~~~~~
+kernel/allocator.cpp:42:6: warning: the program should also define ‘void operator delete [](void*, long unsigned int)’ [-Wsized-deallocation]
+   42 | void operator delete[](void* ptr) noexcept {
+      |      ^~~~~~~~
+[CXX] kernel/elf_loader.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c kernel/elf_loader.cpp -o kernel/elf_loader.o
+[CXX] kernel/events.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c kernel/events.cpp -o kernel/events.o
+[CXX] kernel/exec.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c kernel/exec.cpp -o kernel/exec.o
+[CXX] kernel/io_uring.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c kernel/io_uring.cpp -o kernel/io_uring.o
+[CXX] kernel/kernel.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c kernel/kernel.cpp -o kernel/kernel.o
+[CXX] kernel/linux-syscall-emulation.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c kernel/linux-syscall-emulation.cpp -o kernel/linux-syscall-emulation.o
+[CXX] kernel/panic.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c kernel/panic.cpp -o kernel/panic.o
+[CXX] kernel/process.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c kernel/process.cpp -o kernel/process.o
+[CXX] kernel/rcu.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c kernel/rcu.cpp -o kernel/rcu.o
+[CXX] kernel/scheduler.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c kernel/scheduler.cpp -o kernel/scheduler.o
+[CXX] kernel/scheduler_preempt.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c kernel/scheduler_preempt.cpp -o kernel/scheduler_preempt.o
+In file included from kernel/scheduler_preempt.cpp:9:
+arch/86_64x/irq.hpp:11:20: warning: ‘void pic_send_eoi()’ declared ‘static’ but never defined [-Wunused-function]
+   11 | static inline void pic_send_eoi();
+      |                    ^~~~~~~~~~~~
+[CXX] kernel/spinlock.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c kernel/spinlock.cpp -o kernel/spinlock.o
+[CXX] kernel/systemd_graph.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c kernel/systemd_graph.cpp -o kernel/systemd_graph.o
+[CXX] kernel/systemd_parser.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c kernel/systemd_parser.cpp -o kernel/systemd_parser.o
+[CXX] kernel/task_context.cpp
+g++ -fno-exceptions -fno-rtti -fshort-wchar -fPIC -DEFI_FUNCTION_WRAPPER -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -O2 -Wall -Wextra -Iarch/86_64x -Ikernel -Idrivers -Ifs -Iexamples -c kernel/task_context.cpp -o kernel/task_context.o
+[ASM] kernel/context_switch.S
+g++ -I. -I/usr/include/efi -I/usr/include/efi/x86_64 -ffreestanding -c kernel/context_switch.S -o kernel/context_switch.o
+
+==============================================
+ Linking BlockOS kernel.so
+==============================================
+ld \
+        -nostdlib -znocombreloc -T/usr/lib/elf_x86_64_efi.lds -shared -Bsymbolic \
+        -L/usr/lib \
+        /usr/lib/crt0-efi-x86_64.o \
+        drivers/backbuffer.o drivers/device_manager.o drivers/dhcp_dns_stack.o drivers/dma.o drivers/fb.o drivers/lwip_adapter.o drivers/network_checksum_helper.o drivers/network.o drivers/network_socket.o drivers/pci_config.o drivers/pci.o drivers/pci_msix.o drivers/pci_subsystem.o drivers/ps2keyboard.o drivers/ps2mouse.o drivers/virtio_blk.o drivers/virtio_blk_full.o drivers/virtio_common.o drivers/virtio_common_features.o drivers/virtio_common_modern.o drivers/virtio_common_state.o drivers/virtio_input.o drivers/virtio_net_driver.o drivers/virtio_net_tx.o drivers/virtio_notify.o drivers/virtio_pci.o drivers/virtio_service.o drivers/virtqueue_ops.o examples/brave-start.o fs/autorun.o fs/ext2.o fs/ext4.o fs/fat32.o fs/files.o fs/mount.o fs/proc.o fs/ramfs.o fs/sqashasfs.o fs/system.o fs/vfs_blk_adapter.o fs/vfs.o kernel/allocator.o kernel/elf_loader.o kernel/events.o kernel/exec.o kernel/io_uring.o kernel/kernel.o kernel/linux-syscall-emulation.o kernel/panic.o kernel/process.o kernel/rcu.o kernel/scheduler.o kernel/scheduler_preempt.o kernel/spinlock.o kernel/systemd_graph.o kernel/systemd_parser.o kernel/task_context.o kernel/context_switch.o \
+        /usr/lib/libgnuefi.a \
+        /usr/lib/libefi.a \
+        -o build/kernel.so
+
+[OK] build/kernel.so
+
+==============================================
+ Creating BOOTX64.EFI
+==============================================
+objcopy \
+        -j .text \
+        -j .sdata \
+        -j .data \
+        -j .dynamic \
+        -j .dynsym \
+        -j .rel \
+        -j .rela \
+        --target=efi-app-x86_64 \
+        build/kernel.so \
+        build/BOOTX64.EFI
+
+[OK] build/BOOTX64.EFI
+guri@guri-ESPRIMO-P956:~/Asztal/blockos/blockos 1.0/test/06/Blockos$ file build/BOOTX64.EFI
+build/BOOTX64.EFI: PE32+ executable (EFI application) x86-64 (stripped to external PDB), for MS Windows, 5 sections
+guri@guri-ESPRIMO-P956:~/Asztal/blockos/blockos 1.0/test/06/Blockos$ find /usr/share -iname 'OVMF_CODE*.fd' 2>/dev/null
+/usr/share/OVMF/OVMF_CODE_4M.ms.fd
+/usr/share/OVMF/OVMF_CODE_4M.snakeoil.fd
+/usr/share/OVMF/OVMF_CODE_4M.secboot.fd
+/usr/share/OVMF/OVMF_CODE_4M.fd
+guri@guri-ESPRIMO-P956:~/Asztal/blockos/blockos 1.0/test/06/Blockos$ mkdir -p build/esp/EFI/BOOT
+cp build/BOOTX64.EFI build/esp/EFI/BOOT/BOOTX64.EFI
+guri@guri-ESPRIMO-P956:~/Asztal/blockos/blockos 1.0/test/06/Blockos$ qemu-system-x86_64 \
+    -machine q35 \
+    -m 512M \
+    -bios /usr/share/OVMF/OVMF_CODE_4M.fd \
+    -drive format=raw,file=fat:rw:build/esp
+qemu: could not load PC BIOS '/usr/share/OVMF/OVMF_CODE_4M.fd'
+guri@guri-ESPRIMO-P956:~/Asztal/blockos/blockos 1.0/test/06/Blockos$ ls -lh /usr/share/OVMF/OVMF_CODE_4M.fd
+file /usr/share/OVMF/OVMF_CODE_4M.fd
+-rw-r--r-- 1 root root 3,5M jún    2 14:48 /usr/share/OVMF/OVMF_CODE_4M.fd
+/usr/share/OVMF/OVMF_CODE_4M.fd: data
+guri@guri-ESPRIMO-P956:~/Asztal/blockos/blockos 1.0/test/06/Blockos$ cp /usr/share/OVMF/OVMF_VARS_4M.fd build/OVMF_VARS.fd
+guri@guri-ESPRIMO-P956:~/Asztal/blockos/blockos 1.0/test/06/Blockos$ find /usr/share/OVMF -iname '*VARS*'
+/usr/share/OVMF/OVMF_VARS_4M.ms.fd
+/usr/share/OVMF/OVMF_VARS_4M.fd
+/usr/share/OVMF/OVMF_VARS_4M.snakeoil.fd
+guri@guri-ESPRIMO-P956:~/Asztal/blockos/blockos 1.0/test/06/Blockos$ qemu-system-x86_64 \
+    -machine q35 \
+    -m 512M \
+    -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd \
+    -drive if=pflash,format=raw,file=build/OVMF_VARS.fd \
+    -drive format=raw,file=fat:rw:build/esp
+guri@guri-ESPRIMO-P956:~/Asztal/blockos/blockos 1.0/test/06/Blockos$ cd ~/Asztal/blockos/blockos\ 1.0/test/06/Blockos
+
+rm -f build/esp.img
+dd if=/dev/zero of=build/esp.img bs=1M count=64
+mkfs.fat -F 32 build/esp.img
+64+0 records in
+64+0 records out
+67108864 bytes (67 MB, 64 MiB) copied, 0,0350102 s, 1,9 GB/s
+mkfs.fat 4.2 (2021-01-31)
+guri@guri-ESPRIMO-P956:~/Asztal/blockos/blockos 1.0/test/06/Blockos$ mkdir -p build/esp_mount
+sudo mount -o loop build/esp.img build/esp_mount
+
+sudo mkdir -p build/esp_mount/EFI/BOOT
+sudo cp build/BOOTX64.EFI build/esp_mount/EFI/BOOT/BOOTX64.EFI
+
+sync
+sudo umount build/esp_mount
+[sudo] guri jelszava:            
+guri@guri-ESPRIMO-P956:~/Asztal/blockos/blockos 1.0/test/06/Blockos$ ls -lh build/BOOTX64.EFI
+-rwxrwxr-x 1 guri guri 212K aug    3 09:39 build/BOOTX64.EFI
+guri@guri-ESPRIMO-P956:~/Asztal/blockos/blockos 1.0/test/06/Blockos$ ls -lh build/esp.img
+-rw-rw-r-- 1 guri guri 64M aug    3 09:46 build/esp.img
+guri@guri-ESPRIMO-P956:~/Asztal/blockos/blockos 1.0/test/06/Blockos$ rm -f build/OVMF_VARS.fd
+
+cp /usr/share/OVMF/OVMF_VARS_4M.fd build/OVMF_VARS.fd
+guri@guri-ESPRIMO-P956:~/Asztal/blockos/blockos 1.0/test/06/Blockos$ qemu-system-x86_64 \
+    -machine q35 \
+    -m 512M \
+    -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd \
+    -drive if=pflash,format=raw,file=build/OVMF_VARS.fd \
+    -drive format=raw,file=build/esp.img \
+    -boot menu=on
+guri@guri-ESPRIMO-P956:~/Asztal/blockos/blockos 1.0/test/06/Blockos$ qemu-system-x86_64 \
+    -machine q35 \
+    -m 512M \
+    -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd \
+    -drive if=pflash,format=raw,file=build/OVMF_VARS.fd \
+    -drive format=raw,file=build/esp.img \
+    -boot menu=on
+guri@guri-ESPRIMO-P956:~/Asztal/blockos/blockos 1.0/test/06/Blockos$ qemu-system-x86_64 \
+    -machine q35 \
+    -m 512M \
+    -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd \
+    -drive if=pflash,format=raw,file=build/OVMF_VARS.fd \
+    -drive format=raw,file=build/esp.img \
+    -boot menu=on
+guri@guri-ESPRIMO-P956:~/Asztal/blockos/blockos 1.0/test/06/Blockos$ qemu-system-x86_64 \
+    -machine q35 \
+    -m 512M \
+    -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd \
+    -drive if=pflash,format=raw,file=build/OVMF_VARS.fd \
+    -device ahci,id=ahci \
+    -drive format=raw,file=build/esp.img,if=none,id=drive-esp \
+    -device ide-hd,bus=ahci.0,drive=drive-esp \
+    -boot menu=on
+^Cqemu: terminating on signal 2
+guri@guri-ESPRIMO-P956:~/Asztal/blockos/blockos 1.0/test/06/Blockos$ qemu-system-x86_64 \
+    -machine q35 \
+    -m 512M \
+    -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd \
+    -drive if=pflash,format=raw,file=build/OVMF_VARS.fd \
+    -device ahci,id=ahci \
+    -drive format=raw,file=build/esp.img,if=none,id=drive-esp \
+    -device ide-hd,bus=ahci.0,drive=drive-esp \
+    -boot menu=on
+guri@guri-ESPRIMO-P956:~/Asztal/blockos/blockos 1.0/test/06/Blockos$ file build/esp.img
+build/esp.img: DOS/MBR boot sector, code offset 0x58+2, OEM-ID "mkfs.fat", Media descriptor 0xf8, sectors/track 32, heads 8, sectors 131072 (volumes > 32 MB), FAT (32 bit), sectors/FAT 1009, serial number 0x737cecf6, unlabeled
+guri@guri-ESPRIMO-P956:~/Asztal/blockos/blockos 1.0/test/06/Blockos$ mdir -i build/esp.img ::/ -s
+ Volume in drive : has no label
+ Volume Serial Number is 737C-ECF6
+Directory for ::/
+
+EFI          <DIR>     2026-08-03   9:46 
+        1 file                    0 bytes
+
+Directory for ::/EFI
+
+.            <DIR>     2026-08-03   9:46 
+..           <DIR>     2026-08-03   9:46 
+BOOT         <DIR>     2026-08-03   9:46 
+        3 files                   0 bytes
+
+Directory for ::/EFI/BOOT
+
+.            <DIR>     2026-08-03   9:46 
+..           <DIR>     2026-08-03   9:46 
+BOOTX64  EFI    216108 2026-08-03   9:46 
+        3 files             216 108 bytes
+
+Total files listed:
+        7 files             216 108 bytes
+                         65 841 152 bytes free
+
+guri@guri-ESPRIMO-P956:~/Asztal/blockos/blockos 1.0/test/06/Blockos$ 

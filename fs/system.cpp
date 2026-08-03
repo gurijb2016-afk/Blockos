@@ -1,102 +1,438 @@
 #include "fs/vfs.hpp"
-#include "kernel/scheduler.hpp"
-#include "kernel/spinlock.hpp"
-#include "drivers/pci.hpp"
+#include <cstddef>
+#include <cstdint>
 
 namespace Blockos {
 
-class SystemFileSystem : public VFS::FileSystem {
-private:
-    Spinlock m_lock;
+/* ============================================================
+ * Freestanding string/memory segédfüggvények
+ * ============================================================ */
 
-    // 1. /system/services dinamikus generálása a systemd_graph állapota alapján [source: 2]
-    static size_t read_services_status(char* buf, size_t max) {
-        size_t idx = 0;
-        const char* header = "--- Blockos Systemd Active Services ---\n";
-        memcpy(buf + idx, header, strlen(header));
-        idx += strlen(header);
-
-        // Itt a systemd_graph.cpp osztályodból dinamikusan kiolvashatod a szolgáltatásokat [source: 2]
-        // Példa makett kiíratás:
-        const char* s1 = "[ACTIVE]  udevd.service\n[ACTIVE]  knetworkd.service\n[STANDBY] gui_compositor.service\n";
-        size_t s1_len = strlen(s1);
-        if (idx + s1_len < max) {
-            memcpy(buf + idx, s1, s1_len);
-            idx += s1_len;
-        }
-        return idx;
+static size_t str_len(const char* s)
+{
+    if (!s) {
+        return 0;
     }
 
-    // 2. /system/pci_devices topológia kiírása a pci.cpp drivered alapján [source: 2]
-    static size_t read_pci_tree(char* buf, size_t max) {
-        size_t idx = 0;
-        const char* header = "--- PCI Bus Topology ---\n";
-        memcpy(buf + idx, header, strlen(header));
-        idx += strlen(header);
+    size_t n = 0;
 
-        // Itt meghívhatod a te saját PCI alrendszeredet [source: 2]
-        // pl. for(int i=0; i < PCI::get_device_count(); ++i) { ... }
-        const char* mock_pci = "Bus 00 Slot 01.0: VirtIO Network Card (Vendor: 0x1AF4 Device: 0x1000)\n"
-                               "Bus 00 Slot 02.0: VirtIO Block Device (Vendor: 0x1AF4 Device: 0x1001)\n"
-                               "Bus 00 Slot 03.0: Standard VGA Controller\n";
-        size_t pci_len = strlen(mock_pci);
-        if (idx + pci_len < max) {
-            memcpy(buf + idx, mock_pci, pci_len);
-            idx += pci_len;
-        }
-        return idx;
+    while (s[n] != '\0') {
+        ++n;
     }
 
-public:
-    SystemFileSystem() {}
+    return n;
+}
 
-    // VFS lookup: Amikor a rendszer megnyit egy virtuális csomópontot a /system alatt [source: 2]
-    virtual VFS::Node* lookup(const char* path) override {
-        ScopedLock guard(m_lock);
-
-        if (strcmp(path, "/services") == 0) {
-            return new VFS::Node("services", false, [](char* b, size_t m) { return read_services_status(b, m); });
-        }
-        if (strcmp(path, "/pci_devices") == 0) {
-            return new VFS::Node("pci_devices", false, [](char* b, size_t m) { return read_pci_tree(b, m); });
+static int str_cmp(const char* a, const char* b)
+{
+    if (!a || !b) {
+        if (a == b) {
+            return 0;
         }
 
+        return a ? 1 : -1;
+    }
+
+    size_t i = 0;
+
+    while (a[i] != '\0' && b[i] != '\0') {
+        if (a[i] != b[i]) {
+            return (unsigned char)a[i] - (unsigned char)b[i];
+        }
+
+        ++i;
+    }
+
+    return (unsigned char)a[i] - (unsigned char)b[i];
+}
+
+static void mem_copy(
+    uint8_t* dest,
+    const uint8_t* src,
+    size_t size
+)
+{
+    if (!dest || !src) {
+        return;
+    }
+
+    for (size_t i = 0; i < size; ++i) {
+        dest[i] = src[i];
+    }
+}
+
+static size_t append_text(
+    char* buffer,
+    size_t max,
+    size_t pos,
+    const char* text
+)
+{
+    if (!buffer || !text || pos >= max) {
+        return pos;
+    }
+
+    size_t len = str_len(text);
+
+    size_t available = max - pos;
+
+    if (len > available) {
+        len = available;
+    }
+
+    mem_copy(
+        reinterpret_cast<uint8_t*>(buffer + pos),
+        reinterpret_cast<const uint8_t*>(text),
+        len
+    );
+
+    return pos + len;
+}
+
+/* ============================================================
+ * System filesystem adatok
+ * ============================================================ */
+
+static const char* system_services =
+    "--- BlockOS Active Services ---\n"
+    "[ACTIVE]  udevd.service\n"
+    "[ACTIVE]  knetworkd.service\n"
+    "[STANDBY] gui_compositor.service\n"
+    "[ACTIVE]  filesystem.service\n"
+    "[ACTIVE]  proc.service\n"
+    "[ACTIVE]  sysfs.service\n";
+
+static const char* system_pci_devices =
+    "--- PCI Bus Topology ---\n"
+    "Bus 00 Slot 01.0: VirtIO Network Card "
+    "(Vendor: 0x1AF4 Device: 0x1000)\n"
+    "Bus 00 Slot 02.0: VirtIO Block Device "
+    "(Vendor: 0x1AF4 Device: 0x1001)\n"
+    "Bus 00 Slot 03.0: Standard VGA Controller\n";
+
+/* ============================================================
+ * /system/services
+ * ============================================================ */
+
+static size_t read_services_status(
+    char* buffer,
+    size_t max
+)
+{
+    if (!buffer || max == 0) {
+        return 0;
+    }
+
+    size_t pos = 0;
+
+    pos = append_text(
+        buffer,
+        max,
+        pos,
+        system_services
+    );
+
+    return pos;
+}
+
+/* ============================================================
+ * /system/pci_devices
+ * ============================================================ */
+
+static size_t read_pci_tree(
+    char* buffer,
+    size_t max
+)
+{
+    if (!buffer || max == 0) {
+        return 0;
+    }
+
+    size_t pos = 0;
+
+    pos = append_text(
+        buffer,
+        max,
+        pos,
+        system_pci_devices
+    );
+
+    return pos;
+}
+
+/* ============================================================
+ * /system/info
+ * ============================================================ */
+
+static size_t read_system_info(
+    char* buffer,
+    size_t max
+)
+{
+    if (!buffer || max == 0) {
+        return 0;
+    }
+
+    size_t pos = 0;
+
+    pos = append_text(
+        buffer,
+        max,
+        pos,
+        "BlockOS System Information\n"
+    );
+
+    pos = append_text(
+        buffer,
+        max,
+        pos,
+        "---------------------------\n"
+    );
+
+    pos = append_text(
+        buffer,
+        max,
+        pos,
+        "OS: BlockOS\n"
+    );
+
+    pos = append_text(
+        buffer,
+        max,
+        pos,
+        "Version: 1.0\n"
+    );
+
+    pos = append_text(
+        buffer,
+        max,
+        pos,
+        "Architecture: x86_64\n"
+    );
+
+    pos = append_text(
+        buffer,
+        max,
+        pos,
+        "Kernel: BlockOS Kernel\n"
+    );
+
+    pos = append_text(
+        buffer,
+        max,
+        pos,
+        "Filesystem API: vfs\n"
+    );
+
+    return pos;
+}
+
+/* ============================================================
+ * /system/mounts
+ * ============================================================ */
+
+static size_t read_mounts(
+    char* buffer,
+    size_t max
+)
+{
+    if (!buffer || max == 0) {
+        return 0;
+    }
+
+    size_t pos = 0;
+
+    pos = append_text(
+        buffer,
+        max,
+        pos,
+        "--- BlockOS Mounted Filesystems ---\n"
+    );
+
+    pos = append_text(
+        buffer,
+        max,
+        pos,
+        "root     /        ext4\n"
+    );
+
+    pos = append_text(
+        buffer,
+        max,
+        pos,
+        "proc     /proc    proc\n"
+    );
+
+    pos = append_text(
+        buffer,
+        max,
+        pos,
+        "sysfs    /system  sysfs\n"
+    );
+
+    return pos;
+}
+
+/* ============================================================
+ * Virtuális system fájlok
+ *
+ * Mivel a jelenlegi VFS API:
+ *
+ *   vfs::read_file()
+ *   vfs::write_file()
+ *   vfs::create_file()
+ *
+ * ezért a /system fájlokat az egyszerű VFS-be regisztráljuk.
+ * ============================================================ */
+
+static bool create_system_file(
+    const char* name,
+    const char* data
+)
+{
+    if (!name || !data) {
+        return false;
+    }
+
+    uint32_t size =
+        static_cast<uint32_t>(str_len(data));
+
+    return vfs::create_file(
+        name,
+        reinterpret_cast<const uint8_t*>(data),
+        size
+    );
+}
+
+/* ============================================================
+ * System filesystem inicializálása
+ * ============================================================ */
+
+bool init_system_fs()
+{
+    bool ok = true;
+
+    /*
+     * A jelenlegi VFS nem rendelkezik külön mountolt
+     * FileSystem osztállyal, ezért a /system fájlokat
+     * közvetlenül a VFS fájltárolójába tesszük.
+     */
+
+    if (!create_system_file(
+            "/system/services",
+            system_services)) {
+        ok = false;
+    }
+
+    if (!create_system_file(
+            "/system/pci_devices",
+            system_pci_devices)) {
+        ok = false;
+    }
+
+    const char* info =
+        "BlockOS System Information\n"
+        "---------------------------\n"
+        "OS: BlockOS\n"
+        "Version: 1.0\n"
+        "Architecture: x86_64\n"
+        "Kernel: BlockOS Kernel\n"
+        "Filesystem API: vfs\n";
+
+    if (!create_system_file(
+            "/system/info",
+            info)) {
+        ok = false;
+    }
+
+    const char* mounts =
+        "--- BlockOS Mounted Filesystems ---\n"
+        "root     /        ext4\n"
+        "proc     /proc    proc\n"
+        "sysfs    /system  sysfs\n";
+
+    if (!create_system_file(
+            "/system/mounts",
+            mounts)) {
+        ok = false;
+    }
+
+    return ok;
+}
+
+/* ============================================================
+ * System service parancsok
+ * ============================================================ */
+
+bool system_reload_services()
+{
+    static const uint8_t command[] = {
+        'r', 'e', 'l', 'o', 'a', 'd'
+    };
+
+    return vfs::write_file(
+        "/system/services",
+        command,
+        sizeof(command)
+    );
+}
+
+/* ============================================================
+ * System fájl olvasása
+ * ============================================================ */
+
+const uint8_t* system_read_file(
+    const char* name,
+    uint32_t* size
+)
+{
+    if (!name || !size) {
         return nullptr;
     }
 
-    // Lehetővé tesszük, hogy a felhasználói space (Ring 3) írni is tudjon a /system fájljaiba [source: 2]
-    // Ez a Linux-szintű konfigurációs interfész alapja (pl. echo "restart" > /system/services)
-    virtual size_t write(VFS::Node* node, const char* buffer, size_t len) override {
-        ScopedLock guard(m_lock);
+    return vfs::read_file(name, size);
+}
 
-        if (strcmp(node->get_name(), "services") == 0) {
-            if (strncmp(buffer, "reload", 6) == 0) {
-                // Itt közvetlenül kiküldhetsz egy eseményt a systemd_parser.cpp-nek [source: 2]
-                // SystemdParser::reload_graph();
-                return len;
-            }
-        }
-        return -1; // Ismeretlen parancs vagy írásvédett konfiguráció
+/* ============================================================
+ * System fájl létrehozása
+ * ============================================================ */
+
+bool system_create_file(
+    const char* name,
+    const uint8_t* data,
+    uint32_t size
+)
+{
+    if (!name) {
+        return false;
     }
 
-    virtual size_t readdir(VFS::Node* dir_node, char* buffer, size_t max_entries) override {
-        ScopedLock guard(m_lock);
-        size_t count = 0;
+    return vfs::create_file(
+        name,
+        data,
+        size
+    );
+}
 
-        const char* entries[] = { "services", "pci_devices" };
-        for (const char* name : entries) {
-            if (count >= max_entries) return count;
-            memcpy(buffer + (count * 32), name, strlen(name) + 1);
-            count++;
-        }
-        return count;
+/* ============================================================
+ * System fájl írása
+ * ============================================================ */
+
+bool system_write_file(
+    const char* name,
+    const uint8_t* data,
+    uint32_t size
+)
+{
+    if (!name) {
+        return false;
     }
-};
 
-void init_system_fs() {
-    VFS::register_filesystem("sysfs", [](int disk_id) -> VFS::FileSystem* {
-        return new SystemFileSystem();
-    });
+    return vfs::write_file(
+        name,
+        data,
+        size
+    );
 }
 
 } // namespace Blockos
