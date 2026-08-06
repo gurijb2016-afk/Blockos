@@ -61,6 +61,5 @@ for (int i = 0; i < width; i++)
 {
     framebuffer[y * screenWidth + x + i] = 0x505050;
 }
-```
 
 }
