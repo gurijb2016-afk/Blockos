@@ -1,0 +1,653 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2018-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+#ifndef _NV_UTILS_NV_BITVECTOR_H_
+#define _NV_UTILS_NV_BITVECTOR_H_
+
+#include "nvport/nvport.h"
+#include "nvtypes.h"
+#include "nvstatus.h"
+#include "nvmisc.h"
+#include "utils/nvassert.h"
+#include "utils/nvrange.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+//
+// Note: This will need to be recalculated if the data size changes
+// IDX(i) = (index & ~(MASK(num bits)) >> log2(num bits)
+//
+#define NV_BITVECTOR_IDX(index)         (((index) & ~(0x3F)) >> 6)
+#define NV_BITVECTOR_ARRAY_SIZE(last)   (NV_BITVECTOR_IDX((last) - 1) + 1)
+#define NV_BITVECTOR_BYTE_SIZE(last)    (NV_BITVECTOR_ARRAY_SIZE((last)) * sizeof(NvU64))
+#define NV_BITVECTOR_OFFSET(index)      ((index) & ((sizeof(NvU64) * 8) - 1))
+
+/**
+ * \anchor NV_BITVECTOR_1
+ * @defgroup NV_BITVECTOR NV_BITVECTOR
+ *
+ * @brief NV_BITVECTOR is a collection of individual consecutive bit flags
+ *        packed within an array of 64-bit integers. Each derivative of the
+ *        NV_BITVECTOR type may specify the number of queryable flags, and the
+ *        array will be sized according to the minimum number of 64-bit integers
+ *        required to hold the flags.
+ *
+ * @details NV_BITVECTOR is a general purpose data structure utility.
+ *          It consists of a single (real) field, named \b qword.
+ *          Flags within a NV_BITVECTOR are represented beginning with the LSB of
+ *          index 0 of \b qword, and are packed fully within a single qword
+ *          before expanding into a new qword. Derivatives of NV_BITVECTOR must
+ *          provide a type name for the new type, and the first index outside of
+ *          the range of the new type (this value must be greater than 0.) A
+ *          bitvector with bits 63 and 64 raised is represented in memory in a
+ *          little-endian system as follows:
+ *
+ *             63                     NV_BITVECTOR_OFFSET(i)                 0
+ *            .-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-.
+ *          0 |1                                                              |
+ *          1 |                                                              1|
+ *            `-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-'
+ *
+ *          Thus, in order to conceptually model an NV_BITVECTOR horizontally as
+ *          a continual ordered list of bits, one would have to write the
+ *          bitvector from highest index to lowest, and read from right to left.
+ *
+ * @note The unused bits within a derivative type of NV_BITVECTOR are reserved,
+ *       and must not be depended upon to contain any consistent value.
+ *
+ * @{
+ */
+typedef struct NV_BITVECTOR NV_BITVECTOR;
+struct NV_BITVECTOR
+{
+    NvU64 qword;
+};
+
+#define TYPEDEF_BITVECTOR(bitvectTypeName)                  \
+    union bitvectTypeName;                                  \
+    typedef union bitvectTypeName bitvectTypeName;          \
+
+#define IMPL_BITVECTOR(bitvectTypeName, last_val)           \
+    union bitvectTypeName                                   \
+    {                                                       \
+        NV_BITVECTOR real;                                  \
+        NvU64 qword[NV_BITVECTOR_ARRAY_SIZE(last_val)];     \
+        struct                                              \
+        {                                                   \
+            char _[last_val];                               \
+            char asrt[1 - 2 * !(last_val > 0)];             \
+        } *last;                                            \
+    }
+
+#define MAKE_BITVECTOR(bitvectTypeName, last_val)           \
+    TYPEDEF_BITVECTOR(bitvectTypeName)                      \
+    IMPL_BITVECTOR(bitvectTypeName, last_val)
+
+#define MAKE_ANON_BITVECTOR(last_val)                       \
+    IMPL_BITVECTOR( , last_val)
+
+#define NV_BITVECTOR_ARRAY_LENGTH(pBitVector)                \
+    (NV_ARRAY_ELEMENTS(pBitVector->qword))
+
+#define bitVectorSizeOf(pBitVector)                                         \
+    bitVectorSizeOf_IMPL(&((pBitVector)->real),                             \
+                         sizeof(((pBitVector)->last->_)))
+
+#define bitVectorClrAll(pBitVector)                                         \
+    bitVectorClrAll_IMPL(&((pBitVector)->real),                             \
+                         sizeof(((pBitVector)->last->_)))
+
+#define bitVectorClr(pBitVector, idx)                                       \
+    bitVectorClr_IMPL(&((pBitVector)->real),                                \
+                      sizeof(((pBitVector)->last->_)), (idx))
+
+#define bitVectorClrRange(pBitVector, range)                                \
+    bitVectorClrRange_IMPL(&((pBitVector)->real),                           \
+                      sizeof(((pBitVector)->last->_)), (range))
+
+#define bitVectorSetAll(pBitVector)                                         \
+    bitVectorSetAll_IMPL(&((pBitVector)->real),                             \
+                         sizeof(((pBitVector)->last->_)))
+
+#define bitVectorSet(pBitVector, idx)                                       \
+    bitVectorSet_IMPL(&((pBitVector)->real),                                \
+                      sizeof(((pBitVector)->last->_)), (idx))
+
+#define bitVectorSetRange(pBitVector, range)                                \
+    bitVectorSetRange_IMPL(&((pBitVector)->real),                           \
+                      sizeof(((pBitVector)->last->_)), (range))
+
+#define bitVectorInv(pBitVector, idx)                                       \
+    bitVectorInv_IMPL(&((pBitVector)->real),                                \
+                      sizeof(((pBitVector)->last->_)), (idx))
+
+#define bitVectorInvRange(pBitVector, range)                                \
+    bitVectorInvRange_IMPL(&((pBitVector)->real),                           \
+                         sizeof(((pBitVector)->last->_)), (range))
+
+#define bitVectorInvAll(pBitVector)                                         \
+    bitVectorInvRange_IMPL(&((pBitVector)->real),                           \
+                         sizeof(((pBitVector)->last->_)),                   \
+                         rangeMake(0, sizeof(((pBitVector)->last->_)) - 1))
+
+#define bitVectorFromArrayU16(pBitVector, pArr, sz)                         \
+    bitVectorFromArrayU16_IMPL(&((pBitVector)->real),                       \
+                            sizeof(((pBitVector)->last->_)),                \
+                            (pArr),                                         \
+                            (sz))
+
+#define bitVectorTestAllSet(pBitVector)                                     \
+     bitVectorTestAllSet_IMPL(&((pBitVector)->real),                        \
+                              sizeof(((pBitVector)->last->_)))
+
+#define bitVectorTestAllCleared(pBitVector)                                 \
+    bitVectorTestAllCleared_IMPL(&((pBitVector)->real),                     \
+                                 sizeof(((pBitVector)->last->_)))
+
+#define bitVectorTestEqual(pBitVectorA, pBitVectorB)                        \
+    bitVectorTestEqual_IMPL(&((pBitVectorA)->real),                         \
+                            sizeof(((pBitVectorA)->last->_)),               \
+                            &((pBitVectorB)->real),                         \
+                            sizeof(((pBitVectorB)->last->_)))
+
+#define bitVectorTestIsSubset(pBitVectorA, pBitVectorB)                     \
+    bitVectorTestIsSubset_IMPL(&((pBitVectorA)->real),                      \
+                               sizeof(((pBitVectorA)->last->_)),            \
+                               &((pBitVectorB)->real),                      \
+                               sizeof(((pBitVectorB)->last->_)))
+
+#define bitVectorTest(pBitVector, idx)                                      \
+    bitVectorTest_IMPL(&((pBitVector)->real),                               \
+                       sizeof(((pBitVector)->last->_)),                     \
+                       (idx))
+
+#define bitVectorAnd(pBitVectorDst, pBitVectorA, pBitVectorB)               \
+    bitVectorAnd_IMPL(&((pBitVectorDst)->real),                             \
+                      sizeof(((pBitVectorDst)->last->_)),                   \
+                      &((pBitVectorA)->real),                               \
+                      sizeof(((pBitVectorA)->last->_)),                     \
+                      &((pBitVectorB)->real),                               \
+                      sizeof(((pBitVectorB)->last->_)))
+
+#define bitVectorOr(pBitVectorDst, pBitVectorA, pBitVectorB)                \
+    bitVectorOr_IMPL(&((pBitVectorDst)->real),                              \
+                     sizeof(((pBitVectorDst)->last->_)),                    \
+                     &((pBitVectorA)->real),                                \
+                     sizeof(((pBitVectorA)->last->_)),                      \
+                     &((pBitVectorB)->real),                                \
+                     sizeof(((pBitVectorB)->last->_)))
+
+#define bitVectorXor(pBitVectorDst, pBitVectorA, pBitVectorB)               \
+    bitVectorXor_IMPL(&((pBitVectorDst)->real),                             \
+                      sizeof(((pBitVectorDst)->last->_)),                   \
+                      &((pBitVectorA)->real),                               \
+                      sizeof(((pBitVectorA)->last->_)),                     \
+                      &((pBitVectorB)->real),                               \
+                      sizeof(((pBitVectorB)->last->_)))
+
+#define bitVectorComplement(pBitVectorDst, pBitVectorSrc)                   \
+    bitVectorComplement_IMPL(&((pBitVectorDst)->real),                      \
+                             sizeof(((pBitVectorDst)->last->_)),            \
+                             &((pBitVectorSrc)->real),                      \
+                             sizeof(((pBitVectorSrc)->last->_)))
+
+#define bitVectorCopy(pBitVectorDst, pBitVectorSrc)                         \
+    bitVectorCopy_IMPL(&((pBitVectorDst)->real),                            \
+                       sizeof(((pBitVectorDst)->last->_)),                  \
+                       &((pBitVectorSrc)->real),                            \
+                       sizeof(((pBitVectorSrc)->last->_)))
+
+#define bitVectorCountTrailingZeros(pBitVector)                             \
+    bitVectorCountTrailingZeros_IMPL(&((pBitVector)->real),                 \
+                                     sizeof(((pBitVector)->last->_)))
+
+#define bitVectorCountLeadingZeros(pBitVector)                              \
+    bitVectorCountLeadingZeros_IMPL(&((pBitVector)->real),                  \
+                                    sizeof(((pBitVector)->last->_)))
+
+#define bitVectorCountSetBits(pBitVector)                                   \
+    bitVectorCountSetBits_IMPL(&((pBitVector)->real),                       \
+                               sizeof(((pBitVector)->last->_)))
+
+#define bitVectorToRaw(pBitVector, pRawMask, rawMaskSize)                   \
+    bitVectorToRaw_IMPL(&((pBitVector)->real),                              \
+                        sizeof(((pBitVector)->last->_)),                    \
+                        pRawMask,                                           \
+                        rawMaskSize)
+
+#define bitVectorFromRaw(pBitVector, pRawMask, rawMaskSize)                 \
+    bitVectorFromRaw_IMPL(&((pBitVector)->real),                            \
+                          sizeof(((pBitVector)->last->_)),                  \
+                          pRawMask,                                         \
+                          rawMaskSize)
+
+#define bitVectorGetSlice(pBitVector, range, slice)                         \
+    bitVectorGetSlice_IMPL(&((pBitVector)->real),                           \
+                          sizeof(((pBitVector)->last->_)),                  \
+                          range,                                            \
+                          slice)
+
+#define bitVectorGetSliceAtOffset(pBitVector, offset, size, slice)          \
+    bitVectorGetSlice_IMPL(&((pBitVector)->real),                           \
+                          sizeof(((pBitVector)->last->_)),                  \
+                          rangeMake(offset, offset + size - 1),             \
+                          slice)
+
+#define bitVectorGetSliceToBitVector(pSrcBitVector, pDstBitVector, range)    \
+    bitVectorGetSliceToBitVector_IMPL(&((pSrcBitVector)->real),              \
+                                     sizeof(((pSrcBitVector)->last->_)),    \
+                                     &((pDstBitVector)->real),               \
+                                     sizeof(((pDstBitVector)->last->_)),    \
+                                     range)
+
+#define bitVectorGetSliceToBitVectorAtOffset(pSrcBitVector, pDstBitVector, offset, size) \
+    bitVectorGetSliceToBitVectorAtOffset_IMPL(&((pSrcBitVector)->real),                  \
+                                     sizeof(((pSrcBitVector)->last->_)),                 \
+                                     &((pDstBitVector)->real),                           \
+                                     sizeof(((pDstBitVector)->last->_)),                \
+                                     offset, size)
+
+#define bitVectorLowestNBits(pBitVectorDst, pBitVectorSrc,  N)              \
+    bitVectorLowestNBits_IMPL(&((pBitVectorDst)->real),                     \
+                          sizeof(((pBitVectorDst)->last->_)),               \
+                          &((pBitVectorSrc)->real),                         \
+                          sizeof(((pBitVectorSrc)->last->_)),               \
+                          N)
+
+#define FOR_EACH_IN_BITVECTOR(pBitVector, index)                            \
+    {                                                                       \
+        MAKE_ANON_BITVECTOR(sizeof(((pBitVector)->last->_))) localMask;     \
+        bitVectorCopy(&localMask, (pBitVector));                            \
+        for ((index) = bitVectorCountTrailingZeros(&localMask);             \
+             !bitVectorTestAllCleared(&localMask);                          \
+             bitVectorClr(&localMask, (index)),                             \
+             (index) = bitVectorCountTrailingZeros(&localMask))             \
+        {
+
+#define FOR_EACH_IN_BITVECTOR_END()                                         \
+        }                                                                   \
+    }
+
+#define FOR_EACH_IN_BITVECTOR_PAIR(pBitVectorA, indexA, pBitVectorB, indexB) \
+    {                                                                        \
+        MAKE_ANON_BITVECTOR(sizeof(((pBitVectorA)->last->_))) localMaskA;    \
+        bitVectorCopy(&localMaskA, (pBitVectorA));                           \
+        MAKE_ANON_BITVECTOR(sizeof(((pBitVectorB)->last->_))) localMaskB;    \
+        bitVectorCopy(&localMaskB, (pBitVectorB));                           \
+        for ((indexA) = bitVectorCountTrailingZeros(&localMaskA),            \
+             (indexB) = bitVectorCountTrailingZeros(&localMaskB);            \
+             !bitVectorTestAllCleared(&localMaskA) &&                        \
+             !bitVectorTestAllCleared(&localMaskB);                          \
+             bitVectorClr(&localMaskA, (indexA)),                            \
+             bitVectorClr(&localMaskB, (indexB)),                            \
+             (indexA) = bitVectorCountTrailingZeros(&localMaskA),            \
+             (indexB) = bitVectorCountTrailingZeros(&localMaskB))            \
+        {
+
+#define FOR_EACH_IN_BITVECTOR_PAIR_END()                                    \
+        }                                                                   \
+    }
+
+/*
+ * @brief NV_BITVECTOR_INLINE_PRINT prints out a nvbitvector up to
+ *        the first element
+ * @param[in] stmnt   should be the NV_PRINTF statement using
+ *                     NV_BITVECTOR_INLINE_FMTX_* defines for places holders
+ *                     for the string formatting
+ * @params[in] b      bitvector to be printed
+ * @params[in] l      length of bitvector in bits to print
+ *                    must be the same as the NV_BITVECTOR_INLINE_FMTX_* used
+*/
+#define NV_BITVECTOR_INLINE_FMTX "0x%llx"
+
+#define NV_BITVECTOR_INLINE_PRINTF_ARG(b) \
+	(b)->qword[0]
+
+#if defined(DEBUG) || defined(DEVELOP)
+/*!
+ * void bitvectorPrint(pBitvector)
+ * @brief Dump a human-readable formatted string representing bitvector contents.
+ * @param[in] pBitvector pointer to a NV_BITVECTOR
+ * @note  Defined as a macro such that the dumps are associated with the correct NVLOG module
+ */
+#define bitVectorPrint(pBitvector)                                         \
+{                                                                                           \
+    NvU32  rdr;                                                                             \
+    NvU32 *s;                                                                               \
+    NvU32  offset = 0;                                                                      \
+    NvU32  i;                                                                               \
+    NvU32  length;                                                                          \
+    NvU32  lengthInBytes =  NV_BITVECTOR_ARRAY_LENGTH(pBitvector) * sizeof(NvU64);          \
+    length = (lengthInBytes) / 4;                                                           \
+                                                                                            \
+    rdr = length % 4;                                                                       \
+    s = (NvU32 *)(pBitvector);                                                                          \
+                                                                                            \
+    NV_PRINTF(LEVEL_INFO, "--------------------------------------------------\n");          \
+                                                                                            \
+    NV_PRINTF(LEVEL_INFO, "             0x0       0x4       0x8       0xc\n");              \
+                                                                                            \
+    for (i = 0; i < (length / 4); i++)                                                      \
+    {                                                                                       \
+        NV_PRINTF(LEVEL_INFO, "%08x  %08x  %08x  %08x  %08x\n", offset,                     \
+                  MEM_RD32(s + 0),                                                          \
+                  MEM_RD32(s + 1),                                                          \
+                  MEM_RD32(s + 2),                                                          \
+                  MEM_RD32(s + 3));                                                         \
+                                                                                            \
+        s += 4;                                                                             \
+        offset += 16;                                                                       \
+                                                                                            \
+        if ((offset % 256) == 0)                                                            \
+        {                                                                                   \
+            NV_PRINTF(LEVEL_INFO, "--------------------------------------------------\n");  \
+        }                                                                                   \
+    }                                                                                       \
+                                                                                            \
+    switch (rdr)                                                                            \
+    {                                                                                       \
+        case 1:                                                                             \
+            NV_PRINTF(LEVEL_INFO, "%08x  %08x  ........  ........  ........\n", offset,     \
+                      MEM_RD32(s + 0));                                                     \
+            break;                                                                          \
+        case 2:                                                                             \
+            NV_PRINTF(LEVEL_INFO, "%08x  %08x  %08x  ........  ........\n", offset,         \
+                      MEM_RD32(s + 0),                                                      \
+                      MEM_RD32(s + 1));                                                     \
+            break;                                                                          \
+        case 3:                                                                             \
+            NV_PRINTF(LEVEL_INFO, "%08x  %08x  %08x  %08x  ........\n", offset,             \
+                      MEM_RD32(s + 0),                                                      \
+                      MEM_RD32(s + 1),                                                      \
+                      MEM_RD32(s + 2));                                                     \
+            break;                                                                          \
+        default:                                                                            \
+            break;                                                                          \
+    }                                                                                       \
+                                                                                            \
+    NV_PRINTF(LEVEL_INFO, "--------------------------------------------------\n");          \
+}                                                                                           \
+
+#else
+#define bitVectorPrint(pBitvector)
+#endif // defined(DEBUG)
+
+#define NV_BITVECTOR_PRINT(stmt, pBitvector) \
+	stmt; \
+	bitVectorPrint((pBitvector));
+
+NvU32
+bitVectorSizeOf_IMPL
+(
+    const NV_BITVECTOR *pBitVector,
+    NvU16 bitVectorLast
+);
+
+NV_STATUS
+bitVectorClrAll_IMPL
+(
+    NV_BITVECTOR *pBitVector,
+    NvU16 bitVectorLast
+);
+
+NV_STATUS
+bitVectorClr_IMPL
+(
+    NV_BITVECTOR *pBitVector,
+    NvU32 bitVectorLast,
+    NvU32 idx
+);
+
+NV_STATUS
+bitVectorClrRange_IMPL
+(
+    NV_BITVECTOR *pBitVector,
+    NvU16 bitVectorLast,
+    NV_RANGE range
+);
+
+NV_STATUS
+bitVectorSetAll_IMPL
+(
+    NV_BITVECTOR *pBitVector,
+    NvU16 bitVectorLast
+);
+
+NV_STATUS
+bitVectorSet_IMPL
+(
+    NV_BITVECTOR *pBitVector,
+    NvU32 bitVectorLast,
+    NvU32 idx
+);
+
+NV_STATUS
+bitVectorSetRange_IMPL
+(
+    NV_BITVECTOR *pBitVector,
+    NvU16 bitVectorLast,
+    NV_RANGE range
+);
+
+NV_STATUS
+bitVectorInv_IMPL
+(
+    NV_BITVECTOR *pBitVector,
+    NvU32 bitVectorLast,
+    NvU32 idx
+);
+
+NV_STATUS
+bitVectorInvRange_IMPL
+(
+    NV_BITVECTOR *pBitVector,
+    NvU16 bitVectorLast,
+    NV_RANGE range
+);
+
+NV_STATUS
+bitVectorFromArrayU16_IMPL
+(
+    NV_BITVECTOR *pBitVector,
+    NvU16 bitVectorLast,
+    NvU16 *pIndices,
+    NvU32 indicesSize
+);
+
+NvBool
+bitVectorTestAllSet_IMPL
+(
+    const NV_BITVECTOR *pBitVector,
+    NvU16 bitVectorLast
+);
+
+NvBool
+bitVectorTestAllCleared_IMPL
+(
+    const NV_BITVECTOR *pBitVector,
+    NvU16 bitVectorLast
+);
+
+NvBool
+bitVectorTestEqual_IMPL
+(
+    const NV_BITVECTOR *pBitVectorA,
+    NvU16 bitVectorALast,
+    const NV_BITVECTOR *pBitVectorB,
+    NvU16 bitVectorBLast
+);
+
+NvBool
+bitVectorTestIsSubset_IMPL
+(
+    const NV_BITVECTOR *pBitVectorA,
+    NvU16 bitVectorALast,
+    const NV_BITVECTOR *pBitVectorB,
+    NvU16 bitVectorBLast
+);
+
+NvBool
+bitVectorTest_IMPL
+(
+    const NV_BITVECTOR *pBitVector,
+    NvU32 bitVectorLast,
+    NvU32 idx
+);
+
+NV_STATUS
+bitVectorAnd_IMPL
+(
+    NV_BITVECTOR *pBitVectorDst,
+    NvU16 bitVectorDstLast,
+    const NV_BITVECTOR *pBitVectorA,
+    NvU16 bitVectorALast,
+    const NV_BITVECTOR *pBitVectorB,
+    NvU16 bitVectorBLast
+);
+
+NV_STATUS
+bitVectorOr_IMPL
+(
+    NV_BITVECTOR *pBitVectorDst,
+    NvU16 bitVectorDstLast,
+    const NV_BITVECTOR *pBitVectorA,
+    NvU16 bitVectorALast,
+    const NV_BITVECTOR *pBitVectorB,
+    NvU16 bitVectorBLast
+);
+
+NV_STATUS
+bitVectorXor_IMPL
+(
+    NV_BITVECTOR *pBitVectorDst,
+    NvU16 bitVectorDstLast,
+    const NV_BITVECTOR *pBitVectorA,
+    NvU16 bitVectorALast,
+    const NV_BITVECTOR *pBitVectorB,
+    NvU16 bitVectorBLast
+);
+
+NV_STATUS
+bitVectorComplement_IMPL
+(
+    NV_BITVECTOR *pBitVectorDst,
+    NvU16 bitVectorDstLast,
+    const NV_BITVECTOR *pBitVectorSrc,
+    NvU16 bitVectorSrcLast
+);
+
+NV_STATUS
+bitVectorCopy_IMPL
+(
+    NV_BITVECTOR *pBitVectorDst,
+    NvU16 bitVectorDstLast,
+    const NV_BITVECTOR *pBitVectorSrc,
+    NvU16 bitVectorSrcLast
+);
+
+NvU32
+bitVectorCountTrailingZeros_IMPL
+(
+    const NV_BITVECTOR *pBitVector,
+    NvU16 bitVectorLast
+);
+
+NvU32
+bitVectorCountLeadingZeros_IMPL
+(
+    const NV_BITVECTOR *pBitVector,
+    NvU16 bitVectorLast
+);
+
+NvU32
+bitVectorCountSetBits_IMPL
+(
+    const NV_BITVECTOR *pBitVector,
+    NvU16 bitVectorLast
+);
+
+NV_STATUS
+bitVectorToRaw_IMPL
+(
+    const NV_BITVECTOR *pBitVector,
+    NvU16 bitVectorLast,
+    void *pRawMask,
+    NvU32 rawMaskize
+);
+
+NV_STATUS
+bitVectorFromRaw_IMPL
+(
+    NV_BITVECTOR *pBitVector,
+    NvU16 bitVectorLast,
+    const void *pRawMask,
+    NvU32 rawMaskSize
+);
+
+NV_STATUS
+bitVectorGetSlice_IMPL
+(
+    NV_BITVECTOR *pBitVector,
+    NvU16 bitVectorLast,
+    NV_RANGE range,
+    NvU64 *slice
+);
+
+NV_STATUS
+bitVectorLowestNBits_IMPL
+(
+    NV_BITVECTOR *pBitVectorDst,
+    NvU16 bitVectorDstLast,
+    const NV_BITVECTOR *pBitVectorSrc,
+    NvU16 bitVectorSrcLast,
+    NvU16 n
+);
+
+NV_STATUS
+bitVectorGetSliceToBitVector_IMPL
+(
+    const NV_BITVECTOR *pSrcBitVector,
+    NvU16 srcBitVectorLast,
+    NV_BITVECTOR *pDstBitVector,
+    NvU16 dstBitVectorLast,
+    NV_RANGE range
+);
+
+NV_STATUS
+bitVectorGetSliceToBitVectorAtOffset_IMPL
+(
+    const NV_BITVECTOR *pSrcBitVector,
+    NvU16 srcBitVectorLast,
+    NV_BITVECTOR *pDstBitVector,
+    NvU16 dstBitVectorLast,
+    NvU32 offset,
+    NvU32 size
+);
+
+#ifdef __cplusplus
+}
+#endif
+///@}
+///  NV_UTILS_BITVECTOR
+#endif

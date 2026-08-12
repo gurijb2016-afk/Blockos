@@ -1,0 +1,382 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+
+#include "kernel/gpu/fifo/kernel_fifo.h"
+#include "kernel/gpu/fifo/kernel_channel_group_api.h"
+#include "kernel/gpu/fifo/kernel_channel_group.h"
+#include "utils/nvassert.h"
+#include "gpu/gpu.h"
+#include "lib/base_utils.h"
+
+#include "published/blackwell/gb100/dev_fault.h"
+#include "published/blackwell/gb100/dev_vm.h"
+#include "published/blackwell/gb100/dev_ram.h"
+#include "published/blackwell/gb100/dev_esched_pbdma.h"
+#include "published/blackwell/gb100/hwproject.h"
+
+#include "kernel/gpu/conf_compute/conf_compute.h"
+#include "nvrm_registry.h"
+
+/*
+ * @brief Reserve PBDMA fault IDs to support subcontexts
+ *
+ * @param[in] pGpu
+ * @param[in] pKernelFifo
+ * @param[in] pEngineInfoList
+ * @param[in] engineInfoListSize
+ *
+ * @returns NV_OK if success
+ */
+NV_STATUS
+kfifoReservePbdmaFaultIds_GB100
+(
+    OBJGPU           *pGpu,
+    KernelFifo       *pKernelFifo,
+    FIFO_ENGINE_LIST *pEngineInfoList,
+    NvU32             engineInfoListSize
+)
+{
+    ENGINE_INFO *pEngineInfo = &pKernelFifo->engineInfo;
+    NvU32        deviceIndex;
+    NvU32        baseGrPbdmaId;
+    NvU32        maxVeidCount = NV_LITTER_NUM_SUBCTX;
+
+    for (deviceIndex = 0; deviceIndex < engineInfoListSize; deviceIndex++)
+    {
+        if (IS_GR(pEngineInfoList[deviceIndex].engineData[ENGINE_INFO_TYPE_ENG_DESC]))
+        {
+            // Both entries at pbdmaFaultIdsBase[] contains the same PBDMA faultId, so taking 0th entry
+            baseGrPbdmaId = pEngineInfoList[deviceIndex].pbdmaFaultIds[0];
+
+            for (NvU32 count = 0; count < maxVeidCount; count++)
+            {
+                bitVectorSet(&pEngineInfo->validEngineIdsForPbdmas, baseGrPbdmaId + count);
+            }
+            break;
+        }
+    }
+
+    return NV_OK;
+}
+
+/*!
+ * @brief Construct the worksubmit token. Caller cannot make assumption about this handle.
+ *
+ * @param[in]  pGpu
+ * @param[in]  pKernelFifo
+ * @param[in]  pKernelChannel
+ * @param[out] pGeneratedToken Store the generated token
+ * @param[in]  bUsedForHost    Used on Host RM
+ *
+ */
+NV_STATUS
+kfifoGenerateWorkSubmitTokenHal_GB100
+(
+    OBJGPU        *pGpu,
+    KernelFifo    *pKernelFifo,
+    KernelChannel *pKernelChannel,
+    NvU32         *pGeneratedToken,
+    NvBool         bUsedForHost
+)
+{
+    NvU32          val = 0;
+
+    NV_ASSERT_OR_RETURN(pKernelChannel != NULL, NV_ERR_INVALID_CHANNEL);
+
+    NV_ASSERT_OR_RETURN(pGeneratedToken != NULL, NV_ERR_INVALID_OBJECT);
+    NV_ASSERT_OR_RETURN((pKernelChannel->pKernelChannelGroupApi != NULL) &&
+                        (pKernelChannel->pKernelChannelGroupApi->pKernelChannelGroup != NULL),
+                        NV_ERR_INVALID_STATE);
+
+    NvU32          chId;
+    NvU32          runlistId;
+
+    runlistId = kchannelGetRunlistId(pKernelChannel);
+    chId      = pKernelChannel->ChID;
+
+    // Here we construct token to be a concatenation of runlist id and channel id
+    val = FLD_SET_DRF_NUM(_VIRTUAL, _FUNCTION_DOORBELL, _RUNLIST_ID, runlistId, val);
+    val = FLD_SET_DRF_NUM(_VIRTUAL, _FUNCTION_DOORBELL, _VECTOR,     chId,      val);
+
+    NV_PRINTF(LEVEL_INFO,
+                "Generated workSubmitToken 0x%x for channel 0x%x runlist 0x%x\n",
+                val, chId, runlistId);
+
+    *pGeneratedToken = val;
+
+    return NV_OK;
+}
+
+/*!
+ * @brief Converts an mmu engine id (NV_PFAULT_MMU_ENG_ID_*) into a string.
+ *
+ * @param[in] pGpu
+ * @param[in] pKernelFifo
+ * @param[in] engineID NV_PFAULT_MMU_ENG_ID_*
+ *
+ * @returns a string (always non-null)
+ */
+const char*
+kfifoPrintInternalEngine_GB100
+(
+    OBJGPU     *pGpu,
+    KernelFifo *pKernelFifo,
+    NvU32       engineID
+)
+{
+    if (kfifoIsMmuFaultEngineIdPbdma(pGpu, pKernelFifo, engineID))
+    {
+        return kfifoPrintFaultingPbdmaEngineName(pGpu, pKernelFifo, engineID);
+    }
+
+    switch (engineID)
+    {
+        case NV_PFAULT_MMU_ENG_ID_GSPLITE:
+            return "GSPLITE";
+        default:
+        {
+            const char *engine =
+                kfifoPrintInternalEngineCheck_HAL(pGpu, pKernelFifo, engineID);
+            if (engine != NULL)
+            {
+                return engine;
+            }
+        }
+    }
+
+    // fallback to _GH100 HAL for non-pbdma faults
+    return kfifoPrintInternalEngine_GH100(pGpu, pKernelFifo, engineID);
+}
+
+/**
+ * @brief Converts a subid/clientid into a client string
+ *
+ * @param[in] pGpu
+ * @param[in] pKernelFifo
+ * @param[in] pMmuExceptData
+
+ * @returns a string (always non-null)
+ */
+const char*
+kfifoGetClientIdString_GB100
+(
+    OBJGPU                  *pGpu,
+    KernelFifo              *pKernelFifo,
+    FIFO_MMU_EXCEPTION_DATA *pMmuExceptInfo
+)
+{
+    if (!pMmuExceptInfo->bGpc)
+    {
+        switch (pMmuExceptInfo->clientId)
+        {
+            case NV_PFAULT_CLIENT_HUB_ESC0:
+                return "HUBCLIENT_ESC0";
+            case NV_PFAULT_CLIENT_HUB_ESC1:
+                return "HUBCLIENT_ESC1";
+            case NV_PFAULT_CLIENT_HUB_ESC2:
+                return "HUBCLIENT_ESC2";
+            case NV_PFAULT_CLIENT_HUB_ESC3:
+                return "HUBCLIENT_ESC3";
+            case NV_PFAULT_CLIENT_HUB_ESC4:
+                return "HUBCLIENT_ESC4";
+            case NV_PFAULT_CLIENT_HUB_ESC5:
+                return "HUBCLIENT_ESC5";
+            case NV_PFAULT_CLIENT_HUB_ESC6:
+                return "HUBCLIENT_ESC6";
+            case NV_PFAULT_CLIENT_HUB_ESC7:
+                return "HUBCLIENT_ESC7";
+            case NV_PFAULT_CLIENT_HUB_ESC8:
+                return "HUBCLIENT_ESC8";
+            case NV_PFAULT_CLIENT_HUB_ESC9:
+                return "HUBCLIENT_ESC9";
+            case NV_PFAULT_CLIENT_HUB_ESC10:
+                return "HUBCLIENT_ESC10";
+            case NV_PFAULT_CLIENT_HUB_ESC11:
+                return "HUBCLIENT_ESC11";
+        }
+    }
+
+    // Fallback if the above doesn't cover the given client ID
+    return kfifoGetClientIdStringCommon_HAL(pGpu, pKernelFifo, pMmuExceptInfo);
+}
+
+/*
+ * @  Function to write gpfifo info in RAMFC
+ * @param[in] pGpu           - GPU object pointer
+ * @param[in] pKernelFifo    - KernelFifo pointer
+ * @param[in] pInstMem       - CPU pointer to instance mem
+ * @param[in] gpFifoOffset   - GPFIFO virtual address
+ * @param[in] gpFifoEntries  - GPFIFO entries
+ */
+void
+kfifoWriteRamfcGpfifo_GB100
+(
+    OBJGPU        *pGpu,
+    KernelFifo    *pKernelFifo,
+    NvU8          *pInstMem,
+    NvU64         gpFifoOffset,
+    NvU32         gpFifoEntries
+)
+{
+    NvU32   fetchState;
+
+    // GPBASE
+    NV_ASSERT(FLD_TEST_DRF(_PBDMA, _GP_BASE, _RSVD, _ZERO, NvU64_LO32(gpFifoOffset)));
+    MEM_WR32(pInstMem + SF_OFFSET(NV_RAMFC_GP_BASE), NvU64_LO32(gpFifoOffset));
+
+    MEM_WR32(pInstMem + SF_OFFSET(NV_RAMFC_GP_BASE_HI),
+             DRF_NUM(_PBDMA, _GP_BASE_HI, _OFFSET, NvU64_HI32(gpFifoOffset)));
+
+    // Checking LIMIT2 width is sufficient to store nvLogBase2(gpFifoEntries)
+    NV_ASSERT_OR_RETURN_VOID((nvLogBase2(gpFifoEntries) &
+                DRF_MASK(NV_PBDMA_MISC_FETCH_STATE_GP_INFO_LIMIT2)) == nvLogBase2(gpFifoEntries));
+
+    fetchState = MEM_RD32(pInstMem + SF_OFFSET(NV_RAMFC_MISC_FETCH_STATE));
+    fetchState = FLD_SET_DRF_NUM(_PBDMA, _MISC_FETCH_STATE, _GP_INFO_LIMIT2, nvLogBase2(gpFifoEntries), fetchState);
+    MEM_WR32(pInstMem + SF_OFFSET(NV_RAMFC_MISC_FETCH_STATE), fetchState);
+
+    MEM_WR32(pInstMem + SF_OFFSET(NV_RAMFC_PB_SEGMENT_EXTENDED_BASE),
+             DRF_NUM(_PBDMA, _PB_SEGMENT_EXTENDED_BASE, _VALUE, 0));
+
+    // Assuming RAMFC debug state is enabled
+    MEM_WR32(pInstMem + SF_OFFSET(NV_RAMFC_DEBUG_STATE(NV_RAMFC_DEBUG_STATE_RAMFC_INDEX_gp_put)), 0);
+    MEM_WR32(pInstMem + SF_OFFSET(NV_RAMFC_GP_GET), 0);
+}
+
+/**
+ * @brief Initializing RAMFC signature
+ *
+ * @param[in] pGpu          OBJGPU pointer
+ * @param[in] pKernelFifo   Kernelfifo pointer
+ * @param[in] pInstMem      INST_BLOCK_DESC pointer
+ */
+void
+kfifoInitRamfcSignature_GB100
+(
+    OBJGPU     *pGpu,
+    KernelFifo *pKernelFifo,
+    NvU8       *pInstMem
+)
+{
+    MEM_WR32( pInstMem + SF_OFFSET( NV_RAMFC_SIGNATURE ),
+              DRF_DEF( _PBDMA, _SIGNATURE, _HW, _VALID ) |
+              DRF_DEF( _PBDMA, _SIGNATURE, _SW, _ZERO  ) );
+}
+
+/**
+ * @brief Initialize the PB header in RAMFC
+ */
+void
+kfifoInitRamfcPbHeader_GB100
+(
+    OBJGPU     *pGpu,
+    KernelFifo *pKernelFifo,
+    NvU8       *pInstMem
+)
+{
+    NvU32   fetchState;
+
+    MEM_WR32(pInstMem + SF_OFFSET(NV_RAMFC_PB_HEADER),
+             DRF_DEF(_PBDMA, _PB_HEADER, _METHOD,     _ZERO) |
+             DRF_DEF(_PBDMA, _PB_HEADER, _SUBCHANNEL, _ZERO) |
+             DRF_DEF(_PBDMA, _PB_HEADER, _LEVEL,      _MAIN) |
+             DRF_DEF(_PBDMA, _PB_HEADER, _FIRST,      _TRUE));
+
+    fetchState = MEM_RD32(pInstMem + SF_OFFSET(NV_RAMFC_MISC_FETCH_STATE));
+    fetchState = FLD_SET_DRF(_PBDMA, _MISC_FETCH_STATE, _PB_HEADER_TYPE, _INC, fetchState);
+    MEM_WR32(pInstMem + SF_OFFSET(NV_RAMFC_MISC_FETCH_STATE), fetchState);
+}
+
+NV_STATUS
+kfifoDisableChannelsForKeyRotation_GB100
+(
+    OBJGPU         *pGpu,
+    KernelFifo     *pKernelFifo,
+    RmCtrlParams   *pRmCtrlParams,
+    NvBool          bEnableAfterKeyRotation,
+    NvBool          bForceKeyRotation,
+    NV2080_CTRL_FIFO_DISABLE_CHANNELS_PARAMS *pParams
+)
+{
+    NvU32                i;
+    NvU32                h2dKey, d2hKey;
+    RsClient            *pClient        = NULL;
+    NV_STATUS            status         = NV_OK;
+    KernelChannel       *pKernelChannel = NULL;
+    ConfidentialCompute *pConfCompute   = GPU_GET_CONF_COMPUTE(pGpu);
+
+    (void)(pKernelFifo);
+
+    if (!pConfCompute->getProperty(pConfCompute, PDB_PROP_CONFCOMPUTE_KEY_ROTATION_SUPPORTED) ||
+        !pConfCompute->getProperty(pConfCompute, PDB_PROP_CONFCOMPUTE_KEY_ROTATION_ENABLED))
+    {
+        status = NV_ERR_NOT_SUPPORTED;
+        goto done;
+    }
+
+    for (i = 0; i < pParams->numChannels; i++)
+    {
+        status = serverGetClientUnderLock(&g_resServ,
+                                          pParams->hClientList[i], &pClient);
+        if (status != NV_OK)
+        {
+            NV_PRINTF(LEVEL_ERROR, "Failed to get client with hClient = 0x%x status = 0x%x\n",
+                                    pParams->hClientList[i], status);
+            goto done;
+        }
+
+        status = CliGetKernelChannel(pClient,
+                                     pParams->hChannelList[i], &pKernelChannel);
+        if (status != NV_OK)
+        {
+            NV_PRINTF(LEVEL_ERROR, "Failed to get channel with hclient = 0x%x hChannel = 0x%x status = 0x%x\n",
+                                    pParams->hClientList[i], pParams->hChannelList[i], status);
+            goto done;
+        }
+
+        NV_ASSERT_OK_OR_RETURN(confComputeGetKeyPairByChannel_HAL(pGpu, pConfCompute, pKernelChannel,
+                                                                    &h2dKey, &d2hKey));
+
+        NvU32 keySpace = CC_GKEYID_GET_KEYSPACE(h2dKey);
+        if (!(pConfCompute->keyRotationEnableMask & NVBIT(keySpace)))
+        {
+            status = NV_ERR_NOT_SUPPORTED;
+            goto done;
+        }
+
+        // Only CEs support per channel key rotation on BCC.
+        if (RM_ENGINE_TYPE_IS_COPY(kchannelGetEngineType(pKernelChannel)))
+        {
+            NV_ASSERT_OK_OR_RETURN(confComputeUpdatePerChannelSecrets_HAL(pConfCompute, pKernelChannel));
+        }
+        else
+        {
+            // SEC2 and Internal keys need to go the HCC way for key rotation.
+            NV_ASSERT_OK_OR_RETURN(confComputeUpdateSecrets_HAL(pConfCompute, h2dKey));
+        }
+        NV_PRINTF(LEVEL_INFO, "Key rotation successful for key IDs 0x%x and 0x%x\n", h2dKey, d2hKey);
+    }
+
+done:
+    return status;
+}

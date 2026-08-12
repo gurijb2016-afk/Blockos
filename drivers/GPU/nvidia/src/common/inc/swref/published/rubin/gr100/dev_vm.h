@@ -1,0 +1,59 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+
+#ifndef __gr100_dev_vm_h__
+#define __gr100_dev_vm_h__
+#define NV_VIRTUAL_FUNCTION_PRIV                       0x0002FFFF:0x00000000 /* RW--D */
+#define NV_VIRTUAL_FUNCTION                            0x0003FFFF:0x00030000 /* RW--D */
+
+#define NV_VIRTUAL_FUNCTION_PRIV_ACCESS_COUNTER_NOTIFY_BUFFER_LO               0x00003108 /* RW-4P */
+#define NV_VIRTUAL_FUNCTION_PRIV_ACCESS_COUNTER_NOTIFY_BUFFER_LO_BASE               31:12 /* RWXVF */
+#define NV_VIRTUAL_FUNCTION_PRIV_ACCESS_COUNTER_NOTIFY_BUFFER_HI               0x0000310C /* RW-4P */
+
+#define NV_VIRTUAL_FUNCTION_PRIV_IG_MC_FLA_ADDR_ALIGN_TABLE_INDEX(i)                  (0x00004100+(i)*32)                                    /* RW-4A */
+#define NV_VIRTUAL_FUNCTION_PRIV_IG_MC_FLA_ADDR_ALIGN_TABLE_INDEX__SIZE_1             6         /*       */
+#define NV_VIRTUAL_FUNCTION_PRIV_IG_MC_FLA_ADDR_ALIGN_TABLE_INDEX_INDEX               6:0          /* RWEVF */
+#define NV_VIRTUAL_FUNCTION_PRIV_IG_MC_FLA_ADDR_ALIGN_TABLE_INDEX_INDEX_MIN           0x00000000   /* RWE-V */
+#define NV_VIRTUAL_FUNCTION_PRIV_IG_MC_FLA_ADDR_ALIGN_TABLE_INDEX_INDEX_MAX           0x0000003F   /* RW--V */
+#define NV_VIRTUAL_FUNCTION_PRIV_IG_MC_FLA_ADDR_ALIGN_TABLE_INDEX_READINCR            7:7          /* RWEVF */
+#define NV_VIRTUAL_FUNCTION_PRIV_IG_MC_FLA_ADDR_ALIGN_TABLE_INDEX_READINCR_ENABLED    0x00000001   /* RW--V */
+#define NV_VIRTUAL_FUNCTION_PRIV_IG_MC_FLA_ADDR_ALIGN_TABLE_INDEX_READINCR_DISABLED   0x00000000   /* RWE-V */
+#define NV_VIRTUAL_FUNCTION_PRIV_IG_MC_FLA_ADDR_ALIGN_TABLE_INDEX_WRITEINCR           8:8          /* RWEVF */
+#define NV_VIRTUAL_FUNCTION_PRIV_IG_MC_FLA_ADDR_ALIGN_TABLE_INDEX_WRITEINCR_ENABLED   0x00000001   /* RW--V */
+#define NV_VIRTUAL_FUNCTION_PRIV_IG_MC_FLA_ADDR_ALIGN_TABLE_INDEX_WRITEINCR_DISABLED  0x00000000   /* RWE-V */
+#define NV_VIRTUAL_FUNCTION_PRIV_IG_MC_FLA_ADDR_ALIGN_TABLE_START_ADDR_2MB_ALIGNED(i)                         (0x00004104+(i)*32)                                    /* RW-4A */
+#define NV_VIRTUAL_FUNCTION_PRIV_IG_MC_FLA_ADDR_ALIGN_TABLE_START_ADDR_2MB_ALIGNED__SIZE_1                    6         /*       */
+#define NV_VIRTUAL_FUNCTION_PRIV_IG_MC_FLA_ADDR_ALIGN_TABLE_START_ADDR_2MB_ALIGNED_VAL                         30:0 /* RWEVF */
+#define NV_VIRTUAL_FUNCTION_PRIV_IG_MC_FLA_ADDR_ALIGN_TABLE_START_ADDR_2MB_ALIGNED_VAL_INIT                    0x00000000 /* RWE-V */
+#define NV_VIRTUAL_FUNCTION_PRIV_IG_MC_FLA_ADDR_ALIGN_TABLE_END_ADDR_2MB_ALIGNED(i)                          (0x00004108+(i)*32)                                    /* RW-4A */
+#define NV_VIRTUAL_FUNCTION_PRIV_IG_MC_FLA_ADDR_ALIGN_TABLE_END_ADDR_2MB_ALIGNED__SIZE_1                     6         /*       */
+#define NV_VIRTUAL_FUNCTION_PRIV_IG_MC_FLA_ADDR_ALIGN_TABLE_END_ADDR_2MB_ALIGNED_VAL                         30:0 /* RWEVF */
+#define NV_VIRTUAL_FUNCTION_PRIV_IG_MC_FLA_ADDR_ALIGN_TABLE_END_ADDR_2MB_ALIGNED_VAL_INIT                    0x00000000 /* RWE-V */
+#define NV_VIRTUAL_FUNCTION_PRIV_IG_MC_FLA_ADDR_ALIGN_TABLE_OFFSET_256B_ALIGNED_VALID(i)                          (0x0000410c+(i)*32)                                    /* RW-4A */
+#define NV_VIRTUAL_FUNCTION_PRIV_IG_MC_FLA_ADDR_ALIGN_TABLE_OFFSET_256B_ALIGNED_VALID__SIZE_1                     6         /*       */
+#define NV_VIRTUAL_FUNCTION_PRIV_IG_MC_FLA_ADDR_ALIGN_TABLE_OFFSET_256B_ALIGNED_VALID_OFFSET                      12:0       /* RWEVF */
+#define NV_VIRTUAL_FUNCTION_PRIV_IG_MC_FLA_ADDR_ALIGN_TABLE_OFFSET_256B_ALIGNED_VALID_OFFSET_INIT                 0x00000000 /* RWE-V */
+#define NV_VIRTUAL_FUNCTION_PRIV_IG_MC_FLA_ADDR_ALIGN_TABLE_OFFSET_256B_ALIGNED_VALID_VALID                       31:31      /* RWEVF */
+#define NV_VIRTUAL_FUNCTION_PRIV_IG_MC_FLA_ADDR_ALIGN_TABLE_OFFSET_256B_ALIGNED_VALID_VALID_INIT                  0x00000000 /* RWE-V */
+
+#endif // __gr100_dev_vm_h__

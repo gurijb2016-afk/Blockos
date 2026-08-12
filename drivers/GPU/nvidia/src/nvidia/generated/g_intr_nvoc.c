@@ -1,0 +1,1171 @@
+#define NVOC_INTR_H_PRIVATE_ACCESS_ALLOWED
+
+// Version of generated metadata structures
+#ifdef NVOC_METADATA_VERSION
+#undef NVOC_METADATA_VERSION
+#endif
+#define NVOC_METADATA_VERSION 2
+
+#include "nvoc/runtime.h"
+#include "nvoc/rtti.h"
+#include "nvtypes.h"
+#include "nvport/nvport.h"
+#include "nvport/inline/util_valist.h"
+#include "utils/nvassert.h"
+#include "g_intr_nvoc.h"
+
+
+#ifdef DEBUG
+char __nvoc_class_id_uniqueness_check__c06e44 = 1;
+#endif
+
+extern const struct NVOC_CLASS_DEF __nvoc_class_def_Intr;
+extern const struct NVOC_CLASS_DEF __nvoc_class_def_Object;
+extern const struct NVOC_CLASS_DEF __nvoc_class_def_OBJENGSTATE;
+
+// Forward declarations for Intr
+void __nvoc_init__OBJENGSTATE(OBJENGSTATE*);
+void __nvoc_init__Intr(Intr*, GpuHalspecOwner *pGpuhalspecowner, RmHalspecOwner *pRmhalspecowner);
+void __nvoc_init_funcTable_Intr(Intr*, GpuHalspecOwner *pGpuhalspecowner, RmHalspecOwner *pRmhalspecowner);
+NV_STATUS __nvoc_ctor_Intr(Intr*, GpuHalspecOwner *pGpuhalspecowner, RmHalspecOwner *pRmhalspecowner);
+void __nvoc_init_dataField_Intr(Intr*, GpuHalspecOwner *pGpuhalspecowner, RmHalspecOwner *pRmhalspecowner);
+void __nvoc_dtor_Intr(Dynamic*);
+
+// Structures used within RTTI (run-time type information)
+extern const struct NVOC_CASTINFO __nvoc_castinfo__Intr;
+extern const struct NVOC_EXPORT_INFO __nvoc_export_info__Intr;
+
+// Down-thunk(s) to bridge Intr methods from ancestors (if any)
+NV_STATUS __nvoc_down_thunk_Intr_engstateConstructEngine(OBJGPU *pGpu, struct OBJENGSTATE *pIntr, ENGDESCRIPTOR arg3);    // this
+NV_STATUS __nvoc_down_thunk_Intr_engstateStatePreInitLocked(OBJGPU *pGpu, struct OBJENGSTATE *pIntr);    // this
+NV_STATUS __nvoc_down_thunk_Intr_engstateStateInitUnlocked(OBJGPU *pGpu, struct OBJENGSTATE *pIntr);    // this
+NV_STATUS __nvoc_down_thunk_Intr_engstateStateInitLocked(OBJGPU *pGpu, struct OBJENGSTATE *pIntr);    // this
+void __nvoc_down_thunk_Intr_engstateStateDestroy(OBJGPU *pGpu, struct OBJENGSTATE *pIntr);    // this
+NV_STATUS __nvoc_down_thunk_Intr_engstateStateLoad(OBJGPU *pGpu, struct OBJENGSTATE *pIntr, NvU32 arg3);    // this
+NV_STATUS __nvoc_down_thunk_Intr_engstateStateUnload(OBJGPU *pGpu, struct OBJENGSTATE *pIntr, NvU32 arg3);    // this
+
+// Up-thunk(s) to bridge Intr methods to ancestors (if any)
+void __nvoc_up_thunk_OBJENGSTATE_intrInitMissing(struct OBJGPU *pGpu, struct Intr *pEngstate);    // this
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_intrStatePreInitUnlocked(struct OBJGPU *pGpu, struct Intr *pEngstate);    // this
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_intrStatePreLoad(struct OBJGPU *pGpu, struct Intr *pEngstate, NvU32 arg3);    // this
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_intrStatePostLoad(struct OBJGPU *pGpu, struct Intr *pEngstate, NvU32 arg3);    // this
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_intrStatePreUnload(struct OBJGPU *pGpu, struct Intr *pEngstate, NvU32 arg3);    // this
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_intrStatePostUnload(struct OBJGPU *pGpu, struct Intr *pEngstate, NvU32 arg3);    // this
+NvBool __nvoc_up_thunk_OBJENGSTATE_intrIsPresent(struct OBJGPU *pGpu, struct Intr *pEngstate);    // this
+
+// Class-specific details for Intr
+const struct NVOC_CLASS_DEF __nvoc_class_def_Intr = 
+{
+    .classInfo.size =               sizeof(Intr),
+    .classInfo.classId =            classId(Intr),
+    .classInfo.providerId =         &__nvoc_rtti_provider,
+#if NV_PRINTF_STRINGS_ALLOWED
+    .classInfo.name =               "Intr",
+#endif
+    .objCreatefn =        &__nvoc_objCreateDynamic_Intr,
+    .pCastInfo =          &__nvoc_castinfo__Intr,
+    .pExportInfo =        &__nvoc_export_info__Intr
+};
+
+
+// Metadata with per-class RTTI and vtable with ancestor(s)
+static const struct NVOC_METADATA__Intr __nvoc_metadata__Intr = {
+    .rtti.pClassDef = &__nvoc_class_def_Intr,    // (intr) this
+    .rtti.dtor      = &__nvoc_dtor_Intr,
+    .rtti.offset    = 0,
+    .metadata__OBJENGSTATE.rtti.pClassDef = &__nvoc_class_def_OBJENGSTATE,    // (engstate) super
+    .metadata__OBJENGSTATE.rtti.dtor      = &__nvoc_destructFromBase,
+    .metadata__OBJENGSTATE.rtti.offset    = NV_OFFSETOF(Intr, __nvoc_base_OBJENGSTATE),
+    .metadata__OBJENGSTATE.metadata__Object.rtti.pClassDef = &__nvoc_class_def_Object,    // (obj) super^2
+    .metadata__OBJENGSTATE.metadata__Object.rtti.dtor      = &__nvoc_destructFromBase,
+    .metadata__OBJENGSTATE.metadata__Object.rtti.offset    = NV_OFFSETOF(Intr, __nvoc_base_OBJENGSTATE.__nvoc_base_Object),
+
+    .vtable.__intrConstructEngine__ = &intrConstructEngine_IMPL,    // virtual override (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateConstructEngine__ = &__nvoc_down_thunk_Intr_engstateConstructEngine,    // virtual
+    .vtable.__intrStatePreInitLocked__ = &intrStatePreInitLocked_IMPL,    // virtual override (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateStatePreInitLocked__ = &__nvoc_down_thunk_Intr_engstateStatePreInitLocked,    // virtual
+    .vtable.__intrStateInitUnlocked__ = &intrStateInitUnlocked_IMPL,    // virtual override (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateStateInitUnlocked__ = &__nvoc_down_thunk_Intr_engstateStateInitUnlocked,    // virtual
+    .vtable.__intrStateInitLocked__ = &intrStateInitLocked_IMPL,    // virtual override (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateStateInitLocked__ = &__nvoc_down_thunk_Intr_engstateStateInitLocked,    // virtual
+    .vtable.__intrStateDestroy__ = &intrStateDestroy_IMPL,    // virtual override (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateStateDestroy__ = &__nvoc_down_thunk_Intr_engstateStateDestroy,    // virtual
+    .metadata__OBJENGSTATE.vtable.__engstateStateLoad__ = &__nvoc_down_thunk_Intr_engstateStateLoad,    // virtual
+    .metadata__OBJENGSTATE.vtable.__engstateStateUnload__ = &__nvoc_down_thunk_Intr_engstateStateUnload,    // virtual
+    .vtable.__intrInitMissing__ = &__nvoc_up_thunk_OBJENGSTATE_intrInitMissing,    // virtual inherited (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateInitMissing__ = &engstateInitMissing_IMPL,    // virtual
+    .vtable.__intrStatePreInitUnlocked__ = &__nvoc_up_thunk_OBJENGSTATE_intrStatePreInitUnlocked,    // virtual inherited (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateStatePreInitUnlocked__ = &engstateStatePreInitUnlocked_IMPL,    // virtual
+    .vtable.__intrStatePreLoad__ = &__nvoc_up_thunk_OBJENGSTATE_intrStatePreLoad,    // virtual inherited (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateStatePreLoad__ = &engstateStatePreLoad_IMPL,    // virtual
+    .vtable.__intrStatePostLoad__ = &__nvoc_up_thunk_OBJENGSTATE_intrStatePostLoad,    // virtual inherited (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateStatePostLoad__ = &engstateStatePostLoad_IMPL,    // virtual
+    .vtable.__intrStatePreUnload__ = &__nvoc_up_thunk_OBJENGSTATE_intrStatePreUnload,    // virtual inherited (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateStatePreUnload__ = &engstateStatePreUnload_IMPL,    // virtual
+    .vtable.__intrStatePostUnload__ = &__nvoc_up_thunk_OBJENGSTATE_intrStatePostUnload,    // virtual inherited (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateStatePostUnload__ = &engstateStatePostUnload_IMPL,    // virtual
+    .vtable.__intrIsPresent__ = &__nvoc_up_thunk_OBJENGSTATE_intrIsPresent,    // virtual inherited (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateIsPresent__ = &engstateIsPresent_IMPL,    // virtual
+};
+
+
+// Dynamic down-casting information
+const struct NVOC_CASTINFO __nvoc_castinfo__Intr = {
+    .numRelatives = 3,
+    .relatives = {
+        &__nvoc_metadata__Intr.rtti,    // [0]: (intr) this
+        &__nvoc_metadata__Intr.metadata__OBJENGSTATE.rtti,    // [1]: (engstate) super
+        &__nvoc_metadata__Intr.metadata__OBJENGSTATE.metadata__Object.rtti,    // [2]: (obj) super^2
+    }
+};
+
+// 7 down-thunk(s) defined to bridge methods in Intr from superclasses
+
+// intrConstructEngine: virtual override (engstate) base (engstate)
+NV_STATUS __nvoc_down_thunk_Intr_engstateConstructEngine(OBJGPU *pGpu, struct OBJENGSTATE *pIntr, ENGDESCRIPTOR arg3) {
+    return intrConstructEngine(pGpu, (struct Intr *)(((unsigned char *) pIntr) - NV_OFFSETOF(Intr, __nvoc_base_OBJENGSTATE)), arg3);
+}
+
+// intrStatePreInitLocked: virtual override (engstate) base (engstate)
+NV_STATUS __nvoc_down_thunk_Intr_engstateStatePreInitLocked(OBJGPU *pGpu, struct OBJENGSTATE *pIntr) {
+    return intrStatePreInitLocked(pGpu, (struct Intr *)(((unsigned char *) pIntr) - NV_OFFSETOF(Intr, __nvoc_base_OBJENGSTATE)));
+}
+
+// intrStateInitUnlocked: virtual override (engstate) base (engstate)
+NV_STATUS __nvoc_down_thunk_Intr_engstateStateInitUnlocked(OBJGPU *pGpu, struct OBJENGSTATE *pIntr) {
+    return intrStateInitUnlocked(pGpu, (struct Intr *)(((unsigned char *) pIntr) - NV_OFFSETOF(Intr, __nvoc_base_OBJENGSTATE)));
+}
+
+// intrStateInitLocked: virtual override (engstate) base (engstate)
+NV_STATUS __nvoc_down_thunk_Intr_engstateStateInitLocked(OBJGPU *pGpu, struct OBJENGSTATE *pIntr) {
+    return intrStateInitLocked(pGpu, (struct Intr *)(((unsigned char *) pIntr) - NV_OFFSETOF(Intr, __nvoc_base_OBJENGSTATE)));
+}
+
+// intrStateDestroy: virtual override (engstate) base (engstate)
+void __nvoc_down_thunk_Intr_engstateStateDestroy(OBJGPU *pGpu, struct OBJENGSTATE *pIntr) {
+    intrStateDestroy(pGpu, (struct Intr *)(((unsigned char *) pIntr) - NV_OFFSETOF(Intr, __nvoc_base_OBJENGSTATE)));
+}
+
+// intrStateLoad: virtual halified (2 hals) override (engstate) base (engstate) body
+NV_STATUS __nvoc_down_thunk_Intr_engstateStateLoad(OBJGPU *pGpu, struct OBJENGSTATE *pIntr, NvU32 arg3) {
+    return intrStateLoad(pGpu, (struct Intr *)(((unsigned char *) pIntr) - NV_OFFSETOF(Intr, __nvoc_base_OBJENGSTATE)), arg3);
+}
+
+// intrStateUnload: virtual halified (2 hals) override (engstate) base (engstate) body
+NV_STATUS __nvoc_down_thunk_Intr_engstateStateUnload(OBJGPU *pGpu, struct OBJENGSTATE *pIntr, NvU32 arg3) {
+    return intrStateUnload(pGpu, (struct Intr *)(((unsigned char *) pIntr) - NV_OFFSETOF(Intr, __nvoc_base_OBJENGSTATE)), arg3);
+}
+
+
+// 7 up-thunk(s) defined to bridge methods in Intr to superclasses
+
+// intrInitMissing: virtual inherited (engstate) base (engstate)
+void __nvoc_up_thunk_OBJENGSTATE_intrInitMissing(struct OBJGPU *pGpu, struct Intr *pEngstate) {
+    engstateInitMissing(pGpu, (struct OBJENGSTATE *)(((unsigned char *) pEngstate) + NV_OFFSETOF(Intr, __nvoc_base_OBJENGSTATE)));
+}
+
+// intrStatePreInitUnlocked: virtual inherited (engstate) base (engstate)
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_intrStatePreInitUnlocked(struct OBJGPU *pGpu, struct Intr *pEngstate) {
+    return engstateStatePreInitUnlocked(pGpu, (struct OBJENGSTATE *)(((unsigned char *) pEngstate) + NV_OFFSETOF(Intr, __nvoc_base_OBJENGSTATE)));
+}
+
+// intrStatePreLoad: virtual inherited (engstate) base (engstate)
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_intrStatePreLoad(struct OBJGPU *pGpu, struct Intr *pEngstate, NvU32 arg3) {
+    return engstateStatePreLoad(pGpu, (struct OBJENGSTATE *)(((unsigned char *) pEngstate) + NV_OFFSETOF(Intr, __nvoc_base_OBJENGSTATE)), arg3);
+}
+
+// intrStatePostLoad: virtual inherited (engstate) base (engstate)
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_intrStatePostLoad(struct OBJGPU *pGpu, struct Intr *pEngstate, NvU32 arg3) {
+    return engstateStatePostLoad(pGpu, (struct OBJENGSTATE *)(((unsigned char *) pEngstate) + NV_OFFSETOF(Intr, __nvoc_base_OBJENGSTATE)), arg3);
+}
+
+// intrStatePreUnload: virtual inherited (engstate) base (engstate)
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_intrStatePreUnload(struct OBJGPU *pGpu, struct Intr *pEngstate, NvU32 arg3) {
+    return engstateStatePreUnload(pGpu, (struct OBJENGSTATE *)(((unsigned char *) pEngstate) + NV_OFFSETOF(Intr, __nvoc_base_OBJENGSTATE)), arg3);
+}
+
+// intrStatePostUnload: virtual inherited (engstate) base (engstate)
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_intrStatePostUnload(struct OBJGPU *pGpu, struct Intr *pEngstate, NvU32 arg3) {
+    return engstateStatePostUnload(pGpu, (struct OBJENGSTATE *)(((unsigned char *) pEngstate) + NV_OFFSETOF(Intr, __nvoc_base_OBJENGSTATE)), arg3);
+}
+
+// intrIsPresent: virtual inherited (engstate) base (engstate)
+NvBool __nvoc_up_thunk_OBJENGSTATE_intrIsPresent(struct OBJGPU *pGpu, struct Intr *pEngstate) {
+    return engstateIsPresent(pGpu, (struct OBJENGSTATE *)(((unsigned char *) pEngstate) + NV_OFFSETOF(Intr, __nvoc_base_OBJENGSTATE)));
+}
+
+
+const struct NVOC_EXPORT_INFO __nvoc_export_info__Intr = 
+{
+    .numEntries=     0,
+    .pExportEntries= 0
+};
+
+
+// Destruct Intr object.
+void __nvoc_intrDestruct(Intr*);
+void __nvoc_dtor_OBJENGSTATE(Dynamic*);
+void __nvoc_dtor_Intr(Dynamic* pThis) {
+
+    Intr *__nvoc_this = (Intr *) pThis;
+
+// Call destructor.
+    __nvoc_intrDestruct(__nvoc_this);
+
+// Recurse to superclass destructors.
+    __nvoc_dtor_OBJENGSTATE((Dynamic *) &__nvoc_this->__nvoc_base_OBJENGSTATE);
+
+    PORT_UNREFERENCED_VARIABLE(__nvoc_this);
+}
+void __nvoc_init_dataField_Intr(Intr *pThis, GpuHalspecOwner *pGpuhalspecowner, RmHalspecOwner *pRmhalspecowner) {
+    ChipHal *chipHal = &pGpuhalspecowner->chipHal;
+    const unsigned long chipHal_HalVarIdx = (unsigned long)chipHal->__nvoc_HalVarIdx;
+    RmVariantHal *rmVariantHal = &pRmhalspecowner->rmVariantHal;
+    const unsigned long rmVariantHal_HalVarIdx = (unsigned long)rmVariantHal->__nvoc_HalVarIdx;
+    PORT_UNREFERENCED_VARIABLE(pThis);
+    PORT_UNREFERENCED_VARIABLE(pGpuhalspecowner);
+    PORT_UNREFERENCED_VARIABLE(pRmhalspecowner);
+    PORT_UNREFERENCED_VARIABLE(chipHal);
+    PORT_UNREFERENCED_VARIABLE(chipHal_HalVarIdx);
+    PORT_UNREFERENCED_VARIABLE(rmVariantHal);
+    PORT_UNREFERENCED_VARIABLE(rmVariantHal_HalVarIdx);
+
+    // NVOC Property Hal field -- PDB_PROP_INTR_IS_MISSING
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->setProperty(pThis, PDB_PROP_INTR_IS_MISSING, NV_TRUE);
+    }
+    // default
+    else
+    {
+        pThis->setProperty(pThis, PDB_PROP_INTR_IS_MISSING, NV_FALSE);
+    }
+
+    // NVOC Property Hal field -- PDB_PROP_INTR_HOST_DRIVEN_ENGINES_REMOVED_FROM_PMC
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0xbdf0ffe0UL) ) ||
+        ( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000030ffUL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 | GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 | GH100 | GB100 | GB102 | GB10B | GB110 | GB112 | GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C | GR100 | GR102 */ 
+    {
+        pThis->setProperty(pThis, PDB_PROP_INTR_HOST_DRIVEN_ENGINES_REMOVED_FROM_PMC, NV_TRUE);
+    }
+    // default
+    else
+    {
+        pThis->setProperty(pThis, PDB_PROP_INTR_HOST_DRIVEN_ENGINES_REMOVED_FROM_PMC, NV_FALSE);
+    }
+
+    // NVOC Property Hal field -- PDB_PROP_INTR_READ_ONLY_EVEN_NUMBERED_INTR_LEAF_REGS
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000003e0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 */ 
+    {
+        pThis->setProperty(pThis, PDB_PROP_INTR_READ_ONLY_EVEN_NUMBERED_INTR_LEAF_REGS, NV_TRUE);
+    }
+    // default
+    else
+    {
+        pThis->setProperty(pThis, PDB_PROP_INTR_READ_ONLY_EVEN_NUMBERED_INTR_LEAF_REGS, NV_FALSE);
+    }
+
+    // NVOC Property Hal field -- PDB_PROP_INTR_ENUMERATIONS_ON_ENGINE_RESET
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x01f0fc00UL) )) /* ChipHal: GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 */ 
+    {
+        pThis->setProperty(pThis, PDB_PROP_INTR_ENUMERATIONS_ON_ENGINE_RESET, NV_TRUE);
+    }
+    // default
+    else
+    {
+        pThis->setProperty(pThis, PDB_PROP_INTR_ENUMERATIONS_ON_ENGINE_RESET, NV_FALSE);
+    }
+
+    // NVOC Property Hal field -- PDB_PROP_INTR_USE_TOP_EN_FOR_VBLANK_HANDLING
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0xbdf0ffe0UL) ) ||
+        ( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000030ffUL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 | GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 | GH100 | GB100 | GB102 | GB10B | GB110 | GB112 | GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C | GR100 | GR102 */ 
+    {
+        pThis->setProperty(pThis, PDB_PROP_INTR_USE_TOP_EN_FOR_VBLANK_HANDLING, NV_TRUE);
+    }
+    // default
+    else
+    {
+        pThis->setProperty(pThis, PDB_PROP_INTR_USE_TOP_EN_FOR_VBLANK_HANDLING, NV_FALSE);
+    }
+
+    // NVOC Property Hal field -- PDB_PROP_INTR_MASK_SUPPORTED
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0xbdf0ffe0UL) ) ||
+        ( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000030ffUL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 | GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 | GH100 | GB100 | GB102 | GB10B | GB110 | GB112 | GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C | GR100 | GR102 */ 
+    {
+        pThis->setProperty(pThis, PDB_PROP_INTR_MASK_SUPPORTED, NV_TRUE);
+    }
+    // default
+    else
+    {
+        pThis->setProperty(pThis, PDB_PROP_INTR_MASK_SUPPORTED, NV_FALSE);
+    }
+
+    pThis->displayIntrVector = ((+4294967295U));
+
+    pThis->displayLowLatencyIntrVector = ((+4294967295U));
+
+    // Hal field -- bDefaultNonstallNotify
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0xbdf0ffe0UL) ) ||
+        ( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000030ffUL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 | GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 | GH100 | GB100 | GB102 | GB10B | GB110 | GB112 | GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C | GR100 | GR102 */ 
+    {
+        pThis->bDefaultNonstallNotify = NV_TRUE;
+    }
+    // default
+    else
+    {
+        pThis->bDefaultNonstallNotify = NV_FALSE;
+    }
+
+    // Hal field -- bUseLegacyVectorAssignment
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x04000000UL) )) /* ChipHal: GH100 */ 
+    {
+        pThis->bUseLegacyVectorAssignment = NV_FALSE;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0xb8000000UL) ) ||
+             ( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000030ffUL) )) /* ChipHal: GB100 | GB102 | GB10B | GB110 | GB112 | GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C | GR100 | GR102 */ 
+    {
+        pThis->bUseLegacyVectorAssignment = NV_FALSE;
+    }
+    // default
+    else
+    {
+        pThis->bUseLegacyVectorAssignment = NV_TRUE;
+    }
+}
+
+
+// Construct Intr object.
+NV_STATUS __nvoc_ctor_OBJENGSTATE(OBJENGSTATE *);
+NV_STATUS __nvoc_ctor_Intr(Intr *pThis, GpuHalspecOwner *pGpuhalspecowner, RmHalspecOwner *pRmhalspecowner) {
+    NV_STATUS status = NV_OK;
+
+    // Recurse to ancestor constructor(s).
+    status = __nvoc_ctor_OBJENGSTATE(&pThis->__nvoc_base_OBJENGSTATE);
+    if (status != NV_OK) goto __nvoc_ctor_Intr_fail_OBJENGSTATE;
+
+    // Initialize data fields.
+    __nvoc_init_dataField_Intr(pThis, pGpuhalspecowner, pRmhalspecowner);
+    goto __nvoc_ctor_Intr_exit; // Success
+
+    // Unwind on error.
+__nvoc_ctor_Intr_fail_OBJENGSTATE:
+__nvoc_ctor_Intr_exit:
+    return status;
+}
+
+// Vtable initialization
+static void __nvoc_init_funcTable_Intr_1(Intr *pThis, GpuHalspecOwner *pGpuhalspecowner, RmHalspecOwner *pRmhalspecowner) {
+    ChipHal *chipHal = &pGpuhalspecowner->chipHal;
+    const unsigned long chipHal_HalVarIdx = (unsigned long)chipHal->__nvoc_HalVarIdx;
+    RmVariantHal *rmVariantHal = &pRmhalspecowner->rmVariantHal;
+    const unsigned long rmVariantHal_HalVarIdx = (unsigned long)rmVariantHal->__nvoc_HalVarIdx;
+    PORT_UNREFERENCED_VARIABLE(pThis);
+    PORT_UNREFERENCED_VARIABLE(pGpuhalspecowner);
+    PORT_UNREFERENCED_VARIABLE(pRmhalspecowner);
+    PORT_UNREFERENCED_VARIABLE(chipHal);
+    PORT_UNREFERENCED_VARIABLE(chipHal_HalVarIdx);
+    PORT_UNREFERENCED_VARIABLE(rmVariantHal);
+    PORT_UNREFERENCED_VARIABLE(rmVariantHal_HalVarIdx);
+
+    // intrServiceNonStall -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrServiceNonStall__ = &intrServiceNonStall_5baef9;
+    }
+    else
+    {
+        pThis->__intrServiceNonStall__ = &intrServiceNonStall_TU102;
+    }
+
+    // intrGetNonStallEnable -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrGetNonStallEnable__ = &intrGetNonStallEnable_13cd8d;
+    }
+    else
+    {
+        pThis->__intrGetNonStallEnable__ = &intrGetNonStallEnable_TU102;
+    }
+
+    // intrDisableNonStall -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrDisableNonStall__ = &intrDisableNonStall_f2d351;
+    }
+    else
+    {
+        pThis->__intrDisableNonStall__ = &intrDisableNonStall_TU102;
+    }
+
+    // intrRestoreNonStall -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrRestoreNonStall__ = &intrRestoreNonStall_f2d351;
+    }
+    else
+    {
+        pThis->__intrRestoreNonStall__ = &intrRestoreNonStall_TU102;
+    }
+
+    // intrGetStallInterruptMode -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrGetStallInterruptMode__ = &intrGetStallInterruptMode_ba0331;
+    }
+    else
+    {
+        pThis->__intrGetStallInterruptMode__ = &intrGetStallInterruptMode_TU102;
+    }
+
+    // intrEncodeStallIntrEn -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrEncodeStallIntrEn__ = &intrEncodeStallIntrEn_d44104;
+    }
+    else
+    {
+        pThis->__intrEncodeStallIntrEn__ = &intrEncodeStallIntrEn_GP100;
+    }
+
+    // intrDecodeStallIntrEn -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000003e0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 */ 
+    {
+        pThis->__intrDecodeStallIntrEn__ = &intrDecodeStallIntrEn_TU102;
+    }
+    else
+    {
+        pThis->__intrDecodeStallIntrEn__ = &intrDecodeStallIntrEn_b2b553;
+    }
+
+    // intrCheckAndServiceNonReplayableFault -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrCheckAndServiceNonReplayableFault__ = &intrCheckAndServiceNonReplayableFault_395e98;
+    }
+    else
+    {
+        pThis->__intrCheckAndServiceNonReplayableFault__ = &intrCheckAndServiceNonReplayableFault_TU102;
+    }
+
+    // intrEnableLeaf -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrEnableLeaf__ = &intrEnableLeaf_d44104;
+    }
+    else
+    {
+        pThis->__intrEnableLeaf__ = &intrEnableLeaf_TU102;
+    }
+
+    // intrDisableLeaf -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrDisableLeaf__ = &intrDisableLeaf_d44104;
+    }
+    else
+    {
+        pThis->__intrDisableLeaf__ = &intrDisableLeaf_TU102;
+    }
+
+    // intrEnableTopNonstall -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrEnableTopNonstall__ = &intrEnableTopNonstall_f2d351;
+    }
+    else
+    {
+        pThis->__intrEnableTopNonstall__ = &intrEnableTopNonstall_TU102;
+    }
+
+    // intrDisableTopNonstall -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrDisableTopNonstall__ = &intrDisableTopNonstall_f2d351;
+    }
+    else
+    {
+        pThis->__intrDisableTopNonstall__ = &intrDisableTopNonstall_TU102;
+    }
+
+    // intrSetStall -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrSetStall__ = &intrSetStall_d44104;
+    }
+    else
+    {
+        pThis->__intrSetStall__ = &intrSetStall_TU102;
+    }
+
+    // intrClearLeafVector -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrClearLeafVector__ = &intrClearLeafVector_d44104;
+    }
+    else
+    {
+        pThis->__intrClearLeafVector__ = &intrClearLeafVector_TU102;
+    }
+
+    // intrIsPending -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrIsPending__ = &intrIsPending_d69453;
+    }
+    else
+    {
+        pThis->__intrIsPending__ = &intrIsPending_TU102;
+    }
+
+    // intrIsVectorPending -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrIsVectorPending__ = &intrIsVectorPending_72a2e1;
+    }
+    else
+    {
+        pThis->__intrIsVectorPending__ = &intrIsVectorPending_TU102;
+    }
+
+    // intrSetStallSWIntr -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrSetStallSWIntr__ = &intrSetStallSWIntr_92bfc3;
+    }
+    else
+    {
+        pThis->__intrSetStallSWIntr__ = &intrSetStallSWIntr_TU102;
+    }
+
+    // intrClearStallSWIntr -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrClearStallSWIntr__ = &intrClearStallSWIntr_92bfc3;
+    }
+    else
+    {
+        pThis->__intrClearStallSWIntr__ = &intrClearStallSWIntr_TU102;
+    }
+
+    // intrEnableStallSWIntr -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrEnableStallSWIntr__ = &intrEnableStallSWIntr_d44104;
+    }
+    else
+    {
+        pThis->__intrEnableStallSWIntr__ = &intrEnableStallSWIntr_TU102;
+    }
+
+    // intrDisableStallSWIntr -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrDisableStallSWIntr__ = &intrDisableStallSWIntr_d44104;
+    }
+    else
+    {
+        pThis->__intrDisableStallSWIntr__ = &intrDisableStallSWIntr_TU102;
+    }
+
+    // intrTriggerPrivDoorbell -- halified (3 hals) body
+    if (( ((rmVariantHal_HalVarIdx >> 5) == 0UL) && ((1UL << (rmVariantHal_HalVarIdx & 0x1f)) & 0x00000001UL) )) /* RmVariantHal: VF */ 
+    {
+        pThis->__intrTriggerPrivDoorbell__ = &intrTriggerPrivDoorbell_5baef9;
+    }
+    else
+    {
+        if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+        {
+            pThis->__intrTriggerPrivDoorbell__ = &intrTriggerPrivDoorbell_92bfc3;
+        }
+        else
+        {
+            pThis->__intrTriggerPrivDoorbell__ = &intrTriggerPrivDoorbell_TU102;
+        }
+    }
+
+    // intrRetriggerTopLevel -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrRetriggerTopLevel__ = &intrRetriggerTopLevel_f2d351;
+    }
+    else
+    {
+        pThis->__intrRetriggerTopLevel__ = &intrRetriggerTopLevel_TU102;
+    }
+
+    // intrGetLocklessVectorsInRmSubtree -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000003e0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 */ 
+    {
+        pThis->__intrGetLocklessVectorsInRmSubtree__ = &intrGetLocklessVectorsInRmSubtree_TU102;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0xbdf0fc00UL) ) ||
+             ( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000030ffUL) )) /* ChipHal: GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 | GH100 | GB100 | GB102 | GB10B | GB110 | GB112 | GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C | GR100 | GR102 */ 
+    {
+        pThis->__intrGetLocklessVectorsInRmSubtree__ = &intrGetLocklessVectorsInRmSubtree_GA100;
+    }
+    // default
+    else
+    {
+        pThis->__intrGetLocklessVectorsInRmSubtree__ = &intrGetLocklessVectorsInRmSubtree_ca557d;
+    }
+
+    // intrGetPendingLowLatencyHwDisplayIntr -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000030feUL) )) /* ChipHal: GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C | GR100 | GR102 */ 
+    {
+        pThis->__intrGetPendingLowLatencyHwDisplayIntr__ = &intrGetPendingLowLatencyHwDisplayIntr_GB202;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0xbdf0ffe0UL) ) ||
+             ( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x00000001UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 | GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 | GH100 | GB100 | GB102 | GB10B | GB110 | GB112 */ 
+    {
+        pThis->__intrGetPendingLowLatencyHwDisplayIntr__ = &intrGetPendingLowLatencyHwDisplayIntr_TU102;
+    }
+    // default
+    else
+    {
+        pThis->__intrGetPendingLowLatencyHwDisplayIntr__ = &intrGetPendingLowLatencyHwDisplayIntr_5baef9;
+    }
+
+    // intrSetDisplayInterruptEnable -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000000feUL) )) /* ChipHal: GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C */ 
+    {
+        pThis->__intrSetDisplayInterruptEnable__ = &intrSetDisplayInterruptEnable_GB202;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x21f0fbe0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 | GB10B */ 
+    {
+        pThis->__intrSetDisplayInterruptEnable__ = &intrSetDisplayInterruptEnable_TU102;
+    }
+    // default
+    else
+    {
+        pThis->__intrSetDisplayInterruptEnable__ = &intrSetDisplayInterruptEnable_d44104;
+    }
+
+    // intrCacheDispIntrVectors -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000000feUL) )) /* ChipHal: GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C */ 
+    {
+        pThis->__intrCacheDispIntrVectors__ = &intrCacheDispIntrVectors_GB202;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x21f0fbe0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 | GB10B */ 
+    {
+        pThis->__intrCacheDispIntrVectors__ = &intrCacheDispIntrVectors_TU102;
+    }
+    // default
+    else
+    {
+        pThis->__intrCacheDispIntrVectors__ = &intrCacheDispIntrVectors_d44104;
+    }
+
+    // intrDumpState -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrDumpState__ = &intrDumpState_d44104;
+    }
+    else
+    {
+        pThis->__intrDumpState__ = &intrDumpState_TU102;
+    }
+
+    // intrCacheIntrFields -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrCacheIntrFields__ = &intrCacheIntrFields_ac1694;
+    }
+    else
+    {
+        pThis->__intrCacheIntrFields__ = &intrCacheIntrFields_TU102;
+    }
+
+    // intrReadRegLeafEnSet -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrReadRegLeafEnSet__ = &intrReadRegLeafEnSet_13cd8d;
+    }
+    else
+    {
+        pThis->__intrReadRegLeafEnSet__ = &intrReadRegLeafEnSet_CPU_TU102;
+    }
+
+    // intrReadRegLeaf -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrReadRegLeaf__ = &intrReadRegLeaf_13cd8d;
+    }
+    else
+    {
+        pThis->__intrReadRegLeaf__ = &intrReadRegLeaf_CPU_TU102;
+    }
+
+    // intrReadRegTopEnSet -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrReadRegTopEnSet__ = &intrReadRegTopEnSet_b2b553;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000007e0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 | GA100 */ 
+    {
+        pThis->__intrReadRegTopEnSet__ = &intrReadRegTopEnSet_CPU_TU102;
+    }
+    else
+    {
+        pThis->__intrReadRegTopEnSet__ = &intrReadRegTopEnSet_CPU_GA102;
+    }
+
+    // intrReadRegTop -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrReadRegTop__ = &intrReadRegTop_13cd8d;
+    }
+    else
+    {
+        pThis->__intrReadRegTop__ = &intrReadRegTop_CPU_TU102;
+    }
+
+    // intrWriteRegLeafEnSet -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrWriteRegLeafEnSet__ = &intrWriteRegLeafEnSet_f2d351;
+    }
+    else
+    {
+        pThis->__intrWriteRegLeafEnSet__ = &intrWriteRegLeafEnSet_CPU_TU102;
+    }
+
+    // intrWriteRegLeafEnClear -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrWriteRegLeafEnClear__ = &intrWriteRegLeafEnClear_f2d351;
+    }
+    else
+    {
+        pThis->__intrWriteRegLeafEnClear__ = &intrWriteRegLeafEnClear_CPU_TU102;
+    }
+
+    // intrWriteRegLeaf -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrWriteRegLeaf__ = &intrWriteRegLeaf_f2d351;
+    }
+    else
+    {
+        pThis->__intrWriteRegLeaf__ = &intrWriteRegLeaf_CPU_TU102;
+    }
+
+    // intrWriteRegTopEnSet -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrWriteRegTopEnSet__ = &intrWriteRegTopEnSet_d44104;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000007e0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 | GA100 */ 
+    {
+        pThis->__intrWriteRegTopEnSet__ = &intrWriteRegTopEnSet_CPU_TU102;
+    }
+    else
+    {
+        pThis->__intrWriteRegTopEnSet__ = &intrWriteRegTopEnSet_CPU_GA102;
+    }
+
+    // intrWriteRegTopEnClear -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrWriteRegTopEnClear__ = &intrWriteRegTopEnClear_d44104;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000007e0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 | GA100 */ 
+    {
+        pThis->__intrWriteRegTopEnClear__ = &intrWriteRegTopEnClear_CPU_TU102;
+    }
+    else
+    {
+        pThis->__intrWriteRegTopEnClear__ = &intrWriteRegTopEnClear_CPU_GA102;
+    }
+
+    // intrGetNumLeaves -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrGetNumLeaves__ = &intrGetNumLeaves_474d46;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x01f0ffe0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 | GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 */ 
+    {
+        pThis->__intrGetNumLeaves__ = &intrGetNumLeaves_TU102;
+    }
+    else
+    {
+        pThis->__intrGetNumLeaves__ = &intrGetNumLeaves_GH100;
+    }
+
+    // intrGetLeafSize -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrGetLeafSize__ = &intrGetLeafSize_474d46;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x01f0ffe0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 | GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 */ 
+    {
+        pThis->__intrGetLeafSize__ = &intrGetLeafSize_TU102;
+    }
+    else
+    {
+        pThis->__intrGetLeafSize__ = &intrGetLeafSize_GH100;
+    }
+
+    // intrGetIntrTopNonStallMask -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrGetIntrTopNonStallMask__ = &intrGetIntrTopNonStallMask_474d46;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x01f0ffe0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 | GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 */ 
+    {
+        pThis->__intrGetIntrTopNonStallMask__ = &intrGetIntrTopNonStallMask_TU102;
+    }
+    else
+    {
+        pThis->__intrGetIntrTopNonStallMask__ = &intrGetIntrTopNonStallMask_GH100;
+    }
+
+    // intrGetIntrTopLegacyStallMask -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrGetIntrTopLegacyStallMask__ = &intrGetIntrTopLegacyStallMask_474d46;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x01f0ffe0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 | GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 */ 
+    {
+        pThis->__intrGetIntrTopLegacyStallMask__ = &intrGetIntrTopLegacyStallMask_TU102;
+    }
+    else
+    {
+        pThis->__intrGetIntrTopLegacyStallMask__ = &intrGetIntrTopLegacyStallMask_GH100;
+    }
+
+    // intrGetIntrTopLockedMask -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrGetIntrTopLockedMask__ = &intrGetIntrTopLockedMask_474d46;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x01f0ffe0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 | GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 */ 
+    {
+        pThis->__intrGetIntrTopLockedMask__ = &intrGetIntrTopLockedMask_TU102;
+    }
+    else
+    {
+        pThis->__intrGetIntrTopLockedMask__ = &intrGetIntrTopLockedMask_GH100;
+    }
+
+    // intrSanityCheckEngineIntrStallVector -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x01f0fc00UL) )) /* ChipHal: GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 */ 
+    {
+        pThis->__intrSanityCheckEngineIntrStallVector__ = &intrSanityCheckEngineIntrStallVector_GA100;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0xbc000000UL) ) ||
+             ( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000030ffUL) )) /* ChipHal: GH100 | GB100 | GB102 | GB10B | GB110 | GB112 | GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C | GR100 | GR102 */ 
+    {
+        pThis->__intrSanityCheckEngineIntrStallVector__ = &intrSanityCheckEngineIntrStallVector_GH100;
+    }
+    // default
+    else
+    {
+        pThis->__intrSanityCheckEngineIntrStallVector__ = &intrSanityCheckEngineIntrStallVector_d44104;
+    }
+
+    // intrSanityCheckEngineIntrNotificationVector -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x01f0fc00UL) )) /* ChipHal: GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 */ 
+    {
+        pThis->__intrSanityCheckEngineIntrNotificationVector__ = &intrSanityCheckEngineIntrNotificationVector_GA100;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0xbc000000UL) ) ||
+             ( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000030ffUL) )) /* ChipHal: GH100 | GB100 | GB102 | GB10B | GB110 | GB112 | GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C | GR100 | GR102 */ 
+    {
+        pThis->__intrSanityCheckEngineIntrNotificationVector__ = &intrSanityCheckEngineIntrNotificationVector_GH100;
+    }
+    // default
+    else
+    {
+        pThis->__intrSanityCheckEngineIntrNotificationVector__ = &intrSanityCheckEngineIntrNotificationVector_d44104;
+    }
+
+    // intrStateLoad -- virtual halified (2 hals) override (engstate) base (engstate) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrStateLoad__ = &intrStateLoad_ac1694;
+    }
+    else
+    {
+        pThis->__intrStateLoad__ = &intrStateLoad_TU102;
+    }
+
+    // intrStateUnload -- virtual halified (2 hals) override (engstate) base (engstate) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrStateUnload__ = &intrStateUnload_ac1694;
+    }
+    else
+    {
+        pThis->__intrStateUnload__ = &intrStateUnload_TU102;
+    }
+
+    // intrInitInterruptTable -- halified (2 hals)
+    if (( ((rmVariantHal_HalVarIdx >> 5) == 0UL) && ((1UL << (rmVariantHal_HalVarIdx & 0x1f)) & 0x00000001UL) )) /* RmVariantHal: VF */ 
+    {
+        pThis->__intrInitInterruptTable__ = &intrInitInterruptTable_VF;
+    }
+    else
+    {
+        pThis->__intrInitInterruptTable__ = &intrInitInterruptTable_KERNEL;
+    }
+
+    // intrGetInterruptTable -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrGetInterruptTable__ = &intrGetInterruptTable_395e98;
+    }
+    else
+    {
+        pThis->__intrGetInterruptTable__ = &intrGetInterruptTable_IMPL;
+    }
+
+    // intrDestroyInterruptTable -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrDestroyInterruptTable__ = &intrDestroyInterruptTable_ac1694;
+    }
+    else
+    {
+        pThis->__intrDestroyInterruptTable__ = &intrDestroyInterruptTable_IMPL;
+    }
+
+    // intrServiceStall -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrServiceStall__ = &intrServiceStall_f2d351;
+    }
+    else
+    {
+        pThis->__intrServiceStall__ = &intrServiceStall_IMPL;
+    }
+
+    // intrServiceStallList -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrServiceStallList__ = &intrServiceStallList_f2d351;
+    }
+    else
+    {
+        pThis->__intrServiceStallList__ = &intrServiceStallList_IMPL;
+    }
+
+    // intrServiceStallSingle -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrServiceStallSingle__ = &intrServiceStallSingle_f2d351;
+    }
+    else
+    {
+        pThis->__intrServiceStallSingle__ = &intrServiceStallSingle_IMPL;
+    }
+
+    // intrProcessDPCQueue -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrProcessDPCQueue__ = &intrProcessDPCQueue_f2d351;
+    }
+    else
+    {
+        pThis->__intrProcessDPCQueue__ = &intrProcessDPCQueue_IMPL;
+    }
+
+    // intrSetIntrMask -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000003e0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 */ 
+    {
+        pThis->__intrSetIntrMask__ = &intrSetIntrMask_GP100;
+    }
+    else
+    {
+        pThis->__intrSetIntrMask__ = &intrSetIntrMask_395e98;
+    }
+
+    // intrSetIntrEnInHw -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000003e0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 */ 
+    {
+        pThis->__intrSetIntrEnInHw__ = &intrSetIntrEnInHw_GP100;
+    }
+    else
+    {
+        pThis->__intrSetIntrEnInHw__ = &intrSetIntrEnInHw_d44104;
+    }
+
+    // intrGetIntrEnFromHw -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000003e0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 */ 
+    {
+        pThis->__intrGetIntrEnFromHw__ = &intrGetIntrEnFromHw_GP100;
+    }
+    else
+    {
+        pThis->__intrGetIntrEnFromHw__ = &intrGetIntrEnFromHw_b2b553;
+    }
+
+    // intrGetPendingStall -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrGetPendingStall__ = &intrGetPendingStall_5baef9;
+    }
+    else
+    {
+        pThis->__intrGetPendingStall__ = &intrGetPendingStall_GM107;
+    }
+
+    // intrGetAuxiliaryPendingStall -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrGetAuxiliaryPendingStall__ = &intrGetAuxiliaryPendingStall_d44104;
+    }
+    else
+    {
+        pThis->__intrGetAuxiliaryPendingStall__ = &intrGetAuxiliaryPendingStall_TU102;
+    }
+
+    // intrGetPendingStallEngines -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrGetPendingStallEngines__ = &intrGetPendingStallEngines_5baef9;
+    }
+    else
+    {
+        pThis->__intrGetPendingStallEngines__ = &intrGetPendingStallEngines_TU102;
+    }
+
+    // intrGetPendingDispLowLatencyAndStaticReg -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrGetPendingDispLowLatencyAndStaticReg__ = &intrGetPendingDispLowLatencyAndStaticReg_5baef9;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000030feUL) )) /* ChipHal: GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C | GR100 | GR102 */ 
+    {
+        pThis->__intrGetPendingDispLowLatencyAndStaticReg__ = &intrGetPendingDispLowLatencyAndStaticReg_GB202;
+    }
+    else
+    {
+        pThis->__intrGetPendingDispLowLatencyAndStaticReg__ = &intrGetPendingDispLowLatencyAndStaticReg_TU102;
+    }
+
+    // intrGetRemainingPendingStall -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__intrGetRemainingPendingStall__ = &intrGetRemainingPendingStall_5baef9;
+    }
+    else
+    {
+        pThis->__intrGetRemainingPendingStall__ = &intrGetRemainingPendingStall_TU102;
+    }
+} // End __nvoc_init_funcTable_Intr_1 with approximately 138 basic block(s).
+
+
+// Initialize vtable(s) for 73 virtual method(s).
+void __nvoc_init_funcTable_Intr(Intr *pThis, GpuHalspecOwner *pGpuhalspecowner, RmHalspecOwner *pRmhalspecowner) {
+
+    // Initialize vtable(s) with 61 per-object function pointer(s).
+    __nvoc_init_funcTable_Intr_1(pThis, pGpuhalspecowner, pRmhalspecowner);
+}
+
+// Initialize newly constructed object.
+void __nvoc_init__Intr(Intr *pThis, GpuHalspecOwner *pGpuhalspecowner, RmHalspecOwner *pRmhalspecowner) {
+
+    // Initialize pointers to inherited data.
+    pThis->__nvoc_pbase_Object = &pThis->__nvoc_base_OBJENGSTATE.__nvoc_base_Object;    // (obj) super^2
+    pThis->__nvoc_pbase_OBJENGSTATE = &pThis->__nvoc_base_OBJENGSTATE;    // (engstate) super
+    pThis->__nvoc_pbase_Intr = pThis;    // (intr) this
+
+    // Recurse to superclass initialization function(s).
+    __nvoc_init__OBJENGSTATE(&pThis->__nvoc_base_OBJENGSTATE);
+
+    // Pointer(s) to metadata structures(s)
+    pThis->__nvoc_base_OBJENGSTATE.__nvoc_base_Object.__nvoc_metadata_ptr = &__nvoc_metadata__Intr.metadata__OBJENGSTATE.metadata__Object;    // (obj) super^2
+    pThis->__nvoc_base_OBJENGSTATE.__nvoc_metadata_ptr = &__nvoc_metadata__Intr.metadata__OBJENGSTATE;    // (engstate) super
+    pThis->__nvoc_metadata_ptr = &__nvoc_metadata__Intr;    // (intr) this
+
+    // Initialize per-object vtables.
+    __nvoc_init_funcTable_Intr(pThis, pGpuhalspecowner, pRmhalspecowner);
+}
+
+NV_STATUS __nvoc_objCreate_Intr(Intr **__nvoc_ppThis, Dynamic *__nvoc_pParent, NvU32 __nvoc_createFlags)
+{
+    NV_STATUS __nvoc_status;
+    Object *__nvoc_pParentObj = NULL;
+    Intr *__nvoc_pThis;
+    GpuHalspecOwner *pGpuhalspecowner;
+    RmHalspecOwner *pRmhalspecowner;
+
+    // Don't allocate memory if the caller has already done so.
+    if (__nvoc_createFlags & NVOC_OBJ_CREATE_FLAGS_IN_PLACE_CONSTRUCT)
+    {
+        NV_CHECK_OR_RETURN(LEVEL_ERROR, __nvoc_ppThis != NULL && *__nvoc_ppThis != NULL, NV_ERR_INVALID_PARAMETER);
+        __nvoc_pThis = *__nvoc_ppThis;
+    }
+
+    // Allocate memory
+    else
+    {
+        __nvoc_pThis = portMemAllocNonPaged(sizeof(Intr));
+        NV_CHECK_OR_RETURN(LEVEL_ERROR, __nvoc_pThis != NULL, NV_ERR_NO_MEMORY);
+    }
+
+    // Zero is the initial value for everything.
+    portMemSet(__nvoc_pThis, 0, sizeof(Intr));
+
+    __nvoc_pThis->__nvoc_base_OBJENGSTATE.__nvoc_base_Object.createFlags = __nvoc_createFlags;
+
+    // pParent must be a valid object that derives from a halspec owner class.
+    NV_CHECK_TRUE_OR_GOTO(__nvoc_status, LEVEL_ERROR, __nvoc_pParent != NULL, NV_ERR_INVALID_ARGUMENT, __nvoc_objCreate_Intr_cleanup);
+
+    // Link the child into the parent unless flagged not to do so.
+    if (!(__nvoc_createFlags & NVOC_OBJ_CREATE_FLAGS_PARENT_HALSPEC_ONLY))
+    {
+        __nvoc_pParentObj = dynamicCast(__nvoc_pParent, Object);
+        objAddChild(__nvoc_pParentObj, &__nvoc_pThis->__nvoc_base_OBJENGSTATE.__nvoc_base_Object);
+    }
+    else
+    {
+        __nvoc_pThis->__nvoc_base_OBJENGSTATE.__nvoc_base_Object.pParent = NULL;
+    }
+
+    // HALs are defined by the parent or the first super class.
+    if ((pGpuhalspecowner = dynamicCast(__nvoc_pParent, GpuHalspecOwner)) == NULL)
+        pGpuhalspecowner = objFindAncestorOfType(GpuHalspecOwner, __nvoc_pParent);
+    NV_CHECK_TRUE_OR_GOTO(__nvoc_status, LEVEL_ERROR, pGpuhalspecowner != NULL, NV_ERR_INVALID_ARGUMENT, __nvoc_objCreate_Intr_cleanup);
+    if ((pRmhalspecowner = dynamicCast(__nvoc_pParent, RmHalspecOwner)) == NULL)
+        pRmhalspecowner = objFindAncestorOfType(RmHalspecOwner, __nvoc_pParent);
+    NV_CHECK_TRUE_OR_GOTO(__nvoc_status, LEVEL_ERROR, pRmhalspecowner != NULL, NV_ERR_INVALID_ARGUMENT, __nvoc_objCreate_Intr_cleanup);
+
+    // Initialize vtable, RTTI, etc., then call constructor.
+    __nvoc_init__Intr(__nvoc_pThis, pGpuhalspecowner, pRmhalspecowner);
+    __nvoc_status = __nvoc_ctor_Intr(__nvoc_pThis, pGpuhalspecowner, pRmhalspecowner);
+    if (__nvoc_status != NV_OK) goto __nvoc_objCreate_Intr_cleanup;
+
+    // Assignment has no effect if NVOC_OBJ_CREATE_FLAGS_IN_PLACE_CONSTRUCT is set.
+    *__nvoc_ppThis = __nvoc_pThis;
+
+    // Success
+    return NV_OK;
+
+    // Do not call destructors here since the constructor already called them.
+__nvoc_objCreate_Intr_cleanup:
+
+    // Unlink the child from the parent if it was linked above.
+    if (__nvoc_pParentObj != NULL)
+        objRemoveChild(__nvoc_pParentObj, &__nvoc_pThis->__nvoc_base_OBJENGSTATE.__nvoc_base_Object);
+
+    // Zero out memory that was allocated by caller.
+    if (__nvoc_createFlags & NVOC_OBJ_CREATE_FLAGS_IN_PLACE_CONSTRUCT)
+        portMemSet(__nvoc_pThis, 0, sizeof(Intr));
+
+    // Free memory allocated by `__nvoc_handleObjCreateMemAlloc`.
+    else
+    {
+        portMemFree(__nvoc_pThis);
+        *__nvoc_ppThis = NULL;
+    }
+
+    // Failure
+    return __nvoc_status;
+}
+
+NV_STATUS __nvoc_objCreateDynamic_Intr(Dynamic **__nvoc_ppThis, Dynamic *__nvoc_pParent, NvU32 __nvoc_createFlags, va_list __nvoc_args) {
+
+    return __nvoc_objCreate_Intr((Intr **) __nvoc_ppThis, __nvoc_pParent, __nvoc_createFlags);
+}
+

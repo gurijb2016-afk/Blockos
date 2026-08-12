@@ -1,0 +1,346 @@
+#define NVOC_OBJSWENG_H_PRIVATE_ACCESS_ALLOWED
+
+// Version of generated metadata structures
+#ifdef NVOC_METADATA_VERSION
+#undef NVOC_METADATA_VERSION
+#endif
+#define NVOC_METADATA_VERSION 2
+
+#include "nvoc/runtime.h"
+#include "nvoc/rtti.h"
+#include "nvtypes.h"
+#include "nvport/nvport.h"
+#include "nvport/inline/util_valist.h"
+#include "utils/nvassert.h"
+#include "g_objsweng_nvoc.h"
+
+
+#ifdef DEBUG
+char __nvoc_class_id_uniqueness_check__95a6f5 = 1;
+#endif
+
+extern const struct NVOC_CLASS_DEF __nvoc_class_def_OBJSWENG;
+extern const struct NVOC_CLASS_DEF __nvoc_class_def_Object;
+extern const struct NVOC_CLASS_DEF __nvoc_class_def_OBJENGSTATE;
+
+// Forward declarations for OBJSWENG
+void __nvoc_init__OBJENGSTATE(OBJENGSTATE*);
+void __nvoc_init__OBJSWENG(OBJSWENG*);
+void __nvoc_init_funcTable_OBJSWENG(OBJSWENG*);
+NV_STATUS __nvoc_ctor_OBJSWENG(OBJSWENG*);
+void __nvoc_init_dataField_OBJSWENG(OBJSWENG*);
+void __nvoc_dtor_OBJSWENG(Dynamic*);
+
+// Structures used within RTTI (run-time type information)
+extern const struct NVOC_CASTINFO __nvoc_castinfo__OBJSWENG;
+extern const struct NVOC_EXPORT_INFO __nvoc_export_info__OBJSWENG;
+
+// Down-thunk(s) to bridge OBJSWENG methods from ancestors (if any)
+NV_STATUS __nvoc_down_thunk_OBJSWENG_engstateConstructEngine(struct OBJGPU *pGpu, struct OBJENGSTATE *pSweng, ENGDESCRIPTOR arg3);    // this
+
+// Up-thunk(s) to bridge OBJSWENG methods to ancestors (if any)
+void __nvoc_up_thunk_OBJENGSTATE_swengInitMissing(struct OBJGPU *pGpu, struct OBJSWENG *pEngstate);    // this
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_swengStatePreInitLocked(struct OBJGPU *pGpu, struct OBJSWENG *pEngstate);    // this
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_swengStatePreInitUnlocked(struct OBJGPU *pGpu, struct OBJSWENG *pEngstate);    // this
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_swengStateInitLocked(struct OBJGPU *pGpu, struct OBJSWENG *pEngstate);    // this
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_swengStateInitUnlocked(struct OBJGPU *pGpu, struct OBJSWENG *pEngstate);    // this
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_swengStatePreLoad(struct OBJGPU *pGpu, struct OBJSWENG *pEngstate, NvU32 arg3);    // this
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_swengStateLoad(struct OBJGPU *pGpu, struct OBJSWENG *pEngstate, NvU32 arg3);    // this
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_swengStatePostLoad(struct OBJGPU *pGpu, struct OBJSWENG *pEngstate, NvU32 arg3);    // this
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_swengStatePreUnload(struct OBJGPU *pGpu, struct OBJSWENG *pEngstate, NvU32 arg3);    // this
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_swengStateUnload(struct OBJGPU *pGpu, struct OBJSWENG *pEngstate, NvU32 arg3);    // this
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_swengStatePostUnload(struct OBJGPU *pGpu, struct OBJSWENG *pEngstate, NvU32 arg3);    // this
+void __nvoc_up_thunk_OBJENGSTATE_swengStateDestroy(struct OBJGPU *pGpu, struct OBJSWENG *pEngstate);    // this
+NvBool __nvoc_up_thunk_OBJENGSTATE_swengIsPresent(struct OBJGPU *pGpu, struct OBJSWENG *pEngstate);    // this
+
+// Class-specific details for OBJSWENG
+const struct NVOC_CLASS_DEF __nvoc_class_def_OBJSWENG = 
+{
+    .classInfo.size =               sizeof(OBJSWENG),
+    .classInfo.classId =            classId(OBJSWENG),
+    .classInfo.providerId =         &__nvoc_rtti_provider,
+#if NV_PRINTF_STRINGS_ALLOWED
+    .classInfo.name =               "OBJSWENG",
+#endif
+    .objCreatefn =        &__nvoc_objCreateDynamic_OBJSWENG,
+    .pCastInfo =          &__nvoc_castinfo__OBJSWENG,
+    .pExportInfo =        &__nvoc_export_info__OBJSWENG
+};
+
+
+// Metadata with per-class RTTI and vtable with ancestor(s)
+static const struct NVOC_METADATA__OBJSWENG __nvoc_metadata__OBJSWENG = {
+    .rtti.pClassDef = &__nvoc_class_def_OBJSWENG,    // (sweng) this
+    .rtti.dtor      = &__nvoc_dtor_OBJSWENG,
+    .rtti.offset    = 0,
+    .metadata__OBJENGSTATE.rtti.pClassDef = &__nvoc_class_def_OBJENGSTATE,    // (engstate) super
+    .metadata__OBJENGSTATE.rtti.dtor      = &__nvoc_destructFromBase,
+    .metadata__OBJENGSTATE.rtti.offset    = NV_OFFSETOF(OBJSWENG, __nvoc_base_OBJENGSTATE),
+    .metadata__OBJENGSTATE.metadata__Object.rtti.pClassDef = &__nvoc_class_def_Object,    // (obj) super^2
+    .metadata__OBJENGSTATE.metadata__Object.rtti.dtor      = &__nvoc_destructFromBase,
+    .metadata__OBJENGSTATE.metadata__Object.rtti.offset    = NV_OFFSETOF(OBJSWENG, __nvoc_base_OBJENGSTATE.__nvoc_base_Object),
+
+    .vtable.__swengConstructEngine__ = &swengConstructEngine_IMPL,    // virtual override (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateConstructEngine__ = &__nvoc_down_thunk_OBJSWENG_engstateConstructEngine,    // virtual
+    .vtable.__swengInitMissing__ = &__nvoc_up_thunk_OBJENGSTATE_swengInitMissing,    // virtual inherited (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateInitMissing__ = &engstateInitMissing_IMPL,    // virtual
+    .vtable.__swengStatePreInitLocked__ = &__nvoc_up_thunk_OBJENGSTATE_swengStatePreInitLocked,    // virtual inherited (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateStatePreInitLocked__ = &engstateStatePreInitLocked_IMPL,    // virtual
+    .vtable.__swengStatePreInitUnlocked__ = &__nvoc_up_thunk_OBJENGSTATE_swengStatePreInitUnlocked,    // virtual inherited (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateStatePreInitUnlocked__ = &engstateStatePreInitUnlocked_IMPL,    // virtual
+    .vtable.__swengStateInitLocked__ = &__nvoc_up_thunk_OBJENGSTATE_swengStateInitLocked,    // virtual inherited (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateStateInitLocked__ = &engstateStateInitLocked_IMPL,    // virtual
+    .vtable.__swengStateInitUnlocked__ = &__nvoc_up_thunk_OBJENGSTATE_swengStateInitUnlocked,    // virtual inherited (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateStateInitUnlocked__ = &engstateStateInitUnlocked_IMPL,    // virtual
+    .vtable.__swengStatePreLoad__ = &__nvoc_up_thunk_OBJENGSTATE_swengStatePreLoad,    // virtual inherited (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateStatePreLoad__ = &engstateStatePreLoad_IMPL,    // virtual
+    .vtable.__swengStateLoad__ = &__nvoc_up_thunk_OBJENGSTATE_swengStateLoad,    // virtual inherited (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateStateLoad__ = &engstateStateLoad_IMPL,    // virtual
+    .vtable.__swengStatePostLoad__ = &__nvoc_up_thunk_OBJENGSTATE_swengStatePostLoad,    // virtual inherited (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateStatePostLoad__ = &engstateStatePostLoad_IMPL,    // virtual
+    .vtable.__swengStatePreUnload__ = &__nvoc_up_thunk_OBJENGSTATE_swengStatePreUnload,    // virtual inherited (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateStatePreUnload__ = &engstateStatePreUnload_IMPL,    // virtual
+    .vtable.__swengStateUnload__ = &__nvoc_up_thunk_OBJENGSTATE_swengStateUnload,    // virtual inherited (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateStateUnload__ = &engstateStateUnload_IMPL,    // virtual
+    .vtable.__swengStatePostUnload__ = &__nvoc_up_thunk_OBJENGSTATE_swengStatePostUnload,    // virtual inherited (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateStatePostUnload__ = &engstateStatePostUnload_IMPL,    // virtual
+    .vtable.__swengStateDestroy__ = &__nvoc_up_thunk_OBJENGSTATE_swengStateDestroy,    // virtual inherited (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateStateDestroy__ = &engstateStateDestroy_IMPL,    // virtual
+    .vtable.__swengIsPresent__ = &__nvoc_up_thunk_OBJENGSTATE_swengIsPresent,    // virtual inherited (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateIsPresent__ = &engstateIsPresent_IMPL,    // virtual
+};
+
+
+// Dynamic down-casting information
+const struct NVOC_CASTINFO __nvoc_castinfo__OBJSWENG = {
+    .numRelatives = 3,
+    .relatives = {
+        &__nvoc_metadata__OBJSWENG.rtti,    // [0]: (sweng) this
+        &__nvoc_metadata__OBJSWENG.metadata__OBJENGSTATE.rtti,    // [1]: (engstate) super
+        &__nvoc_metadata__OBJSWENG.metadata__OBJENGSTATE.metadata__Object.rtti,    // [2]: (obj) super^2
+    }
+};
+
+// 1 down-thunk(s) defined to bridge methods in OBJSWENG from superclasses
+
+// swengConstructEngine: virtual override (engstate) base (engstate)
+NV_STATUS __nvoc_down_thunk_OBJSWENG_engstateConstructEngine(struct OBJGPU *pGpu, struct OBJENGSTATE *pSweng, ENGDESCRIPTOR arg3) {
+    return swengConstructEngine(pGpu, (struct OBJSWENG *)(((unsigned char *) pSweng) - NV_OFFSETOF(OBJSWENG, __nvoc_base_OBJENGSTATE)), arg3);
+}
+
+
+// 13 up-thunk(s) defined to bridge methods in OBJSWENG to superclasses
+
+// swengInitMissing: virtual inherited (engstate) base (engstate)
+void __nvoc_up_thunk_OBJENGSTATE_swengInitMissing(struct OBJGPU *pGpu, struct OBJSWENG *pEngstate) {
+    engstateInitMissing(pGpu, (struct OBJENGSTATE *)(((unsigned char *) pEngstate) + NV_OFFSETOF(OBJSWENG, __nvoc_base_OBJENGSTATE)));
+}
+
+// swengStatePreInitLocked: virtual inherited (engstate) base (engstate)
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_swengStatePreInitLocked(struct OBJGPU *pGpu, struct OBJSWENG *pEngstate) {
+    return engstateStatePreInitLocked(pGpu, (struct OBJENGSTATE *)(((unsigned char *) pEngstate) + NV_OFFSETOF(OBJSWENG, __nvoc_base_OBJENGSTATE)));
+}
+
+// swengStatePreInitUnlocked: virtual inherited (engstate) base (engstate)
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_swengStatePreInitUnlocked(struct OBJGPU *pGpu, struct OBJSWENG *pEngstate) {
+    return engstateStatePreInitUnlocked(pGpu, (struct OBJENGSTATE *)(((unsigned char *) pEngstate) + NV_OFFSETOF(OBJSWENG, __nvoc_base_OBJENGSTATE)));
+}
+
+// swengStateInitLocked: virtual inherited (engstate) base (engstate)
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_swengStateInitLocked(struct OBJGPU *pGpu, struct OBJSWENG *pEngstate) {
+    return engstateStateInitLocked(pGpu, (struct OBJENGSTATE *)(((unsigned char *) pEngstate) + NV_OFFSETOF(OBJSWENG, __nvoc_base_OBJENGSTATE)));
+}
+
+// swengStateInitUnlocked: virtual inherited (engstate) base (engstate)
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_swengStateInitUnlocked(struct OBJGPU *pGpu, struct OBJSWENG *pEngstate) {
+    return engstateStateInitUnlocked(pGpu, (struct OBJENGSTATE *)(((unsigned char *) pEngstate) + NV_OFFSETOF(OBJSWENG, __nvoc_base_OBJENGSTATE)));
+}
+
+// swengStatePreLoad: virtual inherited (engstate) base (engstate)
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_swengStatePreLoad(struct OBJGPU *pGpu, struct OBJSWENG *pEngstate, NvU32 arg3) {
+    return engstateStatePreLoad(pGpu, (struct OBJENGSTATE *)(((unsigned char *) pEngstate) + NV_OFFSETOF(OBJSWENG, __nvoc_base_OBJENGSTATE)), arg3);
+}
+
+// swengStateLoad: virtual inherited (engstate) base (engstate)
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_swengStateLoad(struct OBJGPU *pGpu, struct OBJSWENG *pEngstate, NvU32 arg3) {
+    return engstateStateLoad(pGpu, (struct OBJENGSTATE *)(((unsigned char *) pEngstate) + NV_OFFSETOF(OBJSWENG, __nvoc_base_OBJENGSTATE)), arg3);
+}
+
+// swengStatePostLoad: virtual inherited (engstate) base (engstate)
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_swengStatePostLoad(struct OBJGPU *pGpu, struct OBJSWENG *pEngstate, NvU32 arg3) {
+    return engstateStatePostLoad(pGpu, (struct OBJENGSTATE *)(((unsigned char *) pEngstate) + NV_OFFSETOF(OBJSWENG, __nvoc_base_OBJENGSTATE)), arg3);
+}
+
+// swengStatePreUnload: virtual inherited (engstate) base (engstate)
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_swengStatePreUnload(struct OBJGPU *pGpu, struct OBJSWENG *pEngstate, NvU32 arg3) {
+    return engstateStatePreUnload(pGpu, (struct OBJENGSTATE *)(((unsigned char *) pEngstate) + NV_OFFSETOF(OBJSWENG, __nvoc_base_OBJENGSTATE)), arg3);
+}
+
+// swengStateUnload: virtual inherited (engstate) base (engstate)
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_swengStateUnload(struct OBJGPU *pGpu, struct OBJSWENG *pEngstate, NvU32 arg3) {
+    return engstateStateUnload(pGpu, (struct OBJENGSTATE *)(((unsigned char *) pEngstate) + NV_OFFSETOF(OBJSWENG, __nvoc_base_OBJENGSTATE)), arg3);
+}
+
+// swengStatePostUnload: virtual inherited (engstate) base (engstate)
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_swengStatePostUnload(struct OBJGPU *pGpu, struct OBJSWENG *pEngstate, NvU32 arg3) {
+    return engstateStatePostUnload(pGpu, (struct OBJENGSTATE *)(((unsigned char *) pEngstate) + NV_OFFSETOF(OBJSWENG, __nvoc_base_OBJENGSTATE)), arg3);
+}
+
+// swengStateDestroy: virtual inherited (engstate) base (engstate)
+void __nvoc_up_thunk_OBJENGSTATE_swengStateDestroy(struct OBJGPU *pGpu, struct OBJSWENG *pEngstate) {
+    engstateStateDestroy(pGpu, (struct OBJENGSTATE *)(((unsigned char *) pEngstate) + NV_OFFSETOF(OBJSWENG, __nvoc_base_OBJENGSTATE)));
+}
+
+// swengIsPresent: virtual inherited (engstate) base (engstate)
+NvBool __nvoc_up_thunk_OBJENGSTATE_swengIsPresent(struct OBJGPU *pGpu, struct OBJSWENG *pEngstate) {
+    return engstateIsPresent(pGpu, (struct OBJENGSTATE *)(((unsigned char *) pEngstate) + NV_OFFSETOF(OBJSWENG, __nvoc_base_OBJENGSTATE)));
+}
+
+
+const struct NVOC_EXPORT_INFO __nvoc_export_info__OBJSWENG = 
+{
+    .numEntries=     0,
+    .pExportEntries= 0
+};
+
+
+// Destruct OBJSWENG object.
+void __nvoc_dtor_OBJENGSTATE(Dynamic*);
+void __nvoc_dtor_OBJSWENG(Dynamic* pThis) {
+
+    OBJSWENG *__nvoc_this = (OBJSWENG *) pThis;
+
+// Recurse to superclass destructors.
+    __nvoc_dtor_OBJENGSTATE((Dynamic *) &__nvoc_this->__nvoc_base_OBJENGSTATE);
+
+    PORT_UNREFERENCED_VARIABLE(__nvoc_this);
+}
+void __nvoc_init_dataField_OBJSWENG(OBJSWENG *pThis) {
+    PORT_UNREFERENCED_VARIABLE(pThis);
+}
+
+
+// Construct OBJSWENG object.
+NV_STATUS __nvoc_ctor_OBJENGSTATE(OBJENGSTATE *);
+NV_STATUS __nvoc_ctor_OBJSWENG(OBJSWENG *pThis) {
+    NV_STATUS status = NV_OK;
+
+    // Recurse to ancestor constructor(s).
+    status = __nvoc_ctor_OBJENGSTATE(&pThis->__nvoc_base_OBJENGSTATE);
+    if (status != NV_OK) goto __nvoc_ctor_OBJSWENG_fail_OBJENGSTATE;
+
+    // Initialize data fields.
+    __nvoc_init_dataField_OBJSWENG(pThis);
+    goto __nvoc_ctor_OBJSWENG_exit; // Success
+
+    // Unwind on error.
+__nvoc_ctor_OBJSWENG_fail_OBJENGSTATE:
+__nvoc_ctor_OBJSWENG_exit:
+    return status;
+}
+
+// Vtable initialization
+static void __nvoc_init_funcTable_OBJSWENG_1(OBJSWENG *pThis) {
+    PORT_UNREFERENCED_VARIABLE(pThis);
+} // End __nvoc_init_funcTable_OBJSWENG_1
+
+
+// Initialize vtable(s) for 14 virtual method(s).
+void __nvoc_init_funcTable_OBJSWENG(OBJSWENG *pThis) {
+    __nvoc_init_funcTable_OBJSWENG_1(pThis);
+}
+
+// Initialize newly constructed object.
+void __nvoc_init__OBJSWENG(OBJSWENG *pThis) {
+
+    // Initialize pointers to inherited data.
+    pThis->__nvoc_pbase_Object = &pThis->__nvoc_base_OBJENGSTATE.__nvoc_base_Object;    // (obj) super^2
+    pThis->__nvoc_pbase_OBJENGSTATE = &pThis->__nvoc_base_OBJENGSTATE;    // (engstate) super
+    pThis->__nvoc_pbase_OBJSWENG = pThis;    // (sweng) this
+
+    // Recurse to superclass initialization function(s).
+    __nvoc_init__OBJENGSTATE(&pThis->__nvoc_base_OBJENGSTATE);
+
+    // Pointer(s) to metadata structures(s)
+    pThis->__nvoc_base_OBJENGSTATE.__nvoc_base_Object.__nvoc_metadata_ptr = &__nvoc_metadata__OBJSWENG.metadata__OBJENGSTATE.metadata__Object;    // (obj) super^2
+    pThis->__nvoc_base_OBJENGSTATE.__nvoc_metadata_ptr = &__nvoc_metadata__OBJSWENG.metadata__OBJENGSTATE;    // (engstate) super
+    pThis->__nvoc_metadata_ptr = &__nvoc_metadata__OBJSWENG;    // (sweng) this
+
+    // Initialize per-object vtables.
+    __nvoc_init_funcTable_OBJSWENG(pThis);
+}
+
+NV_STATUS __nvoc_objCreate_OBJSWENG(OBJSWENG **__nvoc_ppThis, Dynamic *__nvoc_pParent, NvU32 __nvoc_createFlags)
+{
+    NV_STATUS __nvoc_status;
+    Object *__nvoc_pParentObj = NULL;
+    OBJSWENG *__nvoc_pThis;
+
+    // Don't allocate memory if the caller has already done so.
+    if (__nvoc_createFlags & NVOC_OBJ_CREATE_FLAGS_IN_PLACE_CONSTRUCT)
+    {
+        NV_CHECK_OR_RETURN(LEVEL_ERROR, __nvoc_ppThis != NULL && *__nvoc_ppThis != NULL, NV_ERR_INVALID_PARAMETER);
+        __nvoc_pThis = *__nvoc_ppThis;
+    }
+
+    // Allocate memory
+    else
+    {
+        __nvoc_pThis = portMemAllocNonPaged(sizeof(OBJSWENG));
+        NV_CHECK_OR_RETURN(LEVEL_ERROR, __nvoc_pThis != NULL, NV_ERR_NO_MEMORY);
+    }
+
+    // Zero is the initial value for everything.
+    portMemSet(__nvoc_pThis, 0, sizeof(OBJSWENG));
+
+    __nvoc_pThis->__nvoc_base_OBJENGSTATE.__nvoc_base_Object.createFlags = __nvoc_createFlags;
+
+    // Link the child into the parent if there is one unless flagged not to do so.
+    if (__nvoc_pParent != NULL && !(__nvoc_createFlags & NVOC_OBJ_CREATE_FLAGS_PARENT_HALSPEC_ONLY))
+    {
+        __nvoc_pParentObj = dynamicCast(__nvoc_pParent, Object);
+        objAddChild(__nvoc_pParentObj, &__nvoc_pThis->__nvoc_base_OBJENGSTATE.__nvoc_base_Object);
+    }
+    else
+    {
+        __nvoc_pThis->__nvoc_base_OBJENGSTATE.__nvoc_base_Object.pParent = NULL;
+    }
+
+    // Initialize vtable, RTTI, etc., then call constructor.
+    __nvoc_init__OBJSWENG(__nvoc_pThis);
+    __nvoc_status = __nvoc_ctor_OBJSWENG(__nvoc_pThis);
+    if (__nvoc_status != NV_OK) goto __nvoc_objCreate_OBJSWENG_cleanup;
+
+    // Assignment has no effect if NVOC_OBJ_CREATE_FLAGS_IN_PLACE_CONSTRUCT is set.
+    *__nvoc_ppThis = __nvoc_pThis;
+
+    // Success
+    return NV_OK;
+
+    // Do not call destructors here since the constructor already called them.
+__nvoc_objCreate_OBJSWENG_cleanup:
+
+    // Unlink the child from the parent if it was linked above.
+    if (__nvoc_pParentObj != NULL)
+        objRemoveChild(__nvoc_pParentObj, &__nvoc_pThis->__nvoc_base_OBJENGSTATE.__nvoc_base_Object);
+
+    // Zero out memory that was allocated by caller.
+    if (__nvoc_createFlags & NVOC_OBJ_CREATE_FLAGS_IN_PLACE_CONSTRUCT)
+        portMemSet(__nvoc_pThis, 0, sizeof(OBJSWENG));
+
+    // Free memory allocated by `__nvoc_handleObjCreateMemAlloc`.
+    else
+    {
+        portMemFree(__nvoc_pThis);
+        *__nvoc_ppThis = NULL;
+    }
+
+    // Failure
+    return __nvoc_status;
+}
+
+NV_STATUS __nvoc_objCreateDynamic_OBJSWENG(Dynamic **__nvoc_ppThis, Dynamic *__nvoc_pParent, NvU32 __nvoc_createFlags, va_list __nvoc_args) {
+
+    return __nvoc_objCreate_OBJSWENG((OBJSWENG **) __nvoc_ppThis, __nvoc_pParent, __nvoc_createFlags);
+}
+

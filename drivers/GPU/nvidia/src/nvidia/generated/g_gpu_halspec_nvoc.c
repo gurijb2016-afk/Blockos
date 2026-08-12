@@ -1,0 +1,250 @@
+#define NVOC_GPU_HALSPEC_H_PRIVATE_ACCESS_ALLOWED
+
+// Version of generated metadata structures
+#ifdef NVOC_METADATA_VERSION
+#undef NVOC_METADATA_VERSION
+#endif
+#define NVOC_METADATA_VERSION 2
+
+#include "nvoc/runtime.h"
+#include "nvoc/rtti.h"
+#include "nvtypes.h"
+#include "nvport/nvport.h"
+#include "nvport/inline/util_valist.h"
+#include "utils/nvassert.h"
+#include "g_gpu_halspec_nvoc.h"
+
+
+#ifdef DEBUG
+char __nvoc_class_id_uniqueness_check__34a6d6 = 1;
+#endif
+
+extern const struct NVOC_CLASS_DEF __nvoc_class_def_RmHalspecOwner;
+
+// Forward declarations for RmHalspecOwner
+void __nvoc_init__RmHalspecOwner(RmHalspecOwner*,
+        RM_RUNTIME_VARIANT RmVariantHal_rmVariant,
+        NvU32 DispIpHal_ipver);
+void __nvoc_init_funcTable_RmHalspecOwner(RmHalspecOwner*);
+NV_STATUS __nvoc_ctor_RmHalspecOwner(RmHalspecOwner*);
+void __nvoc_init_dataField_RmHalspecOwner(RmHalspecOwner*);
+void __nvoc_dtor_RmHalspecOwner(Dynamic*);
+
+// Structures used within RTTI (run-time type information)
+extern const struct NVOC_CASTINFO __nvoc_castinfo__RmHalspecOwner;
+extern const struct NVOC_EXPORT_INFO __nvoc_export_info__RmHalspecOwner;
+
+// Down-thunk(s) to bridge RmHalspecOwner methods from ancestors (if any)
+
+// Up-thunk(s) to bridge RmHalspecOwner methods to ancestors (if any)
+
+// Class-specific details for RmHalspecOwner
+// Not instantiable because it's not derived from class "Object"
+const struct NVOC_CLASS_DEF __nvoc_class_def_RmHalspecOwner = 
+{
+    .classInfo.size =               sizeof(RmHalspecOwner),
+    .classInfo.classId =            classId(RmHalspecOwner),
+    .classInfo.providerId =         &__nvoc_rtti_provider,
+#if NV_PRINTF_STRINGS_ALLOWED
+    .classInfo.name =               "RmHalspecOwner",
+#endif
+    .objCreatefn =        NULL,
+    .pCastInfo =          &__nvoc_castinfo__RmHalspecOwner,
+    .pExportInfo =        &__nvoc_export_info__RmHalspecOwner
+};
+
+
+// Metadata with per-class RTTI
+static const struct NVOC_METADATA__RmHalspecOwner __nvoc_metadata__RmHalspecOwner = {
+    .rtti.pClassDef = &__nvoc_class_def_RmHalspecOwner,    // (rmhalspecowner) this
+    .rtti.dtor      = &__nvoc_dtor_RmHalspecOwner,
+    .rtti.offset    = 0,
+};
+
+
+// Dynamic down-casting information
+const struct NVOC_CASTINFO __nvoc_castinfo__RmHalspecOwner = {
+    .numRelatives = 1,
+    .relatives = {
+        &__nvoc_metadata__RmHalspecOwner.rtti,    // [0]: (rmhalspecowner) this
+    }
+};
+
+const struct NVOC_EXPORT_INFO __nvoc_export_info__RmHalspecOwner = 
+{
+    .numEntries=     0,
+    .pExportEntries= 0
+};
+
+
+// Destruct RmHalspecOwner object.
+void __nvoc_dtor_RmHalspecOwner(Dynamic* pThis) {
+
+    RmHalspecOwner *__nvoc_this = (RmHalspecOwner *) pThis;
+    PORT_UNREFERENCED_VARIABLE(__nvoc_this);
+}
+void __nvoc_init_dataField_RmHalspecOwner(RmHalspecOwner *pThis) {
+    PORT_UNREFERENCED_VARIABLE(pThis);
+}
+
+
+// Construct RmHalspecOwner object.
+NV_STATUS __nvoc_ctor_RmHalspecOwner(RmHalspecOwner *pThis) {
+    NV_STATUS status = NV_OK;
+
+    // Initialize data fields.
+    __nvoc_init_dataField_RmHalspecOwner(pThis);
+    goto __nvoc_ctor_RmHalspecOwner_exit; // Success
+
+    // Unwind on error.
+__nvoc_ctor_RmHalspecOwner_exit:
+    return status;
+}
+
+// Vtable initialization
+static void __nvoc_init_funcTable_RmHalspecOwner_1(RmHalspecOwner *pThis) {
+    PORT_UNREFERENCED_VARIABLE(pThis);
+} // End __nvoc_init_funcTable_RmHalspecOwner_1
+
+
+// Initialize vtable(s): Nothing to do for empty vtables
+void __nvoc_init_funcTable_RmHalspecOwner(RmHalspecOwner *pThis) {
+    __nvoc_init_funcTable_RmHalspecOwner_1(pThis);
+}
+
+// Initialize newly constructed object.
+void __nvoc_init__RmHalspecOwner(RmHalspecOwner *pThis,
+        RM_RUNTIME_VARIANT RmVariantHal_rmVariant,
+        NvU32 DispIpHal_ipver) {
+
+    // Initialize pointers to inherited data.
+    pThis->__nvoc_pbase_RmHalspecOwner = pThis;    // (rmhalspecowner) this
+
+    // Pointer(s) to metadata structures(s)
+    pThis->__nvoc_metadata_ptr = &__nvoc_metadata__RmHalspecOwner;    // (rmhalspecowner) this
+
+    // Initialize halspec data.
+    __nvoc_init_halspec_RmVariantHal(&pThis->rmVariantHal, RmVariantHal_rmVariant);
+    __nvoc_init_halspec_DispIpHal(&pThis->dispIpHal, DispIpHal_ipver);
+
+    // Initialize per-object vtables.
+    __nvoc_init_funcTable_RmHalspecOwner(pThis);
+}
+
+
+#ifdef DEBUG
+char __nvoc_class_id_uniqueness_check__74bc71 = 1;
+#endif
+
+extern const struct NVOC_CLASS_DEF __nvoc_class_def_GpuHalspecOwner;
+
+// Forward declarations for GpuHalspecOwner
+void __nvoc_init__GpuHalspecOwner(GpuHalspecOwner*,
+        NvU32 ChipHal_arch, NvU32 ChipHal_impl, NvU32 ChipHal_hidrev,
+        TEGRA_CHIP_TYPE TegraChipHal_tegraType);
+void __nvoc_init_funcTable_GpuHalspecOwner(GpuHalspecOwner*);
+NV_STATUS __nvoc_ctor_GpuHalspecOwner(GpuHalspecOwner*);
+void __nvoc_init_dataField_GpuHalspecOwner(GpuHalspecOwner*);
+void __nvoc_dtor_GpuHalspecOwner(Dynamic*);
+
+// Structures used within RTTI (run-time type information)
+extern const struct NVOC_CASTINFO __nvoc_castinfo__GpuHalspecOwner;
+extern const struct NVOC_EXPORT_INFO __nvoc_export_info__GpuHalspecOwner;
+
+// Down-thunk(s) to bridge GpuHalspecOwner methods from ancestors (if any)
+
+// Up-thunk(s) to bridge GpuHalspecOwner methods to ancestors (if any)
+
+// Class-specific details for GpuHalspecOwner
+// Not instantiable because it's not derived from class "Object"
+const struct NVOC_CLASS_DEF __nvoc_class_def_GpuHalspecOwner = 
+{
+    .classInfo.size =               sizeof(GpuHalspecOwner),
+    .classInfo.classId =            classId(GpuHalspecOwner),
+    .classInfo.providerId =         &__nvoc_rtti_provider,
+#if NV_PRINTF_STRINGS_ALLOWED
+    .classInfo.name =               "GpuHalspecOwner",
+#endif
+    .objCreatefn =        NULL,
+    .pCastInfo =          &__nvoc_castinfo__GpuHalspecOwner,
+    .pExportInfo =        &__nvoc_export_info__GpuHalspecOwner
+};
+
+
+// Metadata with per-class RTTI
+static const struct NVOC_METADATA__GpuHalspecOwner __nvoc_metadata__GpuHalspecOwner = {
+    .rtti.pClassDef = &__nvoc_class_def_GpuHalspecOwner,    // (gpuhalspecowner) this
+    .rtti.dtor      = &__nvoc_dtor_GpuHalspecOwner,
+    .rtti.offset    = 0,
+};
+
+
+// Dynamic down-casting information
+const struct NVOC_CASTINFO __nvoc_castinfo__GpuHalspecOwner = {
+    .numRelatives = 1,
+    .relatives = {
+        &__nvoc_metadata__GpuHalspecOwner.rtti,    // [0]: (gpuhalspecowner) this
+    }
+};
+
+const struct NVOC_EXPORT_INFO __nvoc_export_info__GpuHalspecOwner = 
+{
+    .numEntries=     0,
+    .pExportEntries= 0
+};
+
+
+// Destruct GpuHalspecOwner object.
+void __nvoc_dtor_GpuHalspecOwner(Dynamic* pThis) {
+
+    GpuHalspecOwner *__nvoc_this = (GpuHalspecOwner *) pThis;
+    PORT_UNREFERENCED_VARIABLE(__nvoc_this);
+}
+void __nvoc_init_dataField_GpuHalspecOwner(GpuHalspecOwner *pThis) {
+    PORT_UNREFERENCED_VARIABLE(pThis);
+}
+
+
+// Construct GpuHalspecOwner object.
+NV_STATUS __nvoc_ctor_GpuHalspecOwner(GpuHalspecOwner *pThis) {
+    NV_STATUS status = NV_OK;
+
+    // Initialize data fields.
+    __nvoc_init_dataField_GpuHalspecOwner(pThis);
+    goto __nvoc_ctor_GpuHalspecOwner_exit; // Success
+
+    // Unwind on error.
+__nvoc_ctor_GpuHalspecOwner_exit:
+    return status;
+}
+
+// Vtable initialization
+static void __nvoc_init_funcTable_GpuHalspecOwner_1(GpuHalspecOwner *pThis) {
+    PORT_UNREFERENCED_VARIABLE(pThis);
+} // End __nvoc_init_funcTable_GpuHalspecOwner_1
+
+
+// Initialize vtable(s): Nothing to do for empty vtables
+void __nvoc_init_funcTable_GpuHalspecOwner(GpuHalspecOwner *pThis) {
+    __nvoc_init_funcTable_GpuHalspecOwner_1(pThis);
+}
+
+// Initialize newly constructed object.
+void __nvoc_init__GpuHalspecOwner(GpuHalspecOwner *pThis,
+        NvU32 ChipHal_arch, NvU32 ChipHal_impl, NvU32 ChipHal_hidrev,
+        TEGRA_CHIP_TYPE TegraChipHal_tegraType) {
+
+    // Initialize pointers to inherited data.
+    pThis->__nvoc_pbase_GpuHalspecOwner = pThis;    // (gpuhalspecowner) this
+
+    // Pointer(s) to metadata structures(s)
+    pThis->__nvoc_metadata_ptr = &__nvoc_metadata__GpuHalspecOwner;    // (gpuhalspecowner) this
+
+    // Initialize halspec data.
+    __nvoc_init_halspec_ChipHal(&pThis->chipHal, ChipHal_arch, ChipHal_impl, ChipHal_hidrev);
+    __nvoc_init_halspec_TegraChipHal(&pThis->tegraChipHal, TegraChipHal_tegraType);
+
+    // Initialize per-object vtables.
+    __nvoc_init_funcTable_GpuHalspecOwner(pThis);
+}
+

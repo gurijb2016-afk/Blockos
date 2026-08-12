@@ -1,0 +1,1378 @@
+#define NVOC_KERNEL_FIFO_H_PRIVATE_ACCESS_ALLOWED
+
+// Version of generated metadata structures
+#ifdef NVOC_METADATA_VERSION
+#undef NVOC_METADATA_VERSION
+#endif
+#define NVOC_METADATA_VERSION 2
+
+#include "nvoc/runtime.h"
+#include "nvoc/rtti.h"
+#include "nvtypes.h"
+#include "nvport/nvport.h"
+#include "nvport/inline/util_valist.h"
+#include "utils/nvassert.h"
+#include "g_kernel_fifo_nvoc.h"
+
+
+#ifdef DEBUG
+char __nvoc_class_id_uniqueness_check__f3e155 = 1;
+#endif
+
+extern const struct NVOC_CLASS_DEF __nvoc_class_def_KernelFifo;
+extern const struct NVOC_CLASS_DEF __nvoc_class_def_Object;
+extern const struct NVOC_CLASS_DEF __nvoc_class_def_OBJENGSTATE;
+
+// Forward declarations for KernelFifo
+void __nvoc_init__OBJENGSTATE(OBJENGSTATE*);
+void __nvoc_init__KernelFifo(KernelFifo*, GpuHalspecOwner *pGpuhalspecowner, RmHalspecOwner *pRmhalspecowner);
+void __nvoc_init_funcTable_KernelFifo(KernelFifo*, GpuHalspecOwner *pGpuhalspecowner, RmHalspecOwner *pRmhalspecowner);
+NV_STATUS __nvoc_ctor_KernelFifo(KernelFifo*, GpuHalspecOwner *pGpuhalspecowner, RmHalspecOwner *pRmhalspecowner);
+void __nvoc_init_dataField_KernelFifo(KernelFifo*, GpuHalspecOwner *pGpuhalspecowner, RmHalspecOwner *pRmhalspecowner);
+void __nvoc_dtor_KernelFifo(Dynamic*);
+
+// Structures used within RTTI (run-time type information)
+extern const struct NVOC_CASTINFO __nvoc_castinfo__KernelFifo;
+extern const struct NVOC_EXPORT_INFO __nvoc_export_info__KernelFifo;
+
+// Down-thunk(s) to bridge KernelFifo methods from ancestors (if any)
+NV_STATUS __nvoc_down_thunk_KernelFifo_engstateConstructEngine(struct OBJGPU *pGpu, struct OBJENGSTATE *pKernelFifo, ENGDESCRIPTOR engDesc);    // this
+NV_STATUS __nvoc_down_thunk_KernelFifo_engstateStateLoad(struct OBJGPU *pGpu, struct OBJENGSTATE *pKernelFifo, NvU32 flags);    // this
+NV_STATUS __nvoc_down_thunk_KernelFifo_engstateStateUnload(struct OBJGPU *pGpu, struct OBJENGSTATE *pKernelFifo, NvU32 flags);    // this
+NV_STATUS __nvoc_down_thunk_KernelFifo_engstateStateInitLocked(struct OBJGPU *pGpu, struct OBJENGSTATE *pKernelFifo);    // this
+void __nvoc_down_thunk_KernelFifo_engstateStateDestroy(struct OBJGPU *pGpu, struct OBJENGSTATE *pKernelFifo);    // this
+NV_STATUS __nvoc_down_thunk_KernelFifo_engstateStatePostLoad(struct OBJGPU *pGpu, struct OBJENGSTATE *pKernelFifo, NvU32 flags);    // this
+NV_STATUS __nvoc_down_thunk_KernelFifo_engstateStatePreUnload(struct OBJGPU *pGpu, struct OBJENGSTATE *pKernelFifo, NvU32 flags);    // this
+
+// Up-thunk(s) to bridge KernelFifo methods to ancestors (if any)
+void __nvoc_up_thunk_OBJENGSTATE_kfifoInitMissing(struct OBJGPU *pGpu, struct KernelFifo *pEngstate);    // this
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_kfifoStatePreInitLocked(struct OBJGPU *pGpu, struct KernelFifo *pEngstate);    // this
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_kfifoStatePreInitUnlocked(struct OBJGPU *pGpu, struct KernelFifo *pEngstate);    // this
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_kfifoStateInitUnlocked(struct OBJGPU *pGpu, struct KernelFifo *pEngstate);    // this
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_kfifoStatePreLoad(struct OBJGPU *pGpu, struct KernelFifo *pEngstate, NvU32 arg3);    // this
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_kfifoStatePostUnload(struct OBJGPU *pGpu, struct KernelFifo *pEngstate, NvU32 arg3);    // this
+NvBool __nvoc_up_thunk_OBJENGSTATE_kfifoIsPresent(struct OBJGPU *pGpu, struct KernelFifo *pEngstate);    // this
+
+// Class-specific details for KernelFifo
+const struct NVOC_CLASS_DEF __nvoc_class_def_KernelFifo = 
+{
+    .classInfo.size =               sizeof(KernelFifo),
+    .classInfo.classId =            classId(KernelFifo),
+    .classInfo.providerId =         &__nvoc_rtti_provider,
+#if NV_PRINTF_STRINGS_ALLOWED
+    .classInfo.name =               "KernelFifo",
+#endif
+    .objCreatefn =        &__nvoc_objCreateDynamic_KernelFifo,
+    .pCastInfo =          &__nvoc_castinfo__KernelFifo,
+    .pExportInfo =        &__nvoc_export_info__KernelFifo
+};
+
+
+// Metadata with per-class RTTI and vtable with ancestor(s)
+static const struct NVOC_METADATA__KernelFifo __nvoc_metadata__KernelFifo = {
+    .rtti.pClassDef = &__nvoc_class_def_KernelFifo,    // (kfifo) this
+    .rtti.dtor      = &__nvoc_dtor_KernelFifo,
+    .rtti.offset    = 0,
+    .metadata__OBJENGSTATE.rtti.pClassDef = &__nvoc_class_def_OBJENGSTATE,    // (engstate) super
+    .metadata__OBJENGSTATE.rtti.dtor      = &__nvoc_destructFromBase,
+    .metadata__OBJENGSTATE.rtti.offset    = NV_OFFSETOF(KernelFifo, __nvoc_base_OBJENGSTATE),
+    .metadata__OBJENGSTATE.metadata__Object.rtti.pClassDef = &__nvoc_class_def_Object,    // (obj) super^2
+    .metadata__OBJENGSTATE.metadata__Object.rtti.dtor      = &__nvoc_destructFromBase,
+    .metadata__OBJENGSTATE.metadata__Object.rtti.offset    = NV_OFFSETOF(KernelFifo, __nvoc_base_OBJENGSTATE.__nvoc_base_Object),
+
+    .vtable.__kfifoConstructEngine__ = &kfifoConstructEngine_IMPL,    // virtual override (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateConstructEngine__ = &__nvoc_down_thunk_KernelFifo_engstateConstructEngine,    // virtual
+    .vtable.__kfifoStateLoad__ = &kfifoStateLoad_IMPL,    // virtual halified (singleton optimized) override (engstate) base (engstate) body
+    .metadata__OBJENGSTATE.vtable.__engstateStateLoad__ = &__nvoc_down_thunk_KernelFifo_engstateStateLoad,    // virtual
+    .vtable.__kfifoStateUnload__ = &kfifoStateUnload_IMPL,    // virtual halified (singleton optimized) override (engstate) base (engstate) body
+    .metadata__OBJENGSTATE.vtable.__engstateStateUnload__ = &__nvoc_down_thunk_KernelFifo_engstateStateUnload,    // virtual
+    .vtable.__kfifoStateInitLocked__ = &kfifoStateInitLocked_IMPL,    // virtual override (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateStateInitLocked__ = &__nvoc_down_thunk_KernelFifo_engstateStateInitLocked,    // virtual
+    .vtable.__kfifoStateDestroy__ = &kfifoStateDestroy_IMPL,    // virtual override (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateStateDestroy__ = &__nvoc_down_thunk_KernelFifo_engstateStateDestroy,    // virtual
+    .metadata__OBJENGSTATE.vtable.__engstateStatePostLoad__ = &__nvoc_down_thunk_KernelFifo_engstateStatePostLoad,    // virtual
+    .metadata__OBJENGSTATE.vtable.__engstateStatePreUnload__ = &__nvoc_down_thunk_KernelFifo_engstateStatePreUnload,    // virtual
+    .vtable.__kfifoInitMissing__ = &__nvoc_up_thunk_OBJENGSTATE_kfifoInitMissing,    // virtual inherited (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateInitMissing__ = &engstateInitMissing_IMPL,    // virtual
+    .vtable.__kfifoStatePreInitLocked__ = &__nvoc_up_thunk_OBJENGSTATE_kfifoStatePreInitLocked,    // virtual inherited (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateStatePreInitLocked__ = &engstateStatePreInitLocked_IMPL,    // virtual
+    .vtable.__kfifoStatePreInitUnlocked__ = &__nvoc_up_thunk_OBJENGSTATE_kfifoStatePreInitUnlocked,    // virtual inherited (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateStatePreInitUnlocked__ = &engstateStatePreInitUnlocked_IMPL,    // virtual
+    .vtable.__kfifoStateInitUnlocked__ = &__nvoc_up_thunk_OBJENGSTATE_kfifoStateInitUnlocked,    // virtual inherited (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateStateInitUnlocked__ = &engstateStateInitUnlocked_IMPL,    // virtual
+    .vtable.__kfifoStatePreLoad__ = &__nvoc_up_thunk_OBJENGSTATE_kfifoStatePreLoad,    // virtual inherited (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateStatePreLoad__ = &engstateStatePreLoad_IMPL,    // virtual
+    .vtable.__kfifoStatePostUnload__ = &__nvoc_up_thunk_OBJENGSTATE_kfifoStatePostUnload,    // virtual inherited (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateStatePostUnload__ = &engstateStatePostUnload_IMPL,    // virtual
+    .vtable.__kfifoIsPresent__ = &__nvoc_up_thunk_OBJENGSTATE_kfifoIsPresent,    // virtual inherited (engstate) base (engstate)
+    .metadata__OBJENGSTATE.vtable.__engstateIsPresent__ = &engstateIsPresent_IMPL,    // virtual
+};
+
+
+// Dynamic down-casting information
+const struct NVOC_CASTINFO __nvoc_castinfo__KernelFifo = {
+    .numRelatives = 3,
+    .relatives = {
+        &__nvoc_metadata__KernelFifo.rtti,    // [0]: (kfifo) this
+        &__nvoc_metadata__KernelFifo.metadata__OBJENGSTATE.rtti,    // [1]: (engstate) super
+        &__nvoc_metadata__KernelFifo.metadata__OBJENGSTATE.metadata__Object.rtti,    // [2]: (obj) super^2
+    }
+};
+
+// 7 down-thunk(s) defined to bridge methods in KernelFifo from superclasses
+
+// kfifoConstructEngine: virtual override (engstate) base (engstate)
+NV_STATUS __nvoc_down_thunk_KernelFifo_engstateConstructEngine(struct OBJGPU *pGpu, struct OBJENGSTATE *pKernelFifo, ENGDESCRIPTOR engDesc) {
+    return kfifoConstructEngine(pGpu, (struct KernelFifo *)(((unsigned char *) pKernelFifo) - NV_OFFSETOF(KernelFifo, __nvoc_base_OBJENGSTATE)), engDesc);
+}
+
+// kfifoStateLoad: virtual halified (singleton optimized) override (engstate) base (engstate) body
+NV_STATUS __nvoc_down_thunk_KernelFifo_engstateStateLoad(struct OBJGPU *pGpu, struct OBJENGSTATE *pKernelFifo, NvU32 flags) {
+    return kfifoStateLoad(pGpu, (struct KernelFifo *)(((unsigned char *) pKernelFifo) - NV_OFFSETOF(KernelFifo, __nvoc_base_OBJENGSTATE)), flags);
+}
+
+// kfifoStateUnload: virtual halified (singleton optimized) override (engstate) base (engstate) body
+NV_STATUS __nvoc_down_thunk_KernelFifo_engstateStateUnload(struct OBJGPU *pGpu, struct OBJENGSTATE *pKernelFifo, NvU32 flags) {
+    return kfifoStateUnload(pGpu, (struct KernelFifo *)(((unsigned char *) pKernelFifo) - NV_OFFSETOF(KernelFifo, __nvoc_base_OBJENGSTATE)), flags);
+}
+
+// kfifoStateInitLocked: virtual override (engstate) base (engstate)
+NV_STATUS __nvoc_down_thunk_KernelFifo_engstateStateInitLocked(struct OBJGPU *pGpu, struct OBJENGSTATE *pKernelFifo) {
+    return kfifoStateInitLocked(pGpu, (struct KernelFifo *)(((unsigned char *) pKernelFifo) - NV_OFFSETOF(KernelFifo, __nvoc_base_OBJENGSTATE)));
+}
+
+// kfifoStateDestroy: virtual override (engstate) base (engstate)
+void __nvoc_down_thunk_KernelFifo_engstateStateDestroy(struct OBJGPU *pGpu, struct OBJENGSTATE *pKernelFifo) {
+    kfifoStateDestroy(pGpu, (struct KernelFifo *)(((unsigned char *) pKernelFifo) - NV_OFFSETOF(KernelFifo, __nvoc_base_OBJENGSTATE)));
+}
+
+// kfifoStatePostLoad: virtual halified (2 hals) override (engstate) base (engstate) body
+NV_STATUS __nvoc_down_thunk_KernelFifo_engstateStatePostLoad(struct OBJGPU *pGpu, struct OBJENGSTATE *pKernelFifo, NvU32 flags) {
+    return kfifoStatePostLoad(pGpu, (struct KernelFifo *)(((unsigned char *) pKernelFifo) - NV_OFFSETOF(KernelFifo, __nvoc_base_OBJENGSTATE)), flags);
+}
+
+// kfifoStatePreUnload: virtual halified (2 hals) override (engstate) base (engstate) body
+NV_STATUS __nvoc_down_thunk_KernelFifo_engstateStatePreUnload(struct OBJGPU *pGpu, struct OBJENGSTATE *pKernelFifo, NvU32 flags) {
+    return kfifoStatePreUnload(pGpu, (struct KernelFifo *)(((unsigned char *) pKernelFifo) - NV_OFFSETOF(KernelFifo, __nvoc_base_OBJENGSTATE)), flags);
+}
+
+
+// 7 up-thunk(s) defined to bridge methods in KernelFifo to superclasses
+
+// kfifoInitMissing: virtual inherited (engstate) base (engstate)
+void __nvoc_up_thunk_OBJENGSTATE_kfifoInitMissing(struct OBJGPU *pGpu, struct KernelFifo *pEngstate) {
+    engstateInitMissing(pGpu, (struct OBJENGSTATE *)(((unsigned char *) pEngstate) + NV_OFFSETOF(KernelFifo, __nvoc_base_OBJENGSTATE)));
+}
+
+// kfifoStatePreInitLocked: virtual inherited (engstate) base (engstate)
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_kfifoStatePreInitLocked(struct OBJGPU *pGpu, struct KernelFifo *pEngstate) {
+    return engstateStatePreInitLocked(pGpu, (struct OBJENGSTATE *)(((unsigned char *) pEngstate) + NV_OFFSETOF(KernelFifo, __nvoc_base_OBJENGSTATE)));
+}
+
+// kfifoStatePreInitUnlocked: virtual inherited (engstate) base (engstate)
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_kfifoStatePreInitUnlocked(struct OBJGPU *pGpu, struct KernelFifo *pEngstate) {
+    return engstateStatePreInitUnlocked(pGpu, (struct OBJENGSTATE *)(((unsigned char *) pEngstate) + NV_OFFSETOF(KernelFifo, __nvoc_base_OBJENGSTATE)));
+}
+
+// kfifoStateInitUnlocked: virtual inherited (engstate) base (engstate)
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_kfifoStateInitUnlocked(struct OBJGPU *pGpu, struct KernelFifo *pEngstate) {
+    return engstateStateInitUnlocked(pGpu, (struct OBJENGSTATE *)(((unsigned char *) pEngstate) + NV_OFFSETOF(KernelFifo, __nvoc_base_OBJENGSTATE)));
+}
+
+// kfifoStatePreLoad: virtual inherited (engstate) base (engstate)
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_kfifoStatePreLoad(struct OBJGPU *pGpu, struct KernelFifo *pEngstate, NvU32 arg3) {
+    return engstateStatePreLoad(pGpu, (struct OBJENGSTATE *)(((unsigned char *) pEngstate) + NV_OFFSETOF(KernelFifo, __nvoc_base_OBJENGSTATE)), arg3);
+}
+
+// kfifoStatePostUnload: virtual inherited (engstate) base (engstate)
+NV_STATUS __nvoc_up_thunk_OBJENGSTATE_kfifoStatePostUnload(struct OBJGPU *pGpu, struct KernelFifo *pEngstate, NvU32 arg3) {
+    return engstateStatePostUnload(pGpu, (struct OBJENGSTATE *)(((unsigned char *) pEngstate) + NV_OFFSETOF(KernelFifo, __nvoc_base_OBJENGSTATE)), arg3);
+}
+
+// kfifoIsPresent: virtual inherited (engstate) base (engstate)
+NvBool __nvoc_up_thunk_OBJENGSTATE_kfifoIsPresent(struct OBJGPU *pGpu, struct KernelFifo *pEngstate) {
+    return engstateIsPresent(pGpu, (struct OBJENGSTATE *)(((unsigned char *) pEngstate) + NV_OFFSETOF(KernelFifo, __nvoc_base_OBJENGSTATE)));
+}
+
+
+const struct NVOC_EXPORT_INFO __nvoc_export_info__KernelFifo = 
+{
+    .numEntries=     0,
+    .pExportEntries= 0
+};
+
+
+// Destruct KernelFifo object.
+void __nvoc_kfifoDestruct(KernelFifo*);
+void __nvoc_dtor_OBJENGSTATE(Dynamic*);
+void __nvoc_dtor_KernelFifo(Dynamic* pThis) {
+
+    KernelFifo *__nvoc_this = (KernelFifo *) pThis;
+
+// Call destructor.
+    __nvoc_kfifoDestruct(__nvoc_this);
+
+// Recurse to superclass destructors.
+    __nvoc_dtor_OBJENGSTATE((Dynamic *) &__nvoc_this->__nvoc_base_OBJENGSTATE);
+
+    PORT_UNREFERENCED_VARIABLE(__nvoc_this);
+}
+void __nvoc_init_dataField_KernelFifo(KernelFifo *pThis, GpuHalspecOwner *pGpuhalspecowner, RmHalspecOwner *pRmhalspecowner) {
+    ChipHal *chipHal = &pGpuhalspecowner->chipHal;
+    const unsigned long chipHal_HalVarIdx = (unsigned long)chipHal->__nvoc_HalVarIdx;
+    RmVariantHal *rmVariantHal = &pRmhalspecowner->rmVariantHal;
+    const unsigned long rmVariantHal_HalVarIdx = (unsigned long)rmVariantHal->__nvoc_HalVarIdx;
+    PORT_UNREFERENCED_VARIABLE(pThis);
+    PORT_UNREFERENCED_VARIABLE(pGpuhalspecowner);
+    PORT_UNREFERENCED_VARIABLE(pRmhalspecowner);
+    PORT_UNREFERENCED_VARIABLE(chipHal);
+    PORT_UNREFERENCED_VARIABLE(chipHal_HalVarIdx);
+    PORT_UNREFERENCED_VARIABLE(rmVariantHal);
+    PORT_UNREFERENCED_VARIABLE(rmVariantHal_HalVarIdx);
+
+    // Hal field -- bUsePerRunlistChram
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0xbdf0fc00UL) ) ||
+        ( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000030ffUL) )) /* ChipHal: GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 | GH100 | GB100 | GB102 | GB10B | GB110 | GB112 | GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C | GR100 | GR102 */ 
+    {
+        pThis->bUsePerRunlistChram = NV_TRUE;
+    }
+    // default
+    else
+    {
+        pThis->bUsePerRunlistChram = NV_FALSE;
+    }
+
+    // Hal field -- bIsPerRunlistChramSupportedInHw
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0xbdf0fc00UL) ) ||
+        ( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000030ffUL) )) /* ChipHal: GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 | GH100 | GB100 | GB102 | GB10B | GB110 | GB112 | GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C | GR100 | GR102 */ 
+    {
+        pThis->bIsPerRunlistChramSupportedInHw = NV_TRUE;
+    }
+    // default
+    else
+    {
+        pThis->bIsPerRunlistChramSupportedInHw = NV_FALSE;
+    }
+
+    // Hal field -- bHostEngineExpansion
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0xbdf0fc00UL) ) ||
+        ( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000030ffUL) )) /* ChipHal: GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 | GH100 | GB100 | GB102 | GB10B | GB110 | GB112 | GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C | GR100 | GR102 */ 
+    {
+        pThis->bHostEngineExpansion = NV_TRUE;
+    }
+    // default
+    else
+    {
+        pThis->bHostEngineExpansion = NV_FALSE;
+    }
+
+    // Hal field -- bSubcontextSupported
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0xbdf0ffe0UL) ) ||
+        ( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000030ffUL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 | GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 | GH100 | GB100 | GB102 | GB10B | GB110 | GB112 | GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C | GR100 | GR102 */ 
+    {
+        pThis->bSubcontextSupported = NV_TRUE;
+    }
+    // default
+    else
+    {
+        pThis->bSubcontextSupported = NV_FALSE;
+    }
+
+    // Hal field -- bIsZombieSubctxWarEnabled
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0xbdf0ffe0UL) ) ||
+        ( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000030ffUL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 | GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 | GH100 | GB100 | GB102 | GB10B | GB110 | GB112 | GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C | GR100 | GR102 */ 
+    {
+        pThis->bIsZombieSubctxWarEnabled = NV_TRUE;
+    }
+    // default
+    else
+    {
+        pThis->bIsZombieSubctxWarEnabled = NV_FALSE;
+    }
+
+    // Hal field -- bGuestGenenratesWorkSubmitToken
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0xb8000000UL) ) ||
+        ( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000030ffUL) )) /* ChipHal: GB100 | GB102 | GB10B | GB110 | GB112 | GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C | GR100 | GR102 */ 
+    {
+        pThis->bGuestGenenratesWorkSubmitToken = NV_TRUE;
+    }
+    // default
+    else
+    {
+        pThis->bGuestGenenratesWorkSubmitToken = NV_FALSE;
+    }
+
+    // Hal field -- bIsPbdmaMmuEngineIdContiguous
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0xb8000000UL) ) ||
+        ( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000030ffUL) )) /* ChipHal: GB100 | GB102 | GB10B | GB110 | GB112 | GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C | GR100 | GR102 */ 
+    {
+        pThis->bIsPbdmaMmuEngineIdContiguous = NV_FALSE;
+    }
+    // default
+    else
+    {
+        pThis->bIsPbdmaMmuEngineIdContiguous = NV_TRUE;
+    }
+
+    // NVOC Property Hal field -- PDB_PROP_KFIFO_IS_MISSING
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->setProperty(pThis, PDB_PROP_KFIFO_IS_MISSING, NV_TRUE);
+    }
+    // default
+    else
+    {
+        pThis->setProperty(pThis, PDB_PROP_KFIFO_IS_MISSING, NV_FALSE);
+    }
+
+    // Hal field -- bDoorbellsSupported
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->bDoorbellsSupported = NV_FALSE;
+    }
+    // default
+    else
+    {
+        pThis->bDoorbellsSupported = NV_TRUE;
+    }
+
+    pThis->pBar1VF = ((void *)0);
+
+    pThis->pBar1PrivVF = ((void *)0);
+
+    pThis->pRegVF = ((void *)0);
+}
+
+
+// Construct KernelFifo object.
+NV_STATUS __nvoc_ctor_OBJENGSTATE(OBJENGSTATE *);
+NV_STATUS __nvoc_ctor_KernelFifo(KernelFifo *pThis, GpuHalspecOwner *pGpuhalspecowner, RmHalspecOwner *pRmhalspecowner) {
+    NV_STATUS status = NV_OK;
+
+    // Recurse to ancestor constructor(s).
+    status = __nvoc_ctor_OBJENGSTATE(&pThis->__nvoc_base_OBJENGSTATE);
+    if (status != NV_OK) goto __nvoc_ctor_KernelFifo_fail_OBJENGSTATE;
+
+    // Initialize data fields.
+    __nvoc_init_dataField_KernelFifo(pThis, pGpuhalspecowner, pRmhalspecowner);
+    goto __nvoc_ctor_KernelFifo_exit; // Success
+
+    // Unwind on error.
+__nvoc_ctor_KernelFifo_fail_OBJENGSTATE:
+__nvoc_ctor_KernelFifo_exit:
+    return status;
+}
+
+// Vtable initialization
+static void __nvoc_init_funcTable_KernelFifo_1(KernelFifo *pThis, GpuHalspecOwner *pGpuhalspecowner, RmHalspecOwner *pRmhalspecowner) {
+    ChipHal *chipHal = &pGpuhalspecowner->chipHal;
+    const unsigned long chipHal_HalVarIdx = (unsigned long)chipHal->__nvoc_HalVarIdx;
+    RmVariantHal *rmVariantHal = &pRmhalspecowner->rmVariantHal;
+    const unsigned long rmVariantHal_HalVarIdx = (unsigned long)rmVariantHal->__nvoc_HalVarIdx;
+    PORT_UNREFERENCED_VARIABLE(pThis);
+    PORT_UNREFERENCED_VARIABLE(pGpuhalspecowner);
+    PORT_UNREFERENCED_VARIABLE(pRmhalspecowner);
+    PORT_UNREFERENCED_VARIABLE(chipHal);
+    PORT_UNREFERENCED_VARIABLE(chipHal_HalVarIdx);
+    PORT_UNREFERENCED_VARIABLE(rmVariantHal);
+    PORT_UNREFERENCED_VARIABLE(rmVariantHal_HalVarIdx);
+
+    // kfifoConstructHal -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoConstructHal__ = &kfifoConstructHal_ac1694;
+    }
+    else
+    {
+        pThis->__kfifoConstructHal__ = &kfifoConstructHal_GM107;
+    }
+
+    // kfifoStatePostLoad -- virtual halified (2 hals) override (engstate) base (engstate) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoStatePostLoad__ = &kfifoStatePostLoad_ac1694;
+    }
+    else
+    {
+        pThis->__kfifoStatePostLoad__ = &kfifoStatePostLoad_GM107;
+    }
+
+    // kfifoStatePreUnload -- virtual halified (2 hals) override (engstate) base (engstate) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoStatePreUnload__ = &kfifoStatePreUnload_ac1694;
+    }
+    else
+    {
+        pThis->__kfifoStatePreUnload__ = &kfifoStatePreUnload_GM107;
+    }
+
+    // kfifoChannelGroupGetDefaultTimeslice -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoChannelGroupGetDefaultTimeslice__ = &kfifoChannelGroupGetDefaultTimeslice_b2b553;
+    }
+    else
+    {
+        pThis->__kfifoChannelGroupGetDefaultTimeslice__ = &kfifoChannelGroupGetDefaultTimeslice_GV100;
+    }
+
+    // kfifoGetInstMemInfo -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoGetInstMemInfo__ = &kfifoGetInstMemInfo_395e98;
+    }
+    else
+    {
+        pThis->__kfifoGetInstMemInfo__ = &kfifoGetInstMemInfo_GM107;
+    }
+
+    // kfifoGetInstBlkSizeAlign -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoGetInstBlkSizeAlign__ = &kfifoGetInstBlkSizeAlign_d44104;
+    }
+    else
+    {
+        pThis->__kfifoGetInstBlkSizeAlign__ = &kfifoGetInstBlkSizeAlign_GM107;
+    }
+
+    // kfifoGetDefaultRunlist -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoGetDefaultRunlist__ = &kfifoGetDefaultRunlist_0b83bf;
+    }
+    else
+    {
+        pThis->__kfifoGetDefaultRunlist__ = &kfifoGetDefaultRunlist_GM107;
+    }
+
+    // kfifoValidateSCGTypeAndRunqueue -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoValidateSCGTypeAndRunqueue__ = &kfifoValidateSCGTypeAndRunqueue_e661f0;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000000feUL) )) /* ChipHal: GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C */ 
+    {
+        pThis->__kfifoValidateSCGTypeAndRunqueue__ = &kfifoValidateSCGTypeAndRunqueue_GB202;
+    }
+    else
+    {
+        pThis->__kfifoValidateSCGTypeAndRunqueue__ = &kfifoValidateSCGTypeAndRunqueue_GP102;
+    }
+
+    // kfifoValidateEngineAndRunqueue -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoValidateEngineAndRunqueue__ = &kfifoValidateEngineAndRunqueue_e661f0;
+    }
+    else
+    {
+        pThis->__kfifoValidateEngineAndRunqueue__ = &kfifoValidateEngineAndRunqueue_GP102;
+    }
+
+    // kfifoValidateEngineAndSubctxType -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoValidateEngineAndSubctxType__ = &kfifoValidateEngineAndSubctxType_e661f0;
+    }
+    else
+    {
+        pThis->__kfifoValidateEngineAndSubctxType__ = &kfifoValidateEngineAndSubctxType_GP102;
+    }
+
+    // kfifoRmctrlGetWorkSubmitToken -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoRmctrlGetWorkSubmitToken__ = &kfifoRmctrlGetWorkSubmitToken_ac1694;
+    }
+    else
+    {
+        pThis->__kfifoRmctrlGetWorkSubmitToken__ = &kfifoRmctrlGetWorkSubmitToken_GV100;
+    }
+
+    // kfifoChannelGetFifoContextMemDesc -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoChannelGetFifoContextMemDesc__ = &kfifoChannelGetFifoContextMemDesc_395e98;
+    }
+    else
+    {
+        pThis->__kfifoChannelGetFifoContextMemDesc__ = &kfifoChannelGetFifoContextMemDesc_GM107;
+    }
+
+    // kfifoCheckChannelAllocAddrSpaces -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0xbc000000UL) ) ||
+        ( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000030ffUL) )) /* ChipHal: GH100 | GB100 | GB102 | GB10B | GB110 | GB112 | GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C | GR100 | GR102 */ 
+    {
+        pThis->__kfifoCheckChannelAllocAddrSpaces__ = &kfifoCheckChannelAllocAddrSpaces_GH100;
+    }
+    // default
+    else
+    {
+        pThis->__kfifoCheckChannelAllocAddrSpaces__ = &kfifoCheckChannelAllocAddrSpaces_ac1694;
+    }
+
+    // kfifoConvertInstToKernelChannel -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoConvertInstToKernelChannel__ = &kfifoConvertInstToKernelChannel_395e98;
+    }
+    else
+    {
+        pThis->__kfifoConvertInstToKernelChannel__ = &kfifoConvertInstToKernelChannel_GM107;
+    }
+
+    // kfifoConstructUsermodeMemdescs -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x01f0ffe0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 | GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 */ 
+    {
+        pThis->__kfifoConstructUsermodeMemdescs__ = &kfifoConstructUsermodeMemdescs_GV100;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0xbc000000UL) ) ||
+             ( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000030ffUL) )) /* ChipHal: GH100 | GB100 | GB102 | GB10B | GB110 | GB112 | GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C | GR100 | GR102 */ 
+    {
+        pThis->__kfifoConstructUsermodeMemdescs__ = &kfifoConstructUsermodeMemdescs_GH100;
+    }
+    // default
+    else
+    {
+        pThis->__kfifoConstructUsermodeMemdescs__ = &kfifoConstructUsermodeMemdescs_ac1694;
+    }
+
+    // kfifoGetUsermodeMapInfo -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoGetUsermodeMapInfo__ = &kfifoGetUsermodeMapInfo_395e98;
+    }
+    else
+    {
+        pThis->__kfifoGetUsermodeMapInfo__ = &kfifoGetUsermodeMapInfo_GV100;
+    }
+
+    // kfifoGetMaxSubcontext -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoGetMaxSubcontext__ = &kfifoGetMaxSubcontext_474d46;
+    }
+    else
+    {
+        pThis->__kfifoGetMaxSubcontext__ = &kfifoGetMaxSubcontext_GV100;
+    }
+
+    // kfifoChannelGroupGetLocalMaxSubcontext -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoChannelGroupGetLocalMaxSubcontext__ = &kfifoChannelGroupGetLocalMaxSubcontext_474d46;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000003e0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 */ 
+    {
+        pThis->__kfifoChannelGroupGetLocalMaxSubcontext__ = &kfifoChannelGroupGetLocalMaxSubcontext_GM107;
+    }
+    else
+    {
+        pThis->__kfifoChannelGroupGetLocalMaxSubcontext__ = &kfifoChannelGroupGetLocalMaxSubcontext_GA100;
+    }
+
+    // kfifoGetMaxLowerSubcontext -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000000feUL) )) /* ChipHal: GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C */ 
+    {
+        pThis->__kfifoGetMaxLowerSubcontext__ = &kfifoGetMaxLowerSubcontext_847a19;
+    }
+    // default
+    else
+    {
+        pThis->__kfifoGetMaxLowerSubcontext__ = &kfifoGetMaxLowerSubcontext_726332;
+    }
+
+    // kfifoGetNumRunqueues -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoGetNumRunqueues__ = &kfifoGetNumRunqueues_245b9d;
+    }
+    else
+    {
+        pThis->__kfifoGetNumRunqueues__ = &kfifoGetNumRunqueues_039569;
+    }
+
+    // kfifoGetMaxChannelGroupSize -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoGetMaxChannelGroupSize__ = &kfifoGetMaxChannelGroupSize_b2b553;
+    }
+    else
+    {
+        pThis->__kfifoGetMaxChannelGroupSize__ = &kfifoGetMaxChannelGroupSize_GV100;
+    }
+
+    // kfifoGetCtxBufferMapFlags -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0xbc000000UL) ) ||
+        ( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000030ffUL) )) /* ChipHal: GH100 | GB100 | GB102 | GB10B | GB110 | GB112 | GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C | GR100 | GR102 */ 
+    {
+        pThis->__kfifoGetCtxBufferMapFlags__ = &kfifoGetCtxBufferMapFlags_GH100;
+    }
+    // default
+    else
+    {
+        pThis->__kfifoGetCtxBufferMapFlags__ = &kfifoGetCtxBufferMapFlags_d44104;
+    }
+
+    // kfifoEngineInfoXlate -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoEngineInfoXlate__ = &kfifoEngineInfoXlate_395e98;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000003e0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 */ 
+    {
+        pThis->__kfifoEngineInfoXlate__ = &kfifoEngineInfoXlate_GV100;
+    }
+    else
+    {
+        pThis->__kfifoEngineInfoXlate__ = &kfifoEngineInfoXlate_GA100;
+    }
+
+    // kfifoGetSubctxType -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoGetSubctxType__ = &kfifoGetSubctxType_d44104;
+    }
+    else
+    {
+        pThis->__kfifoGetSubctxType__ = &kfifoGetSubctxType_GV100;
+    }
+
+    // kfifoGenerateWorkSubmitTokenHal -- halified (5 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoGenerateWorkSubmitTokenHal__ = &kfifoGenerateWorkSubmitTokenHal_ac1694;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000003e0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 */ 
+    {
+        pThis->__kfifoGenerateWorkSubmitTokenHal__ = &kfifoGenerateWorkSubmitTokenHal_TU102;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000030feUL) )) /* ChipHal: GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C | GR100 | GR102 */ 
+    {
+        pThis->__kfifoGenerateWorkSubmitTokenHal__ = &kfifoGenerateWorkSubmitTokenHal_GB202;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x05f0fc00UL) )) /* ChipHal: GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 | GH100 */ 
+    {
+        pThis->__kfifoGenerateWorkSubmitTokenHal__ = &kfifoGenerateWorkSubmitTokenHal_GA100;
+    }
+    else
+    {
+        pThis->__kfifoGenerateWorkSubmitTokenHal__ = &kfifoGenerateWorkSubmitTokenHal_GB100;
+    }
+
+    // kfifoRingChannelDoorBell -- halified (4 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoRingChannelDoorBell__ = &kfifoRingChannelDoorBell_395e98;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000003e0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 */ 
+    {
+        pThis->__kfifoRingChannelDoorBell__ = &kfifoRingChannelDoorBell_GV100;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x01f0fc00UL) )) /* ChipHal: GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 */ 
+    {
+        pThis->__kfifoRingChannelDoorBell__ = &kfifoRingChannelDoorBell_GA100;
+    }
+    else
+    {
+        pThis->__kfifoRingChannelDoorBell__ = &kfifoRingChannelDoorBell_GH100;
+    }
+
+    // kfifoUpdateUsermodeDoorbell -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoUpdateUsermodeDoorbell__ = &kfifoUpdateUsermodeDoorbell_395e98;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000003e0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 */ 
+    {
+        pThis->__kfifoUpdateUsermodeDoorbell__ = &kfifoUpdateUsermodeDoorbell_TU102;
+    }
+    else
+    {
+        pThis->__kfifoUpdateUsermodeDoorbell__ = &kfifoUpdateUsermodeDoorbell_GA100;
+    }
+
+    // kfifoGetNumEngines -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoGetNumEngines__ = &kfifoGetNumEngines_b2b553;
+    }
+    else
+    {
+        pThis->__kfifoGetNumEngines__ = &kfifoGetNumEngines_GM107;
+    }
+
+    // kfifoGetEngineName -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoGetEngineName__ = &kfifoGetEngineName_9e2234;
+    }
+    else
+    {
+        pThis->__kfifoGetEngineName__ = &kfifoGetEngineName_GM107;
+    }
+
+    // kfifoGetMaxNumRunlists -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoGetMaxNumRunlists__ = &kfifoGetMaxNumRunlists_b2b553;
+    }
+    // default
+    else
+    {
+        pThis->__kfifoGetMaxNumRunlists__ = &kfifoGetMaxNumRunlists_GM107;
+    }
+
+    // kfifoGetEnginePbdmaIds -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoGetEnginePbdmaIds__ = &kfifoGetEnginePbdmaIds_395e98;
+    }
+    else
+    {
+        pThis->__kfifoGetEnginePbdmaIds__ = &kfifoGetEnginePbdmaIds_GM107;
+    }
+
+    // kfifoReservePbdmaFaultIds -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0xb8000000UL) ) ||
+        ( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000030ffUL) )) /* ChipHal: GB100 | GB102 | GB10B | GB110 | GB112 | GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C | GR100 | GR102 */ 
+    {
+        pThis->__kfifoReservePbdmaFaultIds__ = &kfifoReservePbdmaFaultIds_GB100;
+    }
+    // default
+    else
+    {
+        pThis->__kfifoReservePbdmaFaultIds__ = &kfifoReservePbdmaFaultIds_ac1694;
+    }
+
+    // kfifoGetEnginePartnerList -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoGetEnginePartnerList__ = &kfifoGetEnginePartnerList_395e98;
+    }
+    else
+    {
+        pThis->__kfifoGetEnginePartnerList__ = &kfifoGetEnginePartnerList_GM107;
+    }
+
+    // kfifoRunlistGetEntrySize -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoRunlistGetEntrySize__ = &kfifoRunlistGetEntrySize_474d46;
+    }
+    else
+    {
+        pThis->__kfifoRunlistGetEntrySize__ = &kfifoRunlistGetEntrySize_GV100;
+    }
+
+    // kfifoRunlistGetBaseShift -- halified (5 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x00000400UL) )) /* ChipHal: GA100 */ 
+    {
+        pThis->__kfifoRunlistGetBaseShift__ = &kfifoRunlistGetBaseShift_GA100;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoRunlistGetBaseShift__ = &kfifoRunlistGetBaseShift_474d46;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000003e0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 */ 
+    {
+        pThis->__kfifoRunlistGetBaseShift__ = &kfifoRunlistGetBaseShift_GM107;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000000feUL) )) /* ChipHal: GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C */ 
+    {
+        pThis->__kfifoRunlistGetBaseShift__ = &kfifoRunlistGetBaseShift_GB202;
+    }
+    else
+    {
+        pThis->__kfifoRunlistGetBaseShift__ = &kfifoRunlistGetBaseShift_GA102;
+    }
+
+    // kfifoPreAllocUserD -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000003e0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 */ 
+    {
+        pThis->__kfifoPreAllocUserD__ = &kfifoPreAllocUserD_TU102;
+    }
+    // default
+    else
+    {
+        pThis->__kfifoPreAllocUserD__ = &kfifoPreAllocUserD_ac1694;
+    }
+
+    // kfifoFreePreAllocUserD -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000003e0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 */ 
+    {
+        pThis->__kfifoFreePreAllocUserD__ = &kfifoFreePreAllocUserD_TU102;
+    }
+    // default
+    else
+    {
+        pThis->__kfifoFreePreAllocUserD__ = &kfifoFreePreAllocUserD_d44104;
+    }
+
+    // kfifoGetUserdBar1MapStartOffset -- halified (2 hals) body
+    if (( ((rmVariantHal_HalVarIdx >> 5) == 0UL) && ((1UL << (rmVariantHal_HalVarIdx & 0x1f)) & 0x00000001UL) )) /* RmVariantHal: VF */ 
+    {
+        pThis->__kfifoGetUserdBar1MapStartOffset__ = &kfifoGetUserdBar1MapStartOffset_VF;
+    }
+    else
+    {
+        pThis->__kfifoGetUserdBar1MapStartOffset__ = &kfifoGetUserdBar1MapStartOffset_b2b553;
+    }
+
+    // kfifoGetUserdBar1MapInfo -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000003e0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 */ 
+    {
+        pThis->__kfifoGetUserdBar1MapInfo__ = &kfifoGetUserdBar1MapInfo_TU102;
+    }
+    // default
+    else
+    {
+        pThis->__kfifoGetUserdBar1MapInfo__ = &kfifoGetUserdBar1MapInfo_395e98;
+    }
+
+    // kfifoGetUserdSizeAlign -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoGetUserdSizeAlign__ = &kfifoGetUserdSizeAlign_f2d351;
+    }
+    else
+    {
+        pThis->__kfifoGetUserdSizeAlign__ = &kfifoGetUserdSizeAlign_GM107;
+    }
+
+    // kfifoGetUserdLocation -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000003e0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 */ 
+    {
+        pThis->__kfifoGetUserdLocation__ = &kfifoGetUserdLocation_TU102;
+    }
+    // default
+    else
+    {
+        pThis->__kfifoGetUserdLocation__ = &kfifoGetUserdLocation_5baef9;
+    }
+
+    // kfifoCalcTotalSizeOfFaultMethodBuffers -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoCalcTotalSizeOfFaultMethodBuffers__ = &kfifoCalcTotalSizeOfFaultMethodBuffers_b2b553;
+    }
+    else
+    {
+        pThis->__kfifoCalcTotalSizeOfFaultMethodBuffers__ = &kfifoCalcTotalSizeOfFaultMethodBuffers_GV100;
+    }
+
+    // kfifoGetMaxCeChannelGroups -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoGetMaxCeChannelGroups__ = &kfifoGetMaxCeChannelGroups_474d46;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000003e0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 */ 
+    {
+        pThis->__kfifoGetMaxCeChannelGroups__ = &kfifoGetMaxCeChannelGroups_GV100;
+    }
+    else
+    {
+        pThis->__kfifoGetMaxCeChannelGroups__ = &kfifoGetMaxCeChannelGroups_GA100;
+    }
+
+    // kfifoCheckEngine -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoCheckEngine__ = &kfifoCheckEngine_395e98;
+    }
+    else
+    {
+        pThis->__kfifoCheckEngine__ = &kfifoCheckEngine_GM107;
+    }
+
+    // kfifoGetVChIdForSChId -- halified (2 hals) body
+    if (( ((rmVariantHal_HalVarIdx >> 5) == 0UL) && ((1UL << (rmVariantHal_HalVarIdx & 0x1f)) & 0x00000001UL) )) /* RmVariantHal: VF */ 
+    {
+        pThis->__kfifoGetVChIdForSChId__ = &kfifoGetVChIdForSChId_5baef9;
+    }
+    else
+    {
+        pThis->__kfifoGetVChIdForSChId__ = &kfifoGetVChIdForSChId_FWCLIENT;
+    }
+
+    // kfifoProgramChIdTable -- halified (2 hals) body
+    if (( ((rmVariantHal_HalVarIdx >> 5) == 0UL) && ((1UL << (rmVariantHal_HalVarIdx & 0x1f)) & 0x00000001UL) )) /* RmVariantHal: VF */ 
+    {
+        pThis->__kfifoProgramChIdTable__ = &kfifoProgramChIdTable_5baef9;
+    }
+    else
+    {
+        pThis->__kfifoProgramChIdTable__ = &kfifoProgramChIdTable_ac1694;
+    }
+
+    // kfifoDisableChannelsForKeyRotation -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x04000000UL) )) /* ChipHal: GH100 */ 
+    {
+        pThis->__kfifoDisableChannelsForKeyRotation__ = &kfifoDisableChannelsForKeyRotation_GH100;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0xb8000000UL) ) ||
+             ( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000030ffUL) )) /* ChipHal: GB100 | GB102 | GB10B | GB110 | GB112 | GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C | GR100 | GR102 */ 
+    {
+        pThis->__kfifoDisableChannelsForKeyRotation__ = &kfifoDisableChannelsForKeyRotation_GB100;
+    }
+    // default
+    else
+    {
+        pThis->__kfifoDisableChannelsForKeyRotation__ = &kfifoDisableChannelsForKeyRotation_395e98;
+    }
+
+    // kfifoRecoverAllChannels -- halified (2 hals) body
+    if (( ((rmVariantHal_HalVarIdx >> 5) == 0UL) && ((1UL << (rmVariantHal_HalVarIdx & 0x1f)) & 0x00000001UL) )) /* RmVariantHal: VF */ 
+    {
+        pThis->__kfifoRecoverAllChannels__ = &kfifoRecoverAllChannels_ac1694;
+    }
+    else
+    {
+        pThis->__kfifoRecoverAllChannels__ = &kfifoRecoverAllChannels_92bfc3;
+    }
+
+    // kfifoStartChannelHalt -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000000feUL) )) /* ChipHal: GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C */ 
+    {
+        pThis->__kfifoStartChannelHalt__ = &kfifoStartChannelHalt_GB202;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0xbdf0fc00UL) ) ||
+             ( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x00003001UL) )) /* ChipHal: GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 | GH100 | GB100 | GB102 | GB10B | GB110 | GB112 | GR100 | GR102 */ 
+    {
+        pThis->__kfifoStartChannelHalt__ = &kfifoStartChannelHalt_GA100;
+    }
+    // default
+    else
+    {
+        pThis->__kfifoStartChannelHalt__ = &kfifoStartChannelHalt_d44104;
+    }
+
+    // kfifoCompleteChannelHalt -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000000feUL) )) /* ChipHal: GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C */ 
+    {
+        pThis->__kfifoCompleteChannelHalt__ = &kfifoCompleteChannelHalt_GB202;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0xbdf0fc00UL) ) ||
+             ( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x00003001UL) )) /* ChipHal: GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 | GH100 | GB100 | GB102 | GB10B | GB110 | GB112 | GR100 | GR102 */ 
+    {
+        pThis->__kfifoCompleteChannelHalt__ = &kfifoCompleteChannelHalt_GA100;
+    }
+    // default
+    else
+    {
+        pThis->__kfifoCompleteChannelHalt__ = &kfifoCompleteChannelHalt_d44104;
+    }
+
+    // kfifoUserdNeedsIsolation -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000003e0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 */ 
+    {
+        pThis->__kfifoUserdNeedsIsolation__ = &kfifoUserdNeedsIsolation_e661f0;
+    }
+    // default
+    else
+    {
+        pThis->__kfifoUserdNeedsIsolation__ = &kfifoUserdNeedsIsolation_d69453;
+    }
+
+    // kfifoRunlistSetId -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoRunlistSetId__ = &kfifoRunlistSetId_ac1694;
+    }
+    else
+    {
+        pThis->__kfifoRunlistSetId__ = &kfifoRunlistSetId_GM107;
+    }
+
+    // kfifoRunlistSetIdByEngine -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoRunlistSetIdByEngine__ = &kfifoRunlistSetIdByEngine_ac1694;
+    }
+    else
+    {
+        pThis->__kfifoRunlistSetIdByEngine__ = &kfifoRunlistSetIdByEngine_GM107;
+    }
+
+    // kfifoSetupUserD -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoSetupUserD__ = &kfifoSetupUserD_f2d351;
+    }
+    // default
+    else
+    {
+        pThis->__kfifoSetupUserD__ = &kfifoSetupUserD_GM107;
+    }
+
+    // kfifoGetEnginePbdmaFaultIds -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000003e0UL) ) ||
+        ( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 | T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoGetEnginePbdmaFaultIds__ = &kfifoGetEnginePbdmaFaultIds_5baef9;
+    }
+    else
+    {
+        pThis->__kfifoGetEnginePbdmaFaultIds__ = &kfifoGetEnginePbdmaFaultIds_GA100;
+    }
+
+    // kfifoGetNumPBDMAs -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoGetNumPBDMAs__ = &kfifoGetNumPBDMAs_b2b553;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000003e0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 */ 
+    {
+        pThis->__kfifoGetNumPBDMAs__ = &kfifoGetNumPBDMAs_GM200;
+    }
+    else
+    {
+        pThis->__kfifoGetNumPBDMAs__ = &kfifoGetNumPBDMAs_GA100;
+    }
+
+    // kfifoPrintPbdmaId -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000003e0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 */ 
+    {
+        pThis->__kfifoPrintPbdmaId__ = &kfifoPrintPbdmaId_TU102;
+    }
+    else
+    {
+        pThis->__kfifoPrintPbdmaId__ = &kfifoPrintPbdmaId_95626c;
+    }
+
+    // kfifoPrintInternalEngine -- halified (6 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x04000000UL) )) /* ChipHal: GH100 */ 
+    {
+        pThis->__kfifoPrintInternalEngine__ = &kfifoPrintInternalEngine_GH100;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoPrintInternalEngine__ = &kfifoPrintInternalEngine_95626c;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000003e0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 */ 
+    {
+        pThis->__kfifoPrintInternalEngine__ = &kfifoPrintInternalEngine_TU102;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x01f00000UL) )) /* ChipHal: AD102 | AD103 | AD104 | AD106 | AD107 */ 
+    {
+        pThis->__kfifoPrintInternalEngine__ = &kfifoPrintInternalEngine_AD102;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000fc00UL) )) /* ChipHal: GA100 | GA102 | GA103 | GA104 | GA106 | GA107 */ 
+    {
+        pThis->__kfifoPrintInternalEngine__ = &kfifoPrintInternalEngine_GA100;
+    }
+    else
+    {
+        pThis->__kfifoPrintInternalEngine__ = &kfifoPrintInternalEngine_GB100;
+    }
+
+    // kfifoPrintInternalEngineCheck -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000030feUL) )) /* ChipHal: GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C | GR100 | GR102 */ 
+    {
+        pThis->__kfifoPrintInternalEngineCheck__ = &kfifoPrintInternalEngineCheck_GB202;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x01f0fc00UL) )) /* ChipHal: GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 */ 
+    {
+        pThis->__kfifoPrintInternalEngineCheck__ = &kfifoPrintInternalEngineCheck_GA100;
+    }
+    // default
+    else
+    {
+        pThis->__kfifoPrintInternalEngineCheck__ = &kfifoPrintInternalEngineCheck_9e2234;
+    }
+
+    // kfifoGetClientIdStringCommon -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x00003000UL) )) /* ChipHal: GR100 | GR102 */ 
+    {
+        pThis->__kfifoGetClientIdStringCommon__ = &kfifoGetClientIdStringCommon_GR100;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0xbc000000UL) ) ||
+             ( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000000ffUL) )) /* ChipHal: GH100 | GB100 | GB102 | GB10B | GB110 | GB112 | GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C */ 
+    {
+        pThis->__kfifoGetClientIdStringCommon__ = &kfifoGetClientIdStringCommon_GH100;
+    }
+    // default
+    else
+    {
+        pThis->__kfifoGetClientIdStringCommon__ = &kfifoGetClientIdStringCommon_95626c;
+    }
+
+    // kfifoGetClientIdString -- halified (8 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x04000000UL) )) /* ChipHal: GH100 */ 
+    {
+        pThis->__kfifoGetClientIdString__ = &kfifoGetClientIdString_GH100;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x20000000UL) )) /* ChipHal: GB10B */ 
+    {
+        pThis->__kfifoGetClientIdString__ = &kfifoGetClientIdString_GB10B;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoGetClientIdString__ = &kfifoGetClientIdString_95626c;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000003e0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 */ 
+    {
+        pThis->__kfifoGetClientIdString__ = &kfifoGetClientIdString_TU102;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x01f00000UL) )) /* ChipHal: AD102 | AD103 | AD104 | AD106 | AD107 */ 
+    {
+        pThis->__kfifoGetClientIdString__ = &kfifoGetClientIdString_AD102;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000fc00UL) )) /* ChipHal: GA100 | GA102 | GA103 | GA104 | GA106 | GA107 */ 
+    {
+        pThis->__kfifoGetClientIdString__ = &kfifoGetClientIdString_GA100;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000000feUL) )) /* ChipHal: GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C */ 
+    {
+        pThis->__kfifoGetClientIdString__ = &kfifoGetClientIdString_GB202;
+    }
+    else
+    {
+        pThis->__kfifoGetClientIdString__ = &kfifoGetClientIdString_GB100;
+    }
+
+    // kfifoGetClientIdStringCheck -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x00003000UL) )) /* ChipHal: GR100 | GR102 */ 
+    {
+        pThis->__kfifoGetClientIdStringCheck__ = &kfifoGetClientIdStringCheck_GR100;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0xbdf0fc00UL) ) ||
+             ( ((chipHal_HalVarIdx >> 5) == 2UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x000000ffUL) )) /* ChipHal: GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 | GH100 | GB100 | GB102 | GB10B | GB110 | GB112 | GB202 | GB203 | GB205 | GB206 | GB207 | GB20B | GB20C */ 
+    {
+        pThis->__kfifoGetClientIdStringCheck__ = &kfifoGetClientIdStringCheck_GA100;
+    }
+    // default
+    else
+    {
+        pThis->__kfifoGetClientIdStringCheck__ = &kfifoGetClientIdStringCheck_95626c;
+    }
+
+    // kfifoGetFaultAccessTypeString -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoGetFaultAccessTypeString__ = &kfifoGetFaultAccessTypeString_741da0;
+    }
+    else
+    {
+        pThis->__kfifoGetFaultAccessTypeString__ = &kfifoGetFaultAccessTypeString_GV100;
+    }
+
+    // kfifoWriteRamfcGpfifo -- halified (4 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x04000000UL) )) /* ChipHal: GH100 */ 
+    {
+        pThis->__kfifoWriteRamfcGpfifo__ = &kfifoWriteRamfcGpfifo_GH100;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoWriteRamfcGpfifo__ = &kfifoWriteRamfcGpfifo_d44104;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x01f0ffe0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 | GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 */ 
+    {
+        pThis->__kfifoWriteRamfcGpfifo__ = &kfifoWriteRamfcGpfifo_GM107;
+    }
+    else
+    {
+        pThis->__kfifoWriteRamfcGpfifo__ = &kfifoWriteRamfcGpfifo_GB100;
+    }
+
+    // kfifoInitRamfcSignature -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoInitRamfcSignature__ = &kfifoInitRamfcSignature_f2d351;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x05f0ffe0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 | GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 | GH100 */ 
+    {
+        pThis->__kfifoInitRamfcSignature__ = &kfifoInitRamfcSignature_TU102;
+    }
+    else
+    {
+        pThis->__kfifoInitRamfcSignature__ = &kfifoInitRamfcSignature_GB100;
+    }
+
+    // kfifoInitRamfcPbHeader -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoInitRamfcPbHeader__ = &kfifoInitRamfcPbHeader_d44104;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x05f0ffe0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 | GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 | GH100 */ 
+    {
+        pThis->__kfifoInitRamfcPbHeader__ = &kfifoInitRamfcPbHeader_TU102;
+    }
+    else
+    {
+        pThis->__kfifoInitRamfcPbHeader__ = &kfifoInitRamfcPbHeader_GB100;
+    }
+
+    // kfifoInitRamfcFaultMethodBuffers -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoInitRamfcFaultMethodBuffers__ = &kfifoInitRamfcFaultMethodBuffers_ac1694;
+    }
+    else
+    {
+        pThis->__kfifoInitRamfcFaultMethodBuffers__ = &kfifoInitRamfcFaultMethodBuffers_TU102;
+    }
+
+    // kfifoGetRamfcFaultMethodBufferAddrOffset -- halified (3 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 3UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x0000e000UL) )) /* ChipHal: T234D | T239D | T264D */ 
+    {
+        pThis->__kfifoGetRamfcFaultMethodBufferAddrOffset__ = &kfifoGetRamfcFaultMethodBufferAddrOffset_d44104;
+    }
+    else if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x01f0ffe0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 | GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 */ 
+    {
+        pThis->__kfifoGetRamfcFaultMethodBufferAddrOffset__ = &kfifoGetRamfcFaultMethodBufferAddrOffset_TU102;
+    }
+    else
+    {
+        pThis->__kfifoGetRamfcFaultMethodBufferAddrOffset__ = &kfifoGetRamfcFaultMethodBufferAddrOffset_GH100;
+    }
+
+    // kfifoInitRamfcUserdWriteback -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x05f0ffe0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 | GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 | GH100 */ 
+    {
+        pThis->__kfifoInitRamfcUserdWriteback__ = &kfifoInitRamfcUserdWriteback_TU102;
+    }
+    else
+    {
+        pThis->__kfifoInitRamfcUserdWriteback__ = &kfifoInitRamfcUserdWriteback_d44104;
+    }
+
+    // kfifoInitRamfcCEThrottleMode -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x05f0ffe0UL) )) /* ChipHal: TU102 | TU104 | TU106 | TU116 | TU117 | GA100 | GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 | GH100 */ 
+    {
+        pThis->__kfifoInitRamfcCEThrottleMode__ = &kfifoInitRamfcCEThrottleMode_TU102;
+    }
+    // default
+    else
+    {
+        pThis->__kfifoInitRamfcCEThrottleMode__ = &kfifoInitRamfcCEThrottleMode_d44104;
+    }
+
+    // kfifoInitCePrefetch -- halified (2 hals) body
+    if (( ((chipHal_HalVarIdx >> 5) == 1UL) && ((1UL << (chipHal_HalVarIdx & 0x1f)) & 0x01f00000UL) )) /* ChipHal: AD102 | AD103 | AD104 | AD106 | AD107 */ 
+    {
+        pThis->__kfifoInitCePrefetch__ = &kfifoInitCePrefetch_AD102;
+    }
+    else
+    {
+        pThis->__kfifoInitCePrefetch__ = &kfifoInitCePrefetch_d44104;
+    }
+} // End __nvoc_init_funcTable_KernelFifo_1 with approximately 178 basic block(s).
+
+
+// Initialize vtable(s) for 83 virtual method(s).
+void __nvoc_init_funcTable_KernelFifo(KernelFifo *pThis, GpuHalspecOwner *pGpuhalspecowner, RmHalspecOwner *pRmhalspecowner) {
+
+    // Initialize vtable(s) with 71 per-object function pointer(s).
+    __nvoc_init_funcTable_KernelFifo_1(pThis, pGpuhalspecowner, pRmhalspecowner);
+}
+
+// Initialize newly constructed object.
+void __nvoc_init__KernelFifo(KernelFifo *pThis, GpuHalspecOwner *pGpuhalspecowner, RmHalspecOwner *pRmhalspecowner) {
+
+    // Initialize pointers to inherited data.
+    pThis->__nvoc_pbase_Object = &pThis->__nvoc_base_OBJENGSTATE.__nvoc_base_Object;    // (obj) super^2
+    pThis->__nvoc_pbase_OBJENGSTATE = &pThis->__nvoc_base_OBJENGSTATE;    // (engstate) super
+    pThis->__nvoc_pbase_KernelFifo = pThis;    // (kfifo) this
+
+    // Recurse to superclass initialization function(s).
+    __nvoc_init__OBJENGSTATE(&pThis->__nvoc_base_OBJENGSTATE);
+
+    // Pointer(s) to metadata structures(s)
+    pThis->__nvoc_base_OBJENGSTATE.__nvoc_base_Object.__nvoc_metadata_ptr = &__nvoc_metadata__KernelFifo.metadata__OBJENGSTATE.metadata__Object;    // (obj) super^2
+    pThis->__nvoc_base_OBJENGSTATE.__nvoc_metadata_ptr = &__nvoc_metadata__KernelFifo.metadata__OBJENGSTATE;    // (engstate) super
+    pThis->__nvoc_metadata_ptr = &__nvoc_metadata__KernelFifo;    // (kfifo) this
+
+    // Initialize per-object vtables.
+    __nvoc_init_funcTable_KernelFifo(pThis, pGpuhalspecowner, pRmhalspecowner);
+}
+
+NV_STATUS __nvoc_objCreate_KernelFifo(KernelFifo **__nvoc_ppThis, Dynamic *__nvoc_pParent, NvU32 __nvoc_createFlags)
+{
+    NV_STATUS __nvoc_status;
+    Object *__nvoc_pParentObj = NULL;
+    KernelFifo *__nvoc_pThis;
+    GpuHalspecOwner *pGpuhalspecowner;
+    RmHalspecOwner *pRmhalspecowner;
+
+    // Don't allocate memory if the caller has already done so.
+    if (__nvoc_createFlags & NVOC_OBJ_CREATE_FLAGS_IN_PLACE_CONSTRUCT)
+    {
+        NV_CHECK_OR_RETURN(LEVEL_ERROR, __nvoc_ppThis != NULL && *__nvoc_ppThis != NULL, NV_ERR_INVALID_PARAMETER);
+        __nvoc_pThis = *__nvoc_ppThis;
+    }
+
+    // Allocate memory
+    else
+    {
+        __nvoc_pThis = portMemAllocNonPaged(sizeof(KernelFifo));
+        NV_CHECK_OR_RETURN(LEVEL_ERROR, __nvoc_pThis != NULL, NV_ERR_NO_MEMORY);
+    }
+
+    // Zero is the initial value for everything.
+    portMemSet(__nvoc_pThis, 0, sizeof(KernelFifo));
+
+    __nvoc_pThis->__nvoc_base_OBJENGSTATE.__nvoc_base_Object.createFlags = __nvoc_createFlags;
+
+    // pParent must be a valid object that derives from a halspec owner class.
+    NV_CHECK_TRUE_OR_GOTO(__nvoc_status, LEVEL_ERROR, __nvoc_pParent != NULL, NV_ERR_INVALID_ARGUMENT, __nvoc_objCreate_KernelFifo_cleanup);
+
+    // Link the child into the parent unless flagged not to do so.
+    if (!(__nvoc_createFlags & NVOC_OBJ_CREATE_FLAGS_PARENT_HALSPEC_ONLY))
+    {
+        __nvoc_pParentObj = dynamicCast(__nvoc_pParent, Object);
+        objAddChild(__nvoc_pParentObj, &__nvoc_pThis->__nvoc_base_OBJENGSTATE.__nvoc_base_Object);
+    }
+    else
+    {
+        __nvoc_pThis->__nvoc_base_OBJENGSTATE.__nvoc_base_Object.pParent = NULL;
+    }
+
+    // HALs are defined by the parent or the first super class.
+    if ((pGpuhalspecowner = dynamicCast(__nvoc_pParent, GpuHalspecOwner)) == NULL)
+        pGpuhalspecowner = objFindAncestorOfType(GpuHalspecOwner, __nvoc_pParent);
+    NV_CHECK_TRUE_OR_GOTO(__nvoc_status, LEVEL_ERROR, pGpuhalspecowner != NULL, NV_ERR_INVALID_ARGUMENT, __nvoc_objCreate_KernelFifo_cleanup);
+    if ((pRmhalspecowner = dynamicCast(__nvoc_pParent, RmHalspecOwner)) == NULL)
+        pRmhalspecowner = objFindAncestorOfType(RmHalspecOwner, __nvoc_pParent);
+    NV_CHECK_TRUE_OR_GOTO(__nvoc_status, LEVEL_ERROR, pRmhalspecowner != NULL, NV_ERR_INVALID_ARGUMENT, __nvoc_objCreate_KernelFifo_cleanup);
+
+    // Initialize vtable, RTTI, etc., then call constructor.
+    __nvoc_init__KernelFifo(__nvoc_pThis, pGpuhalspecowner, pRmhalspecowner);
+    __nvoc_status = __nvoc_ctor_KernelFifo(__nvoc_pThis, pGpuhalspecowner, pRmhalspecowner);
+    if (__nvoc_status != NV_OK) goto __nvoc_objCreate_KernelFifo_cleanup;
+
+    // Assignment has no effect if NVOC_OBJ_CREATE_FLAGS_IN_PLACE_CONSTRUCT is set.
+    *__nvoc_ppThis = __nvoc_pThis;
+
+    // Success
+    return NV_OK;
+
+    // Do not call destructors here since the constructor already called them.
+__nvoc_objCreate_KernelFifo_cleanup:
+
+    // Unlink the child from the parent if it was linked above.
+    if (__nvoc_pParentObj != NULL)
+        objRemoveChild(__nvoc_pParentObj, &__nvoc_pThis->__nvoc_base_OBJENGSTATE.__nvoc_base_Object);
+
+    // Zero out memory that was allocated by caller.
+    if (__nvoc_createFlags & NVOC_OBJ_CREATE_FLAGS_IN_PLACE_CONSTRUCT)
+        portMemSet(__nvoc_pThis, 0, sizeof(KernelFifo));
+
+    // Free memory allocated by `__nvoc_handleObjCreateMemAlloc`.
+    else
+    {
+        portMemFree(__nvoc_pThis);
+        *__nvoc_ppThis = NULL;
+    }
+
+    // Failure
+    return __nvoc_status;
+}
+
+NV_STATUS __nvoc_objCreateDynamic_KernelFifo(Dynamic **__nvoc_ppThis, Dynamic *__nvoc_pParent, NvU32 __nvoc_createFlags, va_list __nvoc_args) {
+
+    return __nvoc_objCreate_KernelFifo((KernelFifo **) __nvoc_ppThis, __nvoc_pParent, __nvoc_createFlags);
+}
+
