@@ -60,3 +60,4 @@
 58 ioctl
 59 readv
 60 writev
+61 service
