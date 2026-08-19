@@ -1,8 +1,12 @@
 #include "virtio_common_state.hpp"
 #include "virtio_common_features.hpp"
 #include "virtio_notify.hpp"
+extern "C" {
 #include <efi.h>
+}
+extern "C" {
 #include <efilib.h>
+}
 
 // Improve device initialization with explicit verification and rollback on failure.
 

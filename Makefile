@@ -82,7 +82,24 @@ S_SRC_DIRS := \
 # SOURCE FILES
 # ============================================================
 
-SRC := $(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.cpp))
+# Sources excluded from the kernel build.
+#
+# Hosted C++ (libstdc++, libsodium) written against interfaces the kernel does
+# not provide; must be ported before they can compile -ffreestanding -nostdlib:
+#   fs/EROFS.cpp, fs/tmpfs.cpp, kernel/login.cpp
+#
+# Depends on blockos_terminal_write/_hex, which nothing defines yet. Currently
+# orphaned - nothing calls into it - so it is parked until there is a console
+# or serial backend to print through:
+#   kernel/panic.cpp
+EXCLUDED_SRC := \
+	fs/EROFS.cpp \
+	fs/tmpfs.cpp \
+	kernel/login.cpp \
+	kernel/panic.cpp
+
+SRC := $(filter-out $(EXCLUDED_SRC), \
+	$(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.cpp)))
 
 S_SRC := $(foreach dir,$(S_SRC_DIRS),$(wildcard $(dir)/*.S))
 
@@ -163,12 +180,19 @@ $(EFI_OUT): $(SO_OUT)
 
 	$(OBJCOPY) \
 		-j .text \
+		-j .plt \
+		-j .init_array \
+		-j .ramfs \
+		-j .dynstr \
 		-j .sdata \
 		-j .data \
 		-j .dynamic \
 		-j .dynsym \
 		-j .rel \
 		-j .rela \
+		-j .rel.* \
+		-j .rela.* \
+		-j .reloc \
 		--target=efi-app-x86_64 \
 		$(SO_OUT) \
 		$(EFI_OUT)

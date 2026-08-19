@@ -1,8 +1,12 @@
 #include "arch/86_64x/pml4_runner.hpp"
 #include "elf_loader.hpp"
 #include "paging.hpp"
+extern "C" {
 #include <efi.h>
+}
+extern "C" {
 #include <efilib.h>
+}
 
 // Note: This runner switches CR3 to the given PML4 and calls the provided entry
 // point while remaining in the current privilege level. It is intended as a

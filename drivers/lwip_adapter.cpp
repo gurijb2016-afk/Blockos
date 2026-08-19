@@ -1,7 +1,11 @@
 #include "lwip_adapter.hpp"
 #include "virtio_net_driver.hpp"
+extern "C" {
 #include <efi.h>
+}
+extern "C" {
 #include <efilib.h>
+}
 
 void lwip_adapter::init() {
     // In a full integration, here we would initialize lwIP, create a netif that uses

@@ -1,4 +1,4 @@
-#include "EROFS_Structures.hpp"
+#include "EROFS_structures.hpp"
 #include <vector>
 #include <string_view>
 #include <cstring>

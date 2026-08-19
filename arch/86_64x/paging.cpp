@@ -1,7 +1,11 @@
 #include "paging.hpp"
 #include "dma.hpp"
+extern "C" {
 #include <efi.h>
+}
+extern "C" {
 #include <efilib.h>
+}
 #include <string.h>
 
 // Basic x86_64 4-level page table helpers. This is minimal and assumes

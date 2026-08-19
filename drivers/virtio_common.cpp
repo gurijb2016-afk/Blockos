@@ -2,8 +2,12 @@
 #include "pci.hpp"
 #include "dma.hpp"
 
+extern "C" {
 #include <efi.h>
+}
+extern "C" {
 #include <efilib.h>
+}
 
 #include <stdint.h>
 

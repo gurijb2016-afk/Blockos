@@ -1,8 +1,12 @@
 #include "virtio_notify.hpp"
 #include "virtio_common.hpp"
 #include "pci_msix.hpp"
+extern "C" {
 #include <efi.h>
+}
+extern "C" {
 #include <efilib.h>
+}
 #include <string.h>
 
 bool virtio_notify::notify(virtio_common::DeviceHandle* h, uint16_t queue_index) {

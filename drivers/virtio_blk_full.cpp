@@ -5,8 +5,12 @@
 #include "virtio_notify.hpp"
 #include "dma.hpp"
 
+extern "C" {
 #include <efi.h>
+}
+extern "C" {
 #include <efilib.h>
+}
 #include <string.h>
 #include <stdint.h>
 

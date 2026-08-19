@@ -1,6 +1,10 @@
 #include "virtio_common_features.hpp"
+extern "C" {
 #include <efi.h>
+}
+extern "C" {
 #include <efilib.h>
+}
 
 static inline uint32_t read_reg32_mmio(uint64_t base, uint32_t offset) {
     volatile uint32_t* p = (volatile uint32_t*)(UINTN)(base + offset);

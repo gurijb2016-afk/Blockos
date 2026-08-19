@@ -3,8 +3,12 @@
 #include "virtio_common.hpp"
 #include "dma.hpp"
 
+extern "C" {
 #include <efi.h>
+}
+extern "C" {
 #include <efilib.h>
+}
 #include <stdint.h>
 #include <string.h>
 

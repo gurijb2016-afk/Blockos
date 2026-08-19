@@ -1,7 +1,11 @@
 #include "pci_msix.hpp"
 #include "pci_config.hpp"
+extern "C" {
 #include <efi.h>
+}
+extern "C" {
 #include <efilib.h>
+}
 
 bool pci_msix_detect_and_configure(
     virtio_common::DeviceHandle* h,
