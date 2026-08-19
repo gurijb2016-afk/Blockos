@@ -1,0 +1,396 @@
+cmake_minimum_required(VERSION 3.20)
+
+project(BlockOS
+    VERSION 1.0.0
+    LANGUAGES C CXX ASM
+)
+
+# ============================================================
+# BlockOS
+# x86_64 UEFI / GNU-EFI
+# ============================================================
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+
+# ------------------------------------------------------------
+# Architecture
+# ------------------------------------------------------------
+
+set(BLOCKOS_ARCH "x86_64" CACHE STRING "BlockOS target architecture")
+
+if(NOT BLOCKOS_ARCH STREQUAL "x86_64")
+    message(FATAL_ERROR
+        "Unsupported BlockOS architecture: ${BLOCKOS_ARCH}"
+    )
+endif()
+
+# ------------------------------------------------------------
+# GNU-EFI
+# ------------------------------------------------------------
+
+set(EFI_INCL
+    /usr/include/efi
+)
+
+set(EFI_INCL_X86
+    /usr/include/efi/x86_64
+)
+
+set(GNU_EFI_LIBDIR
+    /usr/lib
+)
+
+set(GNU_EFI_LDS
+    ${GNU_EFI_LIBDIR}/elf_x86_64_efi.lds
+)
+
+set(EFI_CRT
+    ${GNU_EFI_LIBDIR}/crt0-efi-x86_64.o
+)
+
+set(EFI_LIB
+    ${GNU_EFI_LIBDIR}/libefi.a
+)
+
+set(GNU_EFI_LIB
+    ${GNU_EFI_LIBDIR}/libgnuefi.a
+)
+
+# ------------------------------------------------------------
+# Check GNU-EFI
+# ------------------------------------------------------------
+
+foreach(FILE
+    ${GNU_EFI_LDS}
+    ${EFI_CRT}
+    ${EFI_LIB}
+    ${GNU_EFI_LIB}
+)
+    if(NOT EXISTS "${FILE}")
+        message(FATAL_ERROR
+            "Missing GNU-EFI file: ${FILE}"
+        )
+    endif()
+endforeach()
+
+# ------------------------------------------------------------
+# Include directories
+# ------------------------------------------------------------
+
+include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${EFI_INCL}
+    ${EFI_INCL_X86}
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/arch/86_64x
+    ${CMAKE_CURRENT_SOURCE_DIR}/kernel
+    ${CMAKE_CURRENT_SOURCE_DIR}/drivers
+    ${CMAKE_CURRENT_SOURCE_DIR}/fs
+    ${CMAKE_CURRENT_SOURCE_DIR}/examples
+)
+
+# ------------------------------------------------------------
+# Kernel compilation flags
+# ------------------------------------------------------------
+
+add_compile_options(
+    $<$<COMPILE_LANGUAGE:CXX>:
+        -fno-exceptions
+        -fno-rtti
+        -fshort-wchar
+        -fPIC
+        -DEFI_FUNCTION_WRAPPER
+        -ffreestanding
+        -O2
+        -Wall
+        -Wextra
+    >
+
+    $<$<COMPILE_LANGUAGE:C>:
+        -ffreestanding
+        -O2
+        -Wall
+        -Wextra
+    >
+
+    $<$<COMPILE_LANGUAGE:ASM>:
+        -ffreestanding
+    >
+)
+
+# ------------------------------------------------------------
+# Source directories
+# ------------------------------------------------------------
+
+set(BLOCKOS_SOURCE_DIRS
+    drivers
+    examples
+    fs
+    kernel
+)
+
+# ------------------------------------------------------------
+# Collect direct C++ sources
+#
+# This intentionally mirrors the current Makefile.
+# ------------------------------------------------------------
+
+set(BLOCKOS_CPP_SOURCES)
+
+foreach(DIR IN LISTS BLOCKOS_SOURCE_DIRS)
+
+    file(GLOB DIR_CPP_SOURCES
+        CONFIGURE_DEPENDS
+        ${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.cpp
+    )
+
+    list(APPEND
+        BLOCKOS_CPP_SOURCES
+        ${DIR_CPP_SOURCES}
+    )
+
+endforeach()
+
+# ------------------------------------------------------------
+# Collect direct assembly sources
+# ------------------------------------------------------------
+
+set(BLOCKOS_ASM_SOURCES)
+
+foreach(DIR IN LISTS BLOCKOS_SOURCE_DIRS)
+
+    file(GLOB DIR_ASM_SOURCES
+        CONFIGURE_DEPENDS
+        ${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.S
+    )
+
+    list(APPEND
+        BLOCKOS_ASM_SOURCES
+        ${DIR_ASM_SOURCES}
+    )
+
+endforeach()
+
+# ------------------------------------------------------------
+# Sources excluded from kernel build
+#
+# Same exclusions as the current Makefile.
+# ------------------------------------------------------------
+
+set(BLOCKOS_EXCLUDED_SOURCES
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/fs/EROFS.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/fs/tmpfs.cpp
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/kernel/login.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/kernel/panic.cpp
+)
+
+foreach(EXCLUDED IN LISTS BLOCKOS_EXCLUDED_SOURCES)
+
+    list(REMOVE_ITEM
+        BLOCKOS_CPP_SOURCES
+        ${EXCLUDED}
+    )
+
+endforeach()
+
+# ------------------------------------------------------------
+# BlockOS network subsystem
+# ------------------------------------------------------------
+
+if(EXISTS
+    "${CMAKE_CURRENT_SOURCE_DIR}/kernel/network/CMakeLists.txt"
+)
+
+    add_subdirectory(
+        kernel/network
+    )
+
+endif()
+
+# ------------------------------------------------------------
+# Kernel object library
+# ------------------------------------------------------------
+
+add_library(blockos_kernel_objects OBJECT
+
+    ${BLOCKOS_CPP_SOURCES}
+    ${BLOCKOS_ASM_SOURCES}
+
+)
+
+set_target_properties(
+    blockos_kernel_objects
+    PROPERTIES
+        POSITION_INDEPENDENT_CODE ON
+)
+
+target_compile_options(
+    blockos_kernel_objects
+    PRIVATE
+
+        -fno-exceptions
+        -fno-rtti
+        -fshort-wchar
+        -fPIC
+        -DEFI_FUNCTION_WRAPPER
+        -ffreestanding
+        -O2
+        -Wall
+        -Wextra
+)
+
+target_include_directories(
+    blockos_kernel_objects
+    PRIVATE
+
+        ${CMAKE_CURRENT_SOURCE_DIR}
+
+        ${EFI_INCL}
+        ${EFI_INCL_X86}
+
+        ${CMAKE_CURRENT_SOURCE_DIR}/arch/86_64x
+        ${CMAKE_CURRENT_SOURCE_DIR}/kernel
+        ${CMAKE_CURRENT_SOURCE_DIR}/drivers
+        ${CMAKE_CURRENT_SOURCE_DIR}/fs
+        ${CMAKE_CURRENT_SOURCE_DIR}/examples
+)
+
+# ------------------------------------------------------------
+# Kernel shared object
+# ------------------------------------------------------------
+
+add_executable(
+    blockos_kernel_so
+    EXCLUDE_FROM_ALL
+
+    ${EFI_CRT}
+
+    $<TARGET_OBJECTS:blockos_kernel_objects>
+)
+
+set_target_properties(
+    blockos_kernel_so
+    PROPERTIES
+
+        OUTPUT_NAME "kernel"
+        SUFFIX ".so"
+
+        LINK_DEPENDS
+            ${GNU_EFI_LDS}
+)
+
+target_link_options(
+    blockos_kernel_so
+    PRIVATE
+
+        -nostdlib
+        -znocombreloc
+
+        -T${GNU_EFI_LDS}
+
+        -shared
+        -Bsymbolic
+
+        -L${GNU_EFI_LIBDIR}
+)
+
+target_link_libraries(
+    blockos_kernel_so
+    PRIVATE
+
+        ${GNU_EFI_LIB}
+        ${EFI_LIB}
+)
+
+# ------------------------------------------------------------
+# BOOTX64.EFI
+# ------------------------------------------------------------
+
+set(BLOCKOS_BUILD_DIR
+    ${CMAKE_BINARY_DIR}
+)
+
+set(BLOCKOS_KERNEL_SO
+    ${BLOCKOS_BUILD_DIR}/kernel.so
+)
+
+set(BLOCKOS_EFI
+    ${BLOCKOS_BUILD_DIR}/BOOTX64.EFI
+)
+
+add_custom_command(
+    OUTPUT
+        ${BLOCKOS_EFI}
+
+    COMMAND
+        ${CMAKE_OBJCOPY}
+
+        -j .text
+        -j .plt
+        -j .init_array
+        -j .ramfs
+        -j .dynstr
+        -j .sdata
+        -j .data
+        -j .dynamic
+        -j .dynsym
+        -j .rel
+        -j .rela
+        -j .rel.*
+        -j .rela.*
+        -j .reloc
+
+        --target=efi-app-x86_64
+
+        ${BLOCKOS_KERNEL_SO}
+        ${BLOCKOS_EFI}
+
+    DEPENDS
+        blockos_kernel_so
+
+    COMMENT
+        "Creating BlockOS BOOTX64.EFI"
+)
+
+add_custom_target(
+    bootx64
+    ALL
+
+    DEPENDS
+        ${BLOCKOS_EFI}
+)
+
+# ------------------------------------------------------------
+# Default target
+# ------------------------------------------------------------
+
+add_custom_target(
+    blockos
+    ALL
+
+    DEPENDS
+        bootx64
+)
+
+# ------------------------------------------------------------
+# Information
+# ------------------------------------------------------------
+
+message(STATUS "")
+message(STATUS "==========================================")
+message(STATUS " BlockOS CMake configuration")
+message(STATUS "==========================================")
+message(STATUS " Architecture : ${BLOCKOS_ARCH}")
+message(STATUS " Compiler     : ${CMAKE_CXX_COMPILER}")
+message(STATUS " EFI include  : ${EFI_INCL}")
+message(STATUS " EFI x86_64   : ${EFI_INCL_X86}")
+message(STATUS " EFI libraries: ${GNU_EFI_LIBDIR}")
+message(STATUS "==========================================")
+message(STATUS "")
