@@ -1,7 +1,11 @@
 #include "scheduler_preempt.hpp"
 
+extern "C" {
 #include <efi.h>
+}
+extern "C" {
 #include <efilib.h>
+}
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>

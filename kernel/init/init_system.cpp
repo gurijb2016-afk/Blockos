@@ -2,8 +2,12 @@
 #include "dependency_graph.hpp"
 #include "../scheduler_preempt.hpp"
 #include "../../fs/vfs.hpp"
+extern "C" {
 #include <efi.h>
+}
+extern "C" {
 #include <efilib.h>
+}
 #include <string.h>
 
 namespace {

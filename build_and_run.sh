@@ -1,5 +1,5 @@
-# Update build_and_run.sh: persist files from persistent/ directory into disk image before boot
 #!/bin/sh
+# Update build_and_run.sh: persist files from persistent/ directory into disk image before boot
 # build_and_run.sh - builds the EFI app, creates a FAT disk image and boots it in QEMU with OVMF
 
 set -e
@@ -36,12 +36,33 @@ if [ -d "$PERSIST_DIR" ]; then
   done
 fi
 
-# QEMU command
-OVMF=/usr/share/ovmf/OVMF_CODE.fd
-if [ ! -f "$OVMF" ]; then
-  echo "OVMF firmware not found at $OVMF. Modify the script to point to your OVMF file." >&2
+# QEMU firmware. OVMF is the UEFI implementation QEMU needs to boot an EFI
+# application at all; the default SeaBIOS is legacy-BIOS only. Distributions
+# disagree on where it lives, and newer ones split it into separate code/vars
+# images, so probe common locations rather than hardcoding one. Combined
+# images come first because this script uses -bios; the split CODE halves are
+# really meant for the pflash pair, but work as a fallback.
+if [ -z "$OVMF" ]; then
+  for candidate in \
+    /usr/share/ovmf/OVMF.fd \
+    /usr/share/qemu/OVMF.fd \
+    /usr/share/OVMF/OVMF.fd \
+    /usr/share/OVMF/OVMF_CODE_4M.fd \
+    /usr/share/OVMF/OVMF_CODE.fd \
+    /usr/share/ovmf/OVMF_CODE.fd \
+    /usr/share/edk2/x64/OVMF_CODE.fd \
+    /usr/share/edk2-ovmf/x64/OVMF_CODE.fd
+  do
+    if [ -f "$candidate" ]; then OVMF="$candidate"; break; fi
+  done
+fi
+
+if [ -z "$OVMF" ] || [ ! -f "$OVMF" ]; then
+  echo "OVMF firmware not found. Install it (Debian/Ubuntu: apt install ovmf)," >&2
+  echo "or run with OVMF=/path/to/OVMF.fd $0" >&2
   exit 1
 fi
+echo "Using OVMF firmware: $OVMF"
 
 # If first argument is 'usb', add USB tablet/mouse device options (experimental)
 USB_OPTS=""

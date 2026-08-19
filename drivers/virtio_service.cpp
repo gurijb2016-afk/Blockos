@@ -1,7 +1,9 @@
 #include "virtio_service.hpp"
 #include "virtio_net_driver.hpp"
 #include "virtio_input.hpp"
+extern "C" {
 #include <efi.h>
+}
 
 static uint64_t g_virtio_tick = 0;
 

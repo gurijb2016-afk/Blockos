@@ -1,7 +1,11 @@
 #include "elf_loader.hpp"
 #include "paging.hpp"
+extern "C" {
 #include <efi.h>
+}
+extern "C" {
 #include <efilib.h>
+}
 #include <string.h>
 
 // Minimal ELF definitions

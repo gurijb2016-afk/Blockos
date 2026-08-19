@@ -5,11 +5,14 @@
 #include "virtio_input.hpp"
 #include "vfs.hpp"
 #include "allocator.hpp"
-#include "drivers/gpu/nvidia/blockos_nvidia.hpp"
 #include "font8x8.h"
 
+extern "C" {
 #include <efi.h>
+}
+extern "C" {
 #include <efilib.h>
+}
 
 #include <stdint.h>
 #include <stddef.h>
@@ -598,20 +601,6 @@ EFI_STATUS EFIAPI efi_main(
         return EFI_ABORTED;
     }
 
-
-    /*
-     * ========================================================
-     * NVIDIA PCI probe
-     * ========================================================
-     *
-     * This is real PCI config-space enumeration through the existing
-     * BlockOS PCI backend. It intentionally stops at device discovery;
-     * GPU register programming/GSP startup belongs to the NVIDIA port.
-     */
-    {
-        blockos::nvidia::DeviceInfo nvidia_device{};
-        (void)blockos::nvidia::probe(nvidia_device);
-    }
 
 
     /*

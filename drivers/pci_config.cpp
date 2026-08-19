@@ -1,6 +1,10 @@
 #include "pci_config.hpp"
+extern "C" {
 #include <efi.h>
+}
+extern "C" {
 #include <efilib.h>
+}
 
 static inline void outl_io(uint16_t port, uint32_t val) {
     __asm__ volatile ("outl %0, %1" : : "a" (val), "dN" (port));

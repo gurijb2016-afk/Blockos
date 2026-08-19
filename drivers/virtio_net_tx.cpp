@@ -5,8 +5,12 @@
 #include "virtqueue_ops.hpp"
 #include "virtio_service.hpp"
 
+extern "C" {
 #include <efi.h>
+}
+extern "C" {
 #include <efilib.h>
+}
 #include <stdint.h>
 #include <stddef.h>
 

@@ -1,6 +1,10 @@
 #include "idt.hpp"
+extern "C" {
 #include <efi.h>
+}
+extern "C" {
 #include <efilib.h>
+}
 #include <cstring>
 
 struct IDTEntry {
