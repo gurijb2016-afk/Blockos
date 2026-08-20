@@ -7,6 +7,7 @@
 #include "proc.hpp"
 #include "ps2keyboard.hpp"
 #include "ps2mouse.hpp"
+#include "sysmem.hpp"
 #include "vfs.hpp"
 #include "virtio_input.hpp"
 
@@ -325,6 +326,68 @@ static void draw_editor(
     }
 }
 
+static void survey_memory_map(
+    const void* map,
+    UINTN map_size,
+    UINTN desc_size,
+    sysmem::SystemMemoryRecord& out)
+{
+    out = sysmem::SystemMemoryRecord{};
+
+    const uint8_t* p = (const uint8_t*) map;
+    const uint8_t* end = p + map_size;
+
+    for (; p + desc_size <= end; p += desc_size)
+    {
+        const EFI_MEMORY_DESCRIPTOR* d =
+            (const EFI_MEMORY_DESCRIPTOR*) p;
+
+        // An EFI page is 4 KiB by definition, whatever the CPU page size is
+        const uint64_t bytes =
+            (uint64_t) d->NumberOfPages * 4096ull;
+
+        out.regions++;
+
+        switch (d->Type)
+        {
+            case EfiConventionalMemory:
+                out.free += bytes;
+
+                if (bytes > out.largest_free)
+                    out.largest_free = bytes;
+
+                break;
+
+            case EfiBootServicesCode:
+            case EfiBootServicesData:
+                out.reclaimable += bytes;
+                break;
+
+            case EfiLoaderCode:
+            case EfiLoaderData:
+                out.kernel += bytes;
+                break;
+
+            case EfiRuntimeServicesCode:
+            case EfiRuntimeServicesData:
+            case EfiACPIReclaimMemory:
+            case EfiACPIMemoryNVS:
+                out.firmware += bytes;
+                break;
+
+            default:
+                continue;
+        }
+
+        out.total += bytes;
+
+        const uint64_t top =
+            (uint64_t) d->PhysicalStart + bytes;
+
+        if (top > out.highest_addr)
+            out.highest_addr = top;
+    }
+}
 
 /*
  * ============================================================
@@ -540,6 +603,24 @@ extern "C" EFI_STATUS EFIAPI efi_main(
             (CHAR16*) L"GetMemoryMap failed: %r\n");
 
         return EFI_ABORTED;
+    }
+
+    /*
+     * ========================================================
+     * System memory survey
+     * ========================================================
+     */
+
+    {
+        sysmem::SystemMemoryRecord record;
+
+        survey_memory_map(
+            memMap,
+            mapSize,
+            descSize,
+            record);
+
+        sysmem::set_record(record);
     }
 
 
@@ -1049,7 +1130,7 @@ extern "C" EFI_STATUS EFIAPI efi_main(
 
                         if (char_length > 0)
                         {
-                            char output[512];
+                            char output[1024];
 
                             size_t written =
                                 Blockos::proc::read(
