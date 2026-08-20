@@ -1,14 +1,15 @@
 #pragma once
 #include <cstdint>
 
-class PS2Mouse {
-public:
+class PS2Mouse
+{
+   public:
     PS2Mouse() = default;
     void init();
     // Non-blocking read: returns INT8_MIN if no byte available
-    int8_t read_byte_nonblocking();
+    int16_t read_byte_nonblocking();
 
-private:
+   private:
     static inline uint8_t inb(uint16_t port);
     static inline void outb(uint16_t port, uint8_t val);
     static void ps2_wait_input_empty();
