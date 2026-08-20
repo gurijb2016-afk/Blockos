@@ -32,6 +32,43 @@ int16_t PS2Keyboard::read_byte_nonblocking()
     return -1;
 }
 
+bool PS2Keyboard::poll(KeyEvent& out)
+{
+    for (;;)
+    {
+        int16_t scan = read_byte_nonblocking();
+
+        if (scan == -1) return false;
+        if (scan == 0x00 || scan == 0xFF) continue; // Error/overrun indicators aren't keys
+        if (skip_ > 0)
+        {
+            skip_--;
+            continue;
+        }
+
+        if (scan == 0xE1)
+        {
+            // Discard pause and break for now
+            skip_ = 5;
+            continue;
+        }
+
+        if (scan == 0xE0)
+        {
+            prefix_ = 0xE0;
+            continue;
+        }
+
+        out.is_pressed = !(scan & 0x80);
+        out.scancode = scan & 0x7F;
+        out.is_extended = (prefix_ == 0xE0);
+
+        prefix_ = 0;
+
+        return true;
+    }
+}
+
 char PS2Keyboard::scancode_to_ascii(uint8_t sc)
 {
     // PS/2 Set 1 scancode to ASCII (partial, common keys)
