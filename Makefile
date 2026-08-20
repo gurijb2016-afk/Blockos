@@ -39,7 +39,12 @@ CXXFLAGS := \
 	-Ikernel \
 	-Idrivers \
 	-Ifs \
-	-Iexamples
+	-Iexamples \
+	-fvisibility=hidden \
+	-MMD \
+	-MP
+
+
 
 # ============================================================
 # ASSEMBLY FLAGS
@@ -49,7 +54,9 @@ ASFLAGS := \
 	-I. \
 	-I$(EFI_INCL) \
 	-I$(EFI_INCL_X86) \
-	-ffreestanding
+	-ffreestanding \
+	-MMD \
+	-MP
 
 # ============================================================
 # LINKER FLAGS
@@ -110,6 +117,12 @@ S_SRC := $(foreach dir,$(S_SRC_DIRS),$(wildcard $(dir)/*.S))
 OBJ := \
 	$(SRC:.cpp=.o) \
 	$(S_SRC:.S=.o)
+
+# ============================================================
+# DEPENDENCY FILES
+# ============================================================
+
+DEP := $(OBJ:.o=.d)
 
 # ============================================================
 # BUILD OUTPUT
@@ -236,6 +249,7 @@ menuconfig:
 
 clean:
 	rm -f $(OBJ)
+	rm -f $(DEP)
 	rm -rf $(BUILD_DIR)
 
 # ============================================================
@@ -251,3 +265,10 @@ rebuild:
 # ============================================================
 
 .PHONY: all clean rebuild menuconfig check-efi
+
+# ============================================================
+# HEADER DEPENDENCIES
+# Must come after all rules
+# ============================================================
+
+-include $(DEP)

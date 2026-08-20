@@ -1,25 +1,28 @@
+#include "allocator.hpp"
 #include "backbuffer.h"
 #include "events.hpp"
-#include "ps2mouse.hpp"
-#include "ps2keyboard.hpp"
-#include "virtio_input.hpp"
-#include "vfs.hpp"
-#include "allocator.hpp"
 #include "font8x8.h"
+#include "ps2keyboard.hpp"
+#include "ps2mouse.hpp"
+#include "vfs.hpp"
+#include "virtio_input.hpp"
 
-extern "C" {
+extern "C"
+{
 #include <efi.h>
 }
-extern "C" {
+extern "C"
+{
 #include <efilib.h>
 }
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 
 
-struct Window {
+struct Window
+{
     int x;
     int y;
     int w;
@@ -43,8 +46,8 @@ static void draw_file_content(
     int x,
     int y,
     int w,
-    int h
-) {
+    int h)
+{
     bb_draw_rect(
         buffer,
         width,
@@ -52,8 +55,7 @@ static void draw_file_content(
         y,
         w,
         h,
-        0x00FFFFFF
-    );
+        0x00FFFFFF);
 
     uint32_t size = 0;
 
@@ -73,12 +75,12 @@ static void draw_file_content(
 
     int cx = 0;
 
-    for (uint32_t i = 0; i < size; ++i) {
+    for (uint32_t i = 0; i < size; ++i)
+    {
+        char c = (char) data[i];
 
-        char c = (char)data[i];
-
-        if (c == '\n' || cx >= cols) {
-
+        if (c == '\n' || cx >= cols)
+        {
             cx = 0;
             ty += 10;
 
@@ -95,8 +97,7 @@ static void draw_file_content(
             tx + cx * 8,
             ty,
             c,
-            0x00000000
-        );
+            0x00000000);
 
         ++cx;
     }
@@ -111,8 +112,8 @@ static void draw_file_content(
 static void draw_file_list(
     uint8_t* buffer,
     uint32_t width,
-    const Window& win
-) {
+    const Window& win)
+{
     int x = win.x + 4;
     int y = win.y + 28;
 
@@ -126,8 +127,7 @@ static void draw_file_list(
         y,
         w,
         h,
-        0x00FFFFFF
-    );
+        0x00FFFFFF);
 
     int tx = win.x + 8;
     int ty = win.y + 32;
@@ -135,8 +135,8 @@ static void draw_file_list(
     size_t count =
         vfs::count_files();
 
-    for (size_t i = 0; i < count; ++i) {
-
+    for (size_t i = 0; i < count; ++i)
+    {
         const char* name =
             vfs::name_at(i);
 
@@ -144,7 +144,7 @@ static void draw_file_list(
             continue;
 
         int line_y =
-            ty + (int)i * 10;
+            ty + (int) i * 10;
 
         if (line_y >= win.y + win.h - 8)
             break;
@@ -155,8 +155,7 @@ static void draw_file_list(
             tx,
             line_y,
             name,
-            0x00000000
-        );
+            0x00000000);
     }
 }
 
@@ -169,8 +168,8 @@ static void draw_file_list(
 static void draw_main_window(
     uint8_t* buffer,
     uint32_t width,
-    const Window& win
-) {
+    const Window& win)
+{
     /*
      * Window
      */
@@ -181,8 +180,7 @@ static void draw_main_window(
         win.y,
         win.w,
         win.h,
-        0x00C0C0C0
-    );
+        0x00C0C0C0);
 
     /*
      * Title bar
@@ -194,8 +192,7 @@ static void draw_main_window(
         win.y,
         win.w,
         24,
-        0x00008080
-    );
+        0x00008080);
 
     /*
      * Title
@@ -206,8 +203,7 @@ static void draw_main_window(
         win.x + 8,
         win.y + 6,
         "BlockOS",
-        0x00FFFFFF
-    );
+        0x00FFFFFF);
 
     /*
      * Content
@@ -219,8 +215,7 @@ static void draw_main_window(
         win.x + 4,
         win.y + 28,
         win.w - 8,
-        win.h - 36
-    );
+        win.h - 36);
 }
 
 
@@ -235,8 +230,8 @@ static void draw_editor(
     const Window& win,
     const char* filename,
     const char* text,
-    size_t length
-) {
+    size_t length)
+{
     /*
      * Window
      */
@@ -247,8 +242,7 @@ static void draw_editor(
         win.y,
         win.w,
         win.h,
-        0x00E0E0E0
-    );
+        0x00E0E0E0);
 
     /*
      * Title
@@ -260,19 +254,17 @@ static void draw_editor(
         win.y,
         win.w,
         24,
-        0x00006060
-    );
+        0x00006060);
 
-    if (filename) {
-
+    if (filename)
+    {
         bb_draw_text(
             buffer,
             width,
             win.x + 8,
             win.y + 6,
             filename,
-            0x00FFFFFF
-        );
+            0x00FFFFFF);
     }
 
     /*
@@ -290,8 +282,7 @@ static void draw_editor(
         area_y,
         area_w,
         area_h,
-        0x00FFFFFF
-    );
+        0x00FFFFFF);
 
     int tx = win.x + 8;
     int ty = win.y + 32;
@@ -303,12 +294,12 @@ static void draw_editor(
 
     int cx = 0;
 
-    for (size_t i = 0; i < length; ++i) {
-
+    for (size_t i = 0; i < length; ++i)
+    {
         char c = text[i];
 
-        if (c == '\n' || cx >= cols) {
-
+        if (c == '\n' || cx >= cols)
+        {
             cx = 0;
             ty += 10;
 
@@ -325,8 +316,7 @@ static void draw_editor(
             tx + cx * 8,
             ty,
             c,
-            0x00000000
-        );
+            0x00000000);
 
         ++cx;
     }
@@ -338,15 +328,13 @@ static void draw_editor(
  * EFI entry point
  * ============================================================
  */
-extern "C"
-EFI_STATUS EFIAPI efi_main(
+extern "C" EFI_STATUS EFIAPI efi_main(
     EFI_HANDLE ImageHandle,
-    EFI_SYSTEM_TABLE* SystemTable
-) {
+    EFI_SYSTEM_TABLE* SystemTable)
+{
     InitializeLib(
         ImageHandle,
-        SystemTable
-    );
+        SystemTable);
 
 
     /*
@@ -361,20 +349,17 @@ EFI_STATUS EFIAPI efi_main(
         EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
 
     EFI_STATUS status =
-        (EFI_STATUS)uefi_call_wrapper(
-            (void*)BS->LocateProtocol,
+        (EFI_STATUS) uefi_call_wrapper(
+            (void*) BS->LocateProtocol,
             3,
             &gopGuid,
             NULL,
-            (void**)&gop
-        );
+            (void**) &gop);
 
-    if (EFI_ERROR(status) || gop == NULL) {
-
+    if (EFI_ERROR(status) || gop == NULL)
+    {
         Print(
-            (CHAR16*)
-            L"Couldn't locate GOP\n"
-        );
+            (CHAR16*) L"Couldn't locate GOP\n");
 
         return EFI_ABORTED;
     }
@@ -389,8 +374,8 @@ EFI_STATUS EFIAPI efi_main(
     Framebuffer fb;
 
     fb.Base =
-        (uint8_t*)(UINTN)
-        gop->Mode->FrameBufferBase;
+        (uint8_t*) (UINTN)
+            gop->Mode->FrameBufferBase;
 
     fb.Width =
         gop->Mode->Info->HorizontalResolution;
@@ -411,8 +396,8 @@ EFI_STATUS EFIAPI efi_main(
      */
 
     UINTN backbuffer_size =
-        (UINTN)fb.Width *
-        (UINTN)fb.Height *
+        (UINTN) fb.Width *
+        (UINTN) fb.Height *
         4;
 
 
@@ -428,22 +413,19 @@ EFI_STATUS EFIAPI efi_main(
     UINT32 descVersion = 0;
 
     status =
-        (EFI_STATUS)uefi_call_wrapper(
-            (void*)BS->GetMemoryMap,
+        (EFI_STATUS) uefi_call_wrapper(
+            (void*) BS->GetMemoryMap,
             5,
             &mapSize,
             NULL,
             &mapKey,
             &descSize,
-            &descVersion
-        );
+            &descVersion);
 
-    if (status != EFI_BUFFER_TOO_SMALL) {
-
+    if (status != EFI_BUFFER_TOO_SMALL)
+    {
         Print(
-            (CHAR16*)
-            L"Unexpected GetMemoryMap status: %r\n"
-        );
+            (CHAR16*) L"Unexpected GetMemoryMap status: %r\n");
 
         return EFI_ABORTED;
     }
@@ -464,20 +446,17 @@ EFI_STATUS EFIAPI efi_main(
     void* memMap = NULL;
 
     status =
-        (EFI_STATUS)uefi_call_wrapper(
-            (void*)BS->AllocatePool,
+        (EFI_STATUS) uefi_call_wrapper(
+            (void*) BS->AllocatePool,
             3,
             EfiLoaderData,
             mapSize,
-            &memMap
-        );
+            &memMap);
 
-    if (EFI_ERROR(status)) {
-
+    if (EFI_ERROR(status))
+    {
         Print(
-            (CHAR16*)
-            L"AllocatePool failed for memMap: %r\n"
-        );
+            (CHAR16*) L"AllocatePool failed for memMap: %r\n");
 
         return EFI_ABORTED;
     }
@@ -492,20 +471,17 @@ EFI_STATUS EFIAPI efi_main(
     void* backbuf = NULL;
 
     status =
-        (EFI_STATUS)uefi_call_wrapper(
-            (void*)BS->AllocatePool,
+        (EFI_STATUS) uefi_call_wrapper(
+            (void*) BS->AllocatePool,
             3,
             EfiLoaderData,
             backbuffer_size,
-            &backbuf
-        );
+            &backbuf);
 
-    if (EFI_ERROR(status)) {
-
+    if (EFI_ERROR(status))
+    {
         Print(
-            (CHAR16*)
-            L"AllocatePool failed for backbuffer: %r\n"
-        );
+            (CHAR16*) L"AllocatePool failed for backbuffer: %r\n");
 
         return EFI_ABORTED;
     }
@@ -523,20 +499,17 @@ EFI_STATUS EFIAPI efi_main(
     void* heapbuf = NULL;
 
     status =
-        (EFI_STATUS)uefi_call_wrapper(
-            (void*)BS->AllocatePool,
+        (EFI_STATUS) uefi_call_wrapper(
+            (void*) BS->AllocatePool,
             3,
             EfiLoaderData,
             heap_size,
-            &heapbuf
-        );
+            &heapbuf);
 
-    if (EFI_ERROR(status)) {
-
+    if (EFI_ERROR(status))
+    {
         Print(
-            (CHAR16*)
-            L"AllocatePool failed for heap: %r\n"
-        );
+            (CHAR16*) L"AllocatePool failed for heap: %r\n");
 
         return EFI_ABORTED;
     }
@@ -549,22 +522,19 @@ EFI_STATUS EFIAPI efi_main(
      */
 
     status =
-        (EFI_STATUS)uefi_call_wrapper(
-            (void*)BS->GetMemoryMap,
+        (EFI_STATUS) uefi_call_wrapper(
+            (void*) BS->GetMemoryMap,
             5,
             &mapSize,
             memMap,
             &mapKey,
             &descSize,
-            &descVersion
-        );
+            &descVersion);
 
-    if (EFI_ERROR(status)) {
-
+    if (EFI_ERROR(status))
+    {
         Print(
-            (CHAR16*)
-            L"GetMemoryMap failed: %r\n"
-        );
+            (CHAR16*) L"GetMemoryMap failed: %r\n");
 
         return EFI_ABORTED;
     }
@@ -578,8 +548,7 @@ EFI_STATUS EFIAPI efi_main(
 
     allocator::init(
         heapbuf,
-        heap_size
-    );
+        heap_size);
 
 
     /*
@@ -589,18 +558,16 @@ EFI_STATUS EFIAPI efi_main(
      */
 
     status =
-        (EFI_STATUS)uefi_call_wrapper(
-            (void*)BS->ExitBootServices,
+        (EFI_STATUS) uefi_call_wrapper(
+            (void*) BS->ExitBootServices,
             2,
             ImageHandle,
-            mapKey
-        );
+            mapKey);
 
-    if (EFI_ERROR(status)) {
-
+    if (EFI_ERROR(status))
+    {
         return EFI_ABORTED;
     }
-
 
 
     /*
@@ -638,14 +605,13 @@ EFI_STATUS EFIAPI efi_main(
      */
 
     Window win{
-        (int)fb.Width / 4,
-        (int)fb.Height / 4,
-        (int)fb.Width / 2,
-        (int)fb.Height / 2,
+        (int) fb.Width / 4,
+        (int) fb.Height / 4,
+        (int) fb.Width / 2,
+        (int) fb.Height / 2,
         false,
         0,
-        0
-    };
+        0};
 
 
     /*
@@ -655,22 +621,19 @@ EFI_STATUS EFIAPI efi_main(
      */
 
     bb_clear(
-        (uint8_t*)backbuf,
+        (uint8_t*) backbuf,
         fb.Width,
         fb.Height,
-        0x00303030
-    );
+        0x00303030);
 
     draw_main_window(
-        (uint8_t*)backbuf,
+        (uint8_t*) backbuf,
         fb.Width,
-        win
-    );
+        win);
 
     bb_blit_to_fb(
         &fb,
-        (const uint8_t*)backbuf
-    );
+        (const uint8_t*) backbuf);
 
 
     /*
@@ -680,10 +643,10 @@ EFI_STATUS EFIAPI efi_main(
      */
 
     int cursor_x =
-        (int)fb.Width / 2;
+        (int) fb.Width / 2;
 
     int cursor_y =
-        (int)fb.Height / 2;
+        (int) fb.Height / 2;
 
 
     /*
@@ -720,15 +683,15 @@ EFI_STATUS EFIAPI efi_main(
      * ========================================================
      */
 
-    while (1) {
-
+    while (1)
+    {
         /*
          * ----------------------------------------------------
          * Keyboard
          * ----------------------------------------------------
          */
 
-        int8_t kb =
+        int16_t kb =
             keyboard.read_byte_nonblocking();
 
 
@@ -738,197 +701,191 @@ EFI_STATUS EFIAPI efi_main(
          * ----------------------------------------------------
          */
 
-        int8_t mb =
+        int16_t mb =
             mouse.read_byte_nonblocking();
 
-        if (mb != INT8_MIN) {
+        if (mb != -1)
 
+            // TODO? Desync recovery if bit 3 != 1
             packet[packet_index++] =
-                (uint8_t)mb;
+                (uint8_t) mb;
 
-            if (packet_index == 3) {
+        if (packet_index == 3)
+        {
+            packet_index = 0;
 
-                packet_index = 0;
+            uint8_t buttons =
+                packet[0];
 
-                uint8_t buttons =
-                    packet[0];
+            int8_t dx =
+                (int8_t) packet[1];
 
-                int8_t dx =
-                    (int8_t)packet[1];
-
-                int8_t dy =
-                    (int8_t)packet[2];
+            int8_t dy =
+                (int8_t) packet[2];
 
 
-                /*
+            /*
                  * Cursor movement
                  */
-                cursor_x += dx;
-                cursor_y -= dy;
+            cursor_x += dx;
+            cursor_y -= dy;
 
 
-                /*
+            /*
                  * X bounds
                  */
-                if (cursor_x < 0) {
-                    cursor_x = 0;
-                }
+            if (cursor_x < 0)
+            {
+                cursor_x = 0;
+            }
 
-                if (cursor_x >= (int)fb.Width) {
-                    cursor_x =
-                        (int)fb.Width - 1;
-                }
+            if (cursor_x >= (int) fb.Width)
+            {
+                cursor_x =
+                    (int) fb.Width - 1;
+            }
 
 
-                /*
+            /*
                  * Y bounds
                  */
-                if (cursor_y < 0) {
-                    cursor_y = 0;
-                }
+            if (cursor_y < 0)
+            {
+                cursor_y = 0;
+            }
 
-                if (cursor_y >= (int)fb.Height) {
-                    cursor_y =
-                        (int)fb.Height - 1;
-                }
+            if (cursor_y >= (int) fb.Height)
+            {
+                cursor_y =
+                    (int) fb.Height - 1;
+            }
 
 
-                /*
+            /*
                  * Left mouse button
                  */
-                bool new_left =
-                    (buttons & 1) != 0;
+            bool new_left =
+                (buttons & 1) != 0;
 
 
-                /*
+            /*
                  * ------------------------------------------------
                  * Mouse press
                  * ------------------------------------------------
                  */
 
-                if (new_left && !left_pressed) {
+            if (new_left && !left_pressed)
+            {
+                if (!in_editor)
+                {
+                    int list_x =
+                        win.x + 8;
 
-                    if (!in_editor) {
+                    int list_y =
+                        win.y + 32;
 
-                        int list_x =
-                            win.x + 8;
+                    int list_w =
+                        win.w - 16;
 
-                        int list_y =
-                            win.y + 32;
-
-                        int list_w =
-                            win.w - 16;
-
-                        int list_h =
-                            win.h - 36;
-
-
-                        if (
-                            cursor_x >= list_x &&
-                            cursor_x < list_x + list_w &&
-                            cursor_y >= list_y &&
-                            cursor_y < list_y + list_h
-                        ) {
-
-                            int index =
-                                (cursor_y - list_y) / 10;
+                    int list_h =
+                        win.h - 36;
 
 
-                            if (index >= 0) {
+                    if (
+                        cursor_x >= list_x &&
+                        cursor_x < list_x + list_w &&
+                        cursor_y >= list_y &&
+                        cursor_y < list_y + list_h)
+                    {
+                        int index =
+                            (cursor_y - list_y) / 10;
 
-                                size_t count =
-                                    vfs::count_files();
 
-                                if (
-                                    (size_t)index <
-                                    count
-                                ) {
+                        if (index >= 0)
+                        {
+                            size_t count =
+                                vfs::count_files();
 
-                                    const char* name =
-                                        vfs::name_at(
-                                            (size_t)index
-                                        );
+                            if (
+                                (size_t) index <
+                                count)
+                            {
+                                const char* name =
+                                    vfs::name_at(
+                                        (size_t) index);
 
-                                    if (name) {
+                                if (name)
+                                {
+                                    uint32_t file_size =
+                                        0;
 
-                                        uint32_t file_size =
-                                            0;
+                                    const uint8_t* data =
+                                        vfs::read_file(
+                                            name,
+                                            &file_size);
 
-                                        const uint8_t* data =
-                                            vfs::read_file(
-                                                name,
-                                                &file_size
-                                            );
-
-                                        if (data) {
-
-                                            /*
+                                    if (data)
+                                    {
+                                        /*
                                              * Editor buffer
                                              */
-                                            editor_cap =
-                                                (size_t)file_size +
-                                                4096;
+                                        editor_cap =
+                                            (size_t) file_size +
+                                            4096;
 
-                                            editor_buf =
-                                                (char*)
+                                        editor_buf =
+                                            (char*)
                                                 allocator::alloc(
-                                                    editor_cap
-                                                );
+                                                    editor_cap);
 
-                                            if (editor_buf) {
+                                        if (editor_buf)
+                                        {
+                                            memcpy(
+                                                editor_buf,
+                                                data,
+                                                file_size);
 
-                                                memcpy(
-                                                    editor_buf,
-                                                    data,
-                                                    file_size
-                                                );
-
-                                                editor_len =
-                                                    (size_t)file_size;
+                                            editor_len =
+                                                (size_t) file_size;
 
 
-                                                /*
+                                            /*
                                                  * Filename
                                                  */
-                                                size_t name_len =
-                                                    strlen(name);
+                                            size_t name_len =
+                                                strlen(name);
 
-                                                editor_name =
-                                                    (char*)
+                                            editor_name =
+                                                (char*)
                                                     allocator::alloc(
-                                                        name_len + 1
-                                                    );
+                                                        name_len + 1);
 
-                                                if (editor_name) {
+                                            if (editor_name)
+                                            {
+                                                strcpy(
+                                                    editor_name,
+                                                    name);
 
-                                                    strcpy(
-                                                        editor_name,
-                                                        name
-                                                    );
-
-                                                    in_editor =
-                                                        true;
+                                                in_editor =
+                                                    true;
 
 
-                                                    draw_editor(
-                                                        (uint8_t*)backbuf,
-                                                        fb.Width,
-                                                        win,
-                                                        editor_name,
-                                                        editor_buf,
-                                                        editor_len
-                                                    );
+                                                draw_editor(
+                                                    (uint8_t*) backbuf,
+                                                    fb.Width,
+                                                    win,
+                                                    editor_name,
+                                                    editor_buf,
+                                                    editor_len);
 
 
-                                                    bb_blit_region_to_fb(
-                                                        &fb,
-                                                        (const uint8_t*)backbuf,
-                                                        win.x,
-                                                        win.y,
-                                                        win.w,
-                                                        win.h
-                                                    );
-                                                }
+                                                bb_blit_region_to_fb(
+                                                    &fb,
+                                                    (const uint8_t*) backbuf,
+                                                    win.x,
+                                                    win.y,
+                                                    win.w,
+                                                    win.h);
                                             }
                                         }
                                     }
@@ -937,18 +894,19 @@ EFI_STATUS EFIAPI efi_main(
                         }
                     }
                 }
+            }
 
 
-                /*
+            /*
                  * Mouse release
                  */
-                if (!new_left && left_pressed) {
-                    /* nothing */
-                }
-
-                left_pressed =
-                    new_left;
+            if (!new_left && left_pressed)
+            {
+                /* nothing */
             }
+
+            left_pressed =
+                new_left;
         }
 
 
@@ -958,15 +916,14 @@ EFI_STATUS EFIAPI efi_main(
          * ====================================================
          */
 
-        if (kb != INT8_MIN) {
-
-            uint8_t scan =
-                (uint8_t)kb;
+        if (kb != -1)
+        {
+            int16_t scan =
+                (int16_t) kb;
 
             char ch =
                 PS2Keyboard::scancode_to_ascii(
-                    scan
-                );
+                    scan);
 
 
             /*
@@ -975,64 +932,58 @@ EFI_STATUS EFIAPI efi_main(
              * ------------------------------------------------
              */
 
-            if (in_editor) {
-
+            if (in_editor)
+            {
                 /*
                  * ESC = exit editor
                  */
-                if (scan == 0x01) {
-
+                if (scan == 0x01)
+                {
                     in_editor = false;
 
                     draw_main_window(
-                        (uint8_t*)backbuf,
+                        (uint8_t*) backbuf,
                         fb.Width,
-                        win
-                    );
+                        win);
 
                     bb_blit_region_to_fb(
                         &fb,
-                        (const uint8_t*)backbuf,
+                        (const uint8_t*) backbuf,
                         win.x,
                         win.y,
                         win.w,
-                        win.h
-                    );
+                        win.h);
                 }
 
                 /*
                  * CTRL+S / save can be added once the keyboard
                  * modifier API is known.
                  */
-                else if (ch) {
-
+                else if (ch)
+                {
                     if (editor_len + 1 <
-                        editor_cap) {
-
-                        editor_buf[
-                            editor_len++
-                        ] = ch;
+                        editor_cap)
+                    {
+                        editor_buf[editor_len++] = ch;
                     }
 
 
                     draw_editor(
-                        (uint8_t*)backbuf,
+                        (uint8_t*) backbuf,
                         fb.Width,
                         win,
                         editor_name,
                         editor_buf,
-                        editor_len
-                    );
+                        editor_len);
 
 
                     bb_blit_region_to_fb(
                         &fb,
-                        (const uint8_t*)backbuf,
+                        (const uint8_t*) backbuf,
                         win.x,
                         win.y,
                         win.w,
-                        win.h
-                    );
+                        win.h);
                 }
             }
 
@@ -1043,39 +994,36 @@ EFI_STATUS EFIAPI efi_main(
              * ------------------------------------------------
              */
 
-            else {
-
-                if (ch) {
-
+            else
+            {
+                if (ch)
+                {
                     /*
                      * L = list files
                      */
                     if (
                         ch == 'l' ||
-                        ch == 'L'
-                    ) {
-
+                        ch == 'L')
+                    {
                         draw_file_list(
-                            (uint8_t*)backbuf,
+                            (uint8_t*) backbuf,
                             fb.Width,
-                            win
-                        );
+                            win);
 
                         bb_blit_region_to_fb(
                             &fb,
-                            (const uint8_t*)backbuf,
+                            (const uint8_t*) backbuf,
                             win.x,
                             win.y,
                             win.w,
-                            win.h
-                        );
+                            win.h);
                     }
 
                     /*
                      * Any other character
                      */
-                    else {
-
+                    else
+                    {
                         char text[2];
 
                         text[0] = ch;
@@ -1083,34 +1031,31 @@ EFI_STATUS EFIAPI efi_main(
 
 
                         bb_draw_rect(
-                            (uint8_t*)backbuf,
+                            (uint8_t*) backbuf,
                             fb.Width,
                             win.x + win.w - 48,
                             win.y + 4,
                             40,
                             16,
-                            0x00FFFFC0
-                        );
+                            0x00FFFFC0);
 
 
                         bb_draw_text(
-                            (uint8_t*)backbuf,
+                            (uint8_t*) backbuf,
                             fb.Width,
                             win.x + win.w - 44,
                             win.y + 6,
                             text,
-                            0x00000000
-                        );
+                            0x00000000);
 
 
                         bb_blit_region_to_fb(
                             &fb,
-                            (const uint8_t*)backbuf,
+                            (const uint8_t*) backbuf,
                             win.x + win.w - 48,
                             win.y + 4,
                             40,
-                            16
-                        );
+                            16);
                     }
                 }
             }
@@ -1123,7 +1068,7 @@ EFI_STATUS EFIAPI efi_main(
          * ====================================================
          */
 
-        __asm__ volatile("hlt");
+        __asm__ volatile("pause");
     }
 
 
