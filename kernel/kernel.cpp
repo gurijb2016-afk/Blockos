@@ -1,5 +1,6 @@
 #include "allocator.hpp"
 #include "backbuffer.h"
+#include "drivers/Keymap.hpp"
 #include "events.hpp"
 #include "font8x8.h"
 #include "ps2keyboard.hpp"
@@ -593,9 +594,14 @@ extern "C" EFI_STATUS EFIAPI efi_main(
 
     PS2Mouse mouse;
     PS2Keyboard keyboard;
+    Keymap keymap;
 
     mouse.init();
     keyboard.init();
+
+    char char_buffer[256] = {0};
+    size_t char_length = 0;
+    size_t char_cap = sizeof(char_buffer);
 
 
     /*
@@ -691,8 +697,9 @@ extern "C" EFI_STATUS EFIAPI efi_main(
          * ----------------------------------------------------
          */
 
-        int16_t kb =
-            keyboard.read_byte_nonblocking();
+        KeyEvent key_event;
+        bool kb =
+            keyboard.poll(key_event);
 
 
         /*
@@ -916,15 +923,10 @@ extern "C" EFI_STATUS EFIAPI efi_main(
          * ====================================================
          */
 
-        if (kb != -1)
+        if (kb)
         {
-            int16_t scan =
-                (int16_t) kb;
-
-            char ch =
-                PS2Keyboard::scancode_to_ascii(
-                    scan);
-
+            KeyPress key = keymap.translate(key_event);
+            char ch = key.ch;
 
             /*
              * ------------------------------------------------
@@ -937,7 +939,7 @@ extern "C" EFI_STATUS EFIAPI efi_main(
                 /*
                  * ESC = exit editor
                  */
-                if (scan == 0x01)
+                if (key.key == NonCharacterKey::Escape)
                 {
                     in_editor = false;
 
@@ -996,71 +998,58 @@ extern "C" EFI_STATUS EFIAPI efi_main(
 
             else
             {
-                if (ch)
+                if (ch || key.key != NonCharacterKey::None)
                 {
-                    /*
-                     * L = list files
-                     */
-                    if (
-                        ch == 'l' ||
-                        ch == 'L')
-                    {
-                        draw_file_list(
-                            (uint8_t*) backbuf,
-                            fb.Width,
-                            win);
+                    /* TERMINAL INPUT */
 
-                        bb_blit_region_to_fb(
-                            &fb,
-                            (const uint8_t*) backbuf,
-                            win.x,
-                            win.y,
-                            win.w,
-                            win.h);
+                    if (key.key == NonCharacterKey::Backspace) // backspace
+                    {
+                        if (char_length > 0)
+                        {
+                            char_buffer[--char_length] = 0;
+                        }
                     }
 
-                    /*
-                     * Any other character
-                     */
-                    else
+                    if (char_length + 1 < char_cap && ch)
                     {
-                        char text[2];
-
-                        text[0] = ch;
-                        text[1] = '\0';
-
-
-                        bb_draw_rect(
-                            (uint8_t*) backbuf,
-                            fb.Width,
-                            win.x + win.w - 48,
-                            win.y + 4,
-                            40,
-                            16,
-                            0x00FFFFC0);
-
-
-                        bb_draw_text(
-                            (uint8_t*) backbuf,
-                            fb.Width,
-                            win.x + win.w - 44,
-                            win.y + 6,
-                            text,
-                            0x00000000);
-
-
-                        bb_blit_region_to_fb(
-                            &fb,
-                            (const uint8_t*) backbuf,
-                            win.x + win.w - 48,
-                            win.y + 4,
-                            40,
-                            16);
+                        char_buffer[char_length++] = ch;
+                        char_buffer[char_length] = 0; // null-terminate
                     }
+
+
+                    size_t strip_x = win.x + 1;
+                    size_t strip_w = win.w - 2;
+                    size_t strip_h = 10;
+                    size_t strip_y = win.y + win.h - strip_h - 1;
+                    bb_draw_rect(
+                        (uint8_t*) backbuf,
+                        fb.Width,
+                        strip_x,
+                        strip_y,
+                        strip_w,
+                        strip_h,
+                        0x00FFFFC0);
+
+
+                    bb_draw_text(
+                        (uint8_t*) backbuf,
+                        fb.Width,
+                        strip_x,
+                        strip_y,
+                        char_buffer,
+                        0x00000000);
+
+
+                    bb_blit_region_to_fb(
+                        &fb,
+                        (const uint8_t*) backbuf,
+                        strip_x,
+                        strip_y,
+                        strip_w,
+                        strip_h);
                 }
             }
         }
-
 
         /*
          * ====================================================
