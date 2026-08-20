@@ -1,11 +1,14 @@
-#include "vfs.hpp"
-#include "../kernel/allocator.hpp"
-
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
-namespace Blockos {
-namespace proc {
+#include "../kernel/allocator.hpp"
+#include "vfs.hpp"
+
+
+namespace Blockos
+{
+namespace proc
+{
 
 /*
  * ============================================================
@@ -167,22 +170,6 @@ static bool append_uint(
         number);
 }
 
-
-/*
- * ============================================================
- *  /proc/meminfo
- *
- *  A jelenlegi allocator API csak:
- *
- *      allocator::init()
- *      allocator::alloc()
- *      allocator::reset()
- *
- *  ezért nincs kitalált get_free_memory() /
- *  get_total_memory() hívás.
- * ============================================================
- */
-
 static size_t read_meminfo(
     char* buffer,
     size_t max_size)
@@ -190,38 +177,49 @@ static size_t read_meminfo(
     if (!buffer || max_size == 0)
         return 0;
 
+    //caller that ignores the return value would read stack garbage if the very first append does not fit
+    buffer[0] = '\0';
+
     size_t pos = 0;
 
-    /*
-     * A tényleges memória-statisztika jelenlegi allocator
-     * interfészén keresztül nem kérhető le.
-     *
-     * Ezért egy korrekt, nem hazudó státuszt adunk.
-     */
+    const allocator::AllocRecord& record =
+        allocator::get_record();
 
-    append_string(
-        buffer,
-        max_size,
-        pos,
-        "MemTotal: unknown kB\n");
+    const uint64_t free_bytes =
+        record.total - record.used;
 
-    append_string(
-        buffer,
-        max_size,
-        pos,
-        "MemFree: unknown kB\n");
+    struct Row
+    {
+        const char* label;
+        uint64_t value;
+        const char* suffix;
+    };
 
-    append_string(
-        buffer,
-        max_size,
-        pos,
-        "MemAvailable: unknown kB\n");
+    const Row rows[] =
+        {
+            {"MemTotal:      ", record.total / 1024, " kB\n"},
+            {"MemFree:       ", free_bytes / 1024, " kB\n"},
+            {"MemAvailable:  ", free_bytes / 1024, " kB\n"},
+            {"MemPeak:       ", record.peak / 1024, " kB\n"},
+            {"Watermark:     ", record.offset / 1024, " kB\n"},
+            {"Allocs:        ", record.alloc_count, "\n"},
+            {"Frees:         ", record.free_count, "\n"},
+            {"AllocFailed:   ", record.alloc_failed, "\n"},
+            {"FreeRejected:  ", record.free_rejected, "\n"},
+        };
 
-    append_string(
-        buffer,
-        max_size,
-        pos,
-        "BlockOSAllocator: active\n");
+    // A failed append leaves pos untouched and would cause a missing line, so stop at the first failure instead
+    for (const Row& row : rows)
+    {
+        if (!append_string(buffer, max_size, pos, row.label))
+            return pos;
+
+        if (!append_uint(buffer, max_size, pos, row.value))
+            return pos;
+
+        if (!append_string(buffer, max_size, pos, row.suffix))
+            return pos;
+    }
 
     return pos;
 }
@@ -435,37 +433,24 @@ struct ProcFile
 };
 
 static const ProcFile proc_files[] =
-{
     {
-        "meminfo",
-        read_meminfo
-    },
+        {"meminfo",
+         read_meminfo},
 
-    {
-        "version",
-        read_version
-    },
+        {"version",
+         read_version},
 
-    {
-        "uptime",
-        read_uptime
-    },
+        {"uptime",
+         read_uptime},
 
-    {
-        "filesystems",
-        read_filesystems
-    },
+        {"filesystems",
+         read_filesystems},
 
-    {
-        "cmdline",
-        read_cmdline
-    },
+        {"cmdline",
+         read_cmdline},
 
-    {
-        "self/status",
-        read_self_status
-    }
-};
+        {"self/status",
+         read_self_status}};
 
 
 static constexpr size_t PROC_FILE_COUNT =
