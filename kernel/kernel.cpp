@@ -7,6 +7,7 @@
 #include "proc.hpp"
 #include "ps2keyboard.hpp"
 #include "ps2mouse.hpp"
+#include "shell.hpp"
 #include "sysmem.hpp"
 #include "vfs.hpp"
 #include "virtio_input.hpp"
@@ -391,6 +392,229 @@ static void survey_memory_map(
 
 /*
  * ============================================================
+ * Command dispatch
+ * ============================================================
+ */
+
+static bool name_matches(const char* a, const char* b)
+{
+    size_t i = 0;
+
+    while (a[i] != '\0' && a[i] == b[i])
+        ++i;
+
+    return a[i] == b[i];
+}
+
+static void print_command_list(Console& out)
+{
+    for (size_t i = 0; i < Blockos::proc::count(); ++i)
+    {
+        if (i)
+            out.print(" ");
+
+        out.print(Blockos::proc::name_at(i));
+    }
+
+    out.newline();
+}
+
+static void run_command(const char* line, Console& out)
+{
+    if (line[0] == '\0')
+        return;
+
+    if (name_matches(line, "clear"))
+    {
+        out.clear();
+        return;
+    }
+
+    if (name_matches(line, "help"))
+    {
+        out.print("commands: clear help ");
+        print_command_list(out);
+        return;
+    }
+
+    char output[1024];
+
+    const size_t written =
+        Blockos::proc::read(
+            line,
+            output,
+            sizeof(output));
+
+    if (written > 0)
+    {
+        out.print(output);
+        return;
+    }
+
+    out.print("unknown command: ");
+    out.print(line);
+    out.newline();
+}
+
+/*
+ * ============================================================
+ * Splash screen
+ * ============================================================
+ */
+static size_t text_length(const char* s)
+{
+    size_t n = 0;
+
+    while (s[n] != '\0')
+        ++n;
+
+    return n;
+}
+
+static void draw_centered(
+    uint8_t* buffer,
+    uint32_t width,
+    int area_x,
+    int area_w,
+    int y,
+    const char* text,
+    uint32_t color)
+{
+    const int text_w = (int) (text_length(text) * 8);
+
+    if (text_w > area_w)
+        return;
+
+    bb_draw_text(
+        buffer,
+        width,
+        (uint32_t) (area_x + (area_w - text_w) / 2),
+        (uint32_t) y,
+        text,
+        color);
+}
+
+static void draw_block_art(
+    uint8_t* buffer,
+    uint32_t width,
+    int x,
+    int y,
+    const char* const* rows,
+    int row_count,
+    int line_h,
+    uint32_t color)
+{
+    for (int i = 0; i < row_count; ++i)
+    {
+        bb_draw_text(
+            buffer,
+            width,
+            (uint32_t) x,
+            (uint32_t) (y + i * line_h),
+            rows[i],
+            color);
+    }
+}
+
+static void draw_splash(
+    uint8_t* buffer,
+    uint32_t width,
+    uint32_t height)
+{
+    const int w = (int) width;
+    const int h = (int) height;
+
+    bb_clear(buffer, width, height, 0x00101820);
+
+    // clang-format off
+    const char* banner[5] = {
+    "    _|_|_|    _|                      _|          _|_|      _|_|_|",
+    "    _|    _|  _|    _|_|      _|_|_|  _|  _|    _|    _|  _|",
+    "    _|_|_|    _|  _|    _|  _|        _|_|      _|    _|    _|_|",
+    "    _|    _|  _|  _|    _|  _|        _|  _|    _|    _|        _|",
+    "    _|_|_|    _|    _|_|      _|_|_|  _|    _|    _|_|    _|_|_|"
+    };
+    // clang-format on
+
+    //ASCII art of Saturn from https://asciiart.website/art/2534
+    const char* saturn[36] = {
+        "                                                                  ..;===+.",
+        "                                                              .:=iiiiii=+=",
+        "                                                           .=i))=;::+)i=+,",
+        "                                                        ,=i);)I)))I):=i=;",
+        "                                                     .=i==))))ii)))I:i++",
+        "                                                   +)+))iiiiiiii))I=i+:'",
+        "                              .,:;;++++++;:,.       )iii+:::;iii))+i='",
+        "                           .:;++=iiiiiiiiii=++;.    =::,,,:::=i));=+'",
+        "                         ,;+==ii)))))))))))ii==+;,      ,,,:=i))+=:",
+        "                       ,;+=ii))))))IIIIII))))ii===;.    ,,:=i)=i+",
+        "                      ;+=ii)))IIIIITIIIIII))))iiii=+,   ,:=));=,",
+        "                    ,+=i))IIIIIITTTTTITIIIIII)))I)i=+,,:+i)=i+",
+        "                   ,+i))IIIIIITTTTTTTTTTTTI))IIII))i=::i))i='",
+        "                  ,=i))IIIIITLLTTTTTTTTTTIITTTTIII)+;+i)+i`",
+        "                  =i))IIITTLTLTTTTTTTTTIITTLLTTTII+:i)ii:'",
+        "                 +i))IITTTLLLTTTTTTTTTTTTLLLTTTT+:i)))=,",
+        "                 =))ITTTTTTTTTTTLTTTTTTLLLLLLTi:=)IIiii;",
+        "                .i)IIITTTTTTTTLTTTITLLLLLLLT);=)I)))))i;",
+        "                :))IIITTTTTLTTTTTTLLHLLLLL);=)II)IIIIi=:",
+        "                :i)IIITTTTTTTTTLLLHLLHLL)+=)II)ITTTI)i=",
+        "                .i)IIITTTTITTLLLHHLLLL);=)II)ITTTTII)i+",
+        "                =i)IIIIIITTLLLLLLHLL=:i)II)TTTTTTIII)i'",
+        "              +i)i)))IITTLLLLLLLLT=:i)II)TTTTLTTIII)i;",
+        "            +ii)i:)IITTLLTLLLLT=;+i)I)ITTTTLTTTII))i;",
+        "           =;)i=:,=)ITTTTLTTI=:i))I)TTTLLLTTTTTII)i;",
+        "         +i)ii::,  +)IIITI+:+i)I))TTTTLLTTTTTII))=,",
+        "       :=;)i=:,,    ,i++::i))I)ITTTTTTTTTTIIII)=+'",
+        "     .+ii)i=::,,   ,,::=i)))iIITTTTTTTTIIIII)=+",
+        "    ,==)ii=;:,,,,:::=ii)i)iIIIITIIITIIII))i+:'",
+        "   +=:))i==;:::;=iii)+)=  `:i)))IIIII)ii+'",
+        " .+=:))iiiiiiii)))+ii;",
+        ".+=;))iiiiii)));ii+",
+        ".+=i:)))))))=+ii+",
+        ".;==i+::::=)i=;",
+        ",+==iiiiii+,",
+        "`+=+++;`",
+    };
+
+    const int line_h = 10;
+
+    // Banner in the top-left quadrant
+    const int title_x = w / 16;
+    const int title_y = h / 10;
+    const int title_w = 34 * 8;
+
+    if (title_x + title_w <= w)
+    {
+        draw_block_art(
+            buffer, width, title_x, title_y, banner, 5, line_h, 0x0000C0C0);
+
+        bb_draw_text(
+            buffer,
+            width,
+            (uint32_t) title_x,
+            (uint32_t) (title_y + 6 * line_h),
+            "x86-64 UEFI",
+            0x00808080);
+    }
+
+    const int art_w = 76 * 8;
+    const int art_h = 36 * 8;
+    const int art_x = w - art_w - 32;
+    const int art_y = (h - art_h) / 2;
+
+    if (art_x > title_x + title_w + 16 && art_y >= 0 && art_y + art_h <= h)
+    {
+        draw_block_art(
+            buffer, width, art_x, art_y, saturn, 36, 8, 0x00C02828);
+    }
+
+    draw_centered(
+        buffer, width, 0, w, h - 48, "press any key to continue", 0x00FFFFFF);
+}
+
+
+/*
+ * ============================================================
  * EFI entry point
  * ============================================================
  */
@@ -703,6 +927,22 @@ extern "C" EFI_STATUS EFIAPI efi_main(
         0};
 
     static Console console;
+    static Shell shell;
+
+    /*
+     * The console and shell exist and accumulate output from boot, but nothing
+     * of theirs is drawn until the splash is dismissed.
+     */
+    bool splash_active = true;
+
+    shell.attach(
+        console,
+        win.x + 1,
+        win.y + win.h - 11,
+        win.w - 2,
+        10);
+
+    shell.set_handler(run_command);
 
     console.attach(
         win.x + 4,
@@ -733,20 +973,10 @@ extern "C" EFI_STATUS EFIAPI efi_main(
      * ========================================================
      */
 
-    bb_clear(
+    draw_splash(
         (uint8_t*) backbuf,
         fb.Width,
-        fb.Height,
-        0x00303030);
-
-    draw_main_window(
-        (uint8_t*) backbuf,
-        fb.Width,
-        win);
-
-    console.render(
-        (uint8_t*) backbuf,
-        fb.Width);
+        fb.Height);
 
 
     bb_blit_to_fb(
@@ -1037,6 +1267,30 @@ extern "C" EFI_STATUS EFIAPI efi_main(
 
         if (kb)
         {
+            if (splash_active)
+            {
+                if (key_event.is_pressed)
+                {
+                    splash_active = false;
+
+                    bb_clear(
+                        (uint8_t*) backbuf,
+                        fb.Width,
+                        fb.Height,
+                        0x00303030);
+
+                    draw_main_window(
+                        (uint8_t*) backbuf,
+                        fb.Width,
+                        win);
+
+                    bb_blit_to_fb(
+                        &fb,
+                        (const uint8_t*) backbuf);
+                }
+                continue;
+            }
+
             KeyPress key = keymap.translate(key_event);
             char ch = key.ch;
 
@@ -1110,92 +1364,11 @@ extern "C" EFI_STATUS EFIAPI efi_main(
 
             else
             {
-                if (ch || key.key != NonCharacterKey::None)
-                {
-                    /* TERMINAL INPUT */
-
-                    if (key.key == NonCharacterKey::Backspace) // backspace
-                    {
-                        if (char_length > 0)
-                        {
-                            char_buffer[--char_length] = 0;
-                        }
-                    }
-
-                    if (key.key == NonCharacterKey::Enter)
-                    {
-                        console.print("> ");
-                        console.print(char_buffer);
-                        console.newline();
-
-                        if (char_length > 0)
-                        {
-                            char output[1024];
-
-                            size_t written =
-                                Blockos::proc::read(
-                                    char_buffer,
-                                    output,
-                                    sizeof(output));
-
-                            if (written > 0)
-                            {
-                                console.print(output);
-                            }
-                            else
-                            {
-                                console.print("unknown command: ");
-                                console.print(char_buffer);
-                                console.newline();
-                            }
-                        }
-
-                        char_length = 0;
-                        char_buffer[0] = 0;
-                    }
-
-                    if (ch && char_length + 1 < char_cap)
-                    {
-                        char_buffer[char_length++] = ch;
-                        char_buffer[char_length] = 0; // null-terminate
-                    }
-
-
-                    size_t strip_x = win.x + 1;
-                    size_t strip_w = win.w - 2;
-                    size_t strip_h = 10;
-                    size_t strip_y = win.y + win.h - strip_h - 1;
-                    bb_draw_rect(
-                        (uint8_t*) backbuf,
-                        fb.Width,
-                        strip_x,
-                        strip_y,
-                        strip_w,
-                        strip_h,
-                        0x00FFFFC0);
-
-
-                    bb_draw_text(
-                        (uint8_t*) backbuf,
-                        fb.Width,
-                        strip_x,
-                        strip_y,
-                        char_buffer,
-                        0x00000000);
-
-
-                    bb_blit_region_to_fb(
-                        &fb,
-                        (const uint8_t*) backbuf,
-                        strip_x,
-                        strip_y,
-                        strip_w,
-                        strip_h);
-                }
+                shell.handle(key);
             }
         }
 
-        if (console.dirty())
+        if (!splash_active && console.dirty())
         {
             console.render(
                 (uint8_t*) backbuf,
@@ -1208,6 +1381,19 @@ extern "C" EFI_STATUS EFIAPI efi_main(
                 console.y(),
                 console.w(),
                 console.h());
+        }
+
+        if (!splash_active && shell.dirty())
+        {
+            shell.render((uint8_t*) backbuf, fb.Width);
+
+            bb_blit_region_to_fb(
+                &fb,
+                (const uint8_t*) backbuf,
+                shell.x(),
+                shell.y(),
+                shell.w(),
+                shell.h());
         }
 
         /*

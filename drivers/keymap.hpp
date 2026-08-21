@@ -185,7 +185,7 @@ class Keymap
 
     KeyPress translate(const KeyEvent& event)
     {
-        KeyPress key_press{0};
+        KeyPress key_press{};
 
         switch (event.scancode)
         {
@@ -193,10 +193,9 @@ class Keymap
                 ctrl_pressed_ = event.is_pressed;
                 return key_press;
             case 0x2A: // Left Shift
-                shift_pressed_ = event.is_pressed;
-                return key_press;
             case 0x36: // Right Shift
-                shift_pressed_ = event.is_pressed;
+                // guard is needed to protect against fake shifts injected by some extended keys when Numlock is on
+                if (!event.is_extended) shift_pressed_ = event.is_pressed;
                 return key_press;
             case 0x38: // Alt
                 alt_pressed_ = event.is_pressed;
@@ -216,6 +215,49 @@ class Keymap
 
         if (!event.is_pressed) return key_press; // don't emit non-modifier keys on release
 
+        if (event.is_extended)
+        {
+            switch (event.scancode)
+            {
+                case 0x48:
+                    key_press.key = NonCharacterKey::Up;
+                    break;
+                case 0x50:
+                    key_press.key = NonCharacterKey::Down;
+                    break;
+                case 0x4B:
+                    key_press.key = NonCharacterKey::Left;
+                    break;
+                case 0x4D:
+                    key_press.key = NonCharacterKey::Right;
+                    break;
+                case 0x47:
+                    key_press.key = NonCharacterKey::Home;
+                    break;
+                case 0x4F:
+                    key_press.key = NonCharacterKey::End;
+                    break;
+                case 0x49:
+                    key_press.key = NonCharacterKey::PageUp;
+                    break;
+                case 0x51:
+                    key_press.key = NonCharacterKey::PageDown;
+                    break;
+                case 0x53:
+                    key_press.key = NonCharacterKey::Delete;
+                    break;
+                case 0x1C: // keypad Enter
+                    key_press.key = NonCharacterKey::Enter;
+                    break;
+                case 0x35: // keypad /
+                    key_press.ch = '/';
+                    break;
+                default:
+                    break;
+            }
+
+            return key_press;
+        }
         switch (event.scancode)
         {
             case 0x0E: // Backspace
