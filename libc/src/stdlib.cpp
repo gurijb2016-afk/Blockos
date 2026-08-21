@@ -1,10 +1,153 @@
 #include "../include/stdlib.h"
 #include "../include/string.h"
 
+#include "../../kernel/memory/allocator.hpp"
+
 #include <stddef.h>
 #include <stdint.h>
+#include <limits.h>
 
-#include "../../kernel/memory/allocator.hpp"
+
+namespace
+{
+
+struct alignas(max_align_t) AllocationHeader
+{
+    uint64_t magic;
+    size_t size;
+};
+
+
+constexpr uint64_t ALLOCATION_MAGIC =
+    0x424C4B4F534D454DULL;
+
+
+static uint32_t random_state = 1;
+
+
+static AllocationHeader* header_from_ptr(void* ptr)
+{
+    if (!ptr)
+        return nullptr;
+
+    auto* raw =
+        static_cast<unsigned char*>(ptr);
+
+    return reinterpret_cast<AllocationHeader*>(
+        raw - sizeof(AllocationHeader));
+}
+
+
+static bool valid_header(AllocationHeader* h)
+{
+    return h &&
+           h->magic == ALLOCATION_MAGIC;
+}
+
+
+static void swap_bytes(
+    unsigned char* a,
+    unsigned char* b,
+    size_t n)
+{
+    for (size_t i = 0; i < n; ++i)
+    {
+        unsigned char t = a[i];
+        a[i] = b[i];
+        b[i] = t;
+    }
+}
+
+
+static void qsort_impl(
+    unsigned char* base,
+    size_t left,
+    size_t right,
+    size_t element_size,
+    int (*compare)(const void*, const void*))
+{
+    if (left >= right)
+        return;
+
+    size_t i = left;
+    size_t j = right;
+
+    size_t pivot_index =
+        left + (right - left) / 2;
+
+    unsigned char* pivot =
+        static_cast<unsigned char*>(
+            ::malloc(element_size));
+
+    if (!pivot)
+        return;
+
+    memcpy(
+        pivot,
+        base + pivot_index * element_size,
+        element_size);
+
+    while (i <= j)
+    {
+        while (
+            compare(
+                base + i * element_size,
+                pivot) < 0)
+        {
+            ++i;
+
+            if (i > right)
+                break;
+        }
+
+        while (
+            compare(
+                base + j * element_size,
+                pivot) > 0)
+        {
+            if (j == 0)
+                break;
+
+            --j;
+        }
+
+        if (i <= j)
+        {
+            swap_bytes(
+                base + i * element_size,
+                base + j * element_size,
+                element_size);
+
+            ++i;
+
+            if (j == 0)
+                break;
+
+            --j;
+        }
+    }
+
+    ::free(pivot);
+
+    if (left < j)
+        qsort_impl(
+            base,
+            left,
+            j,
+            element_size,
+            compare);
+
+    if (i < right)
+        qsort_impl(
+            base,
+            i,
+            right,
+            element_size,
+            compare);
+}
+
+}
+
 
 extern "C"
 {
@@ -14,15 +157,46 @@ void* malloc(size_t size)
     if (size == 0)
         size = 1;
 
-    return allocator::alloc(
-        size,
-        alignof(std::max_align_t));
+    if (size >
+        SIZE_MAX - sizeof(AllocationHeader))
+    {
+        return nullptr;
+    }
+
+    const size_t total =
+        sizeof(AllocationHeader) + size;
+
+    auto* h =
+        static_cast<AllocationHeader*>(
+            allocator::alloc(
+                total,
+                alignof(AllocationHeader)));
+
+    if (!h)
+        return nullptr;
+
+    h->magic = ALLOCATION_MAGIC;
+    h->size = size;
+
+    return reinterpret_cast<unsigned char*>(h)
+           + sizeof(AllocationHeader);
 }
 
 
 void free(void* ptr)
 {
-    allocator::free(ptr);
+    if (!ptr)
+        return;
+
+    AllocationHeader* h =
+        header_from_ptr(ptr);
+
+    if (!valid_header(h))
+        return;
+
+    h->magic = 0;
+
+    allocator::free(h);
 }
 
 
@@ -35,9 +209,6 @@ void* calloc(size_t count, size_t size)
     }
 
     size_t total = count * size;
-
-    if (total == 0)
-        total = 1;
 
     void* ptr = malloc(total);
 
@@ -61,14 +232,19 @@ void* realloc(void* ptr, size_t new_size)
         return nullptr;
     }
 
-    size_t old_size =
-        allocator::usable_size(ptr);
+    AllocationHeader* old_header =
+        header_from_ptr(ptr);
 
-    if (old_size == 0)
+    if (!valid_header(old_header))
         return nullptr;
 
+    size_t old_size = old_header->size;
+
     if (new_size <= old_size)
+    {
+        old_header->size = new_size;
         return ptr;
+    }
 
     void* new_ptr =
         malloc(new_size);
@@ -87,115 +263,100 @@ void* realloc(void* ptr, size_t new_size)
 }
 
 
-int atoi(const char* str)
+int atoi(const char* s)
 {
-    if (!str)
+    if (!s)
         return 0;
 
-    while (*str == ' ' ||
-           *str == '\t' ||
-           *str == '\n' ||
-           *str == '\r' ||
-           *str == '\f' ||
-           *str == '\v')
+    while (*s == ' ' ||
+           *s == '\t' ||
+           *s == '\n' ||
+           *s == '\r' ||
+           *s == '\f' ||
+           *s == '\v')
     {
-        ++str;
+        ++s;
     }
 
     int sign = 1;
 
-    if (*str == '-')
+    if (*s == '-')
     {
         sign = -1;
-        ++str;
+        ++s;
     }
-    else if (*str == '+')
+    else if (*s == '+')
     {
-        ++str;
+        ++s;
     }
 
     int result = 0;
 
-    while (*str >= '0' && *str <= '9')
+    while (*s >= '0' && *s <= '9')
     {
-        result =
-            result * 10 +
-            (*str - '0');
-
-        ++str;
+        result = result * 10 + (*s - '0');
+        ++s;
     }
 
     return result * sign;
 }
 
 
-long atol(const char* str)
+long atol(const char* s)
 {
-    if (!str)
+    if (!s)
         return 0;
 
-    while (*str == ' ' ||
-           *str == '\t' ||
-           *str == '\n' ||
-           *str == '\r' ||
-           *str == '\f' ||
-           *str == '\v')
+    while (*s == ' ' ||
+           *s == '\t' ||
+           *s == '\n' ||
+           *s == '\r' ||
+           *s == '\f' ||
+           *s == '\v')
     {
-        ++str;
+        ++s;
     }
 
     long sign = 1;
 
-    if (*str == '-')
+    if (*s == '-')
     {
         sign = -1;
-        ++str;
+        ++s;
     }
-    else if (*str == '+')
+    else if (*s == '+')
     {
-        ++str;
+        ++s;
     }
 
     long result = 0;
 
-    while (*str >= '0' && *str <= '9')
+    while (*s >= '0' && *s <= '9')
     {
-        result =
-            result * 10 +
-            (*str - '0');
-
-        ++str;
+        result = result * 10 + (*s - '0');
+        ++s;
     }
 
     return result * sign;
 }
 
 
-int abs(int value)
+int abs(int x)
 {
-    return value < 0 ? -value : value;
+    return x < 0 ? -x : x;
 }
 
 
-long labs(long value)
+long labs(long x)
 {
-    return value < 0 ? -value : value;
+    return x < 0 ? -x : x;
 }
-
-
-/*
- * Simple deterministic PRNG.
- * Good enough for Doom-style non-cryptographic use.
- */
-static uint32_t random_state = 1;
 
 
 void srand(unsigned int seed)
 {
-    if (seed == 0)
-        seed = 1;
-
-    random_state = seed;
+    random_state =
+        seed ? seed : 1;
 }
 
 
@@ -207,111 +368,7 @@ int rand(void)
 
     return static_cast<int>(
         (random_state >> 1) &
-        0x7fffffff);
-}
-
-
-static void swap_bytes(
-    unsigned char* a,
-    unsigned char* b,
-    size_t size)
-{
-    for (size_t i = 0; i < size; ++i)
-    {
-        unsigned char tmp = a[i];
-        a[i] = b[i];
-        b[i] = tmp;
-    }
-}
-
-
-static void qsort_impl(
-    unsigned char* base,
-    size_t left,
-    size_t right,
-    size_t size,
-    int (*compare)(
-        const void*,
-        const void*))
-{
-    if (left >= right)
-        return;
-
-    size_t i = left;
-    size_t j = right;
-
-    size_t pivot_index =
-        left + (right - left) / 2;
-
-    unsigned char* pivot =
-        static_cast<unsigned char*>(
-            malloc(size));
-
-    if (!pivot)
-        return;
-
-    memcpy(
-        pivot,
-        base + pivot_index * size,
-        size);
-
-    while (i <= j)
-    {
-        while (
-            compare(
-                base + i * size,
-                pivot) < 0)
-        {
-            ++i;
-
-            if (i > right)
-                break;
-        }
-
-        while (
-            compare(
-                base + j * size,
-                pivot) > 0)
-        {
-            if (j == 0)
-                break;
-
-            --j;
-        }
-
-        if (i <= j)
-        {
-            swap_bytes(
-                base + i * size,
-                base + j * size,
-                size);
-
-            ++i;
-
-            if (j > 0)
-                --j;
-            else
-                break;
-        }
-    }
-
-    free(pivot);
-
-    if (left < j)
-        qsort_impl(
-            base,
-            left,
-            j,
-            size,
-            compare);
-
-    if (i < right)
-        qsort_impl(
-            base,
-            i,
-            right,
-            size,
-            compare);
+        0x7fffffffU);
 }
 
 
@@ -319,9 +376,7 @@ void qsort(
     void* base,
     size_t count,
     size_t size,
-    int (*compare)(
-        const void*,
-        const void*))
+    int (*compare)(const void*, const void*))
 {
     if (!base ||
         count < 2 ||
@@ -340,24 +395,25 @@ void qsort(
 }
 
 
+extern "C" void blockos_process_exit(int status)
+    __attribute__((weak));
+
+
 [[noreturn]]
 void exit(int status)
 {
-    /*
-     * TODO:
-     * Replace this with the BlockOS process
-     * termination syscall when available.
-     */
+    if (blockos_process_exit)
+        blockos_process_exit(status);
 
     (void)status;
 
     for (;;)
     {
 #if defined(__x86_64__)
-        asm volatile("cli; hlt");
+        asm volatile("cli");
+        asm volatile("hlt");
 #else
-        for (;;)
-            asm volatile("");
+        asm volatile("");
 #endif
     }
 }
