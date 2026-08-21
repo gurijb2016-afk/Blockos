@@ -2,6 +2,7 @@
 #include <stdint.h>
 
 #include "../kernel/allocator.hpp"
+#include "../kernel/sysmem.hpp"
 #include "vfs.hpp"
 
 
@@ -182,6 +183,9 @@ static size_t read_meminfo(
 
     size_t pos = 0;
 
+    const sysmem::SystemMemoryRecord& sys =
+        sysmem::get_record();
+
     const allocator::AllocRecord& record =
         allocator::get_record();
 
@@ -195,24 +199,42 @@ static size_t read_meminfo(
         const char* suffix;
     };
 
+
+    // A row with a null suffix is a heading: label only, no number
     const Row rows[] =
         {
-            {"MemTotal:      ", record.total / 1024, " kB\n"},
-            {"MemFree:       ", free_bytes / 1024, " kB\n"},
-            {"MemAvailable:  ", free_bytes / 1024, " kB\n"},
-            {"MemPeak:       ", record.peak / 1024, " kB\n"},
-            {"Watermark:     ", record.offset / 1024, " kB\n"},
-            {"Allocs:        ", record.alloc_count, "\n"},
-            {"Frees:         ", record.free_count, "\n"},
-            {"AllocFailed:   ", record.alloc_failed, "\n"},
-            {"FreeRejected:  ", record.free_rejected, "\n"},
+            // Physical DRAM, surveyed from the UEFI memory map at hand-off
+            {"RAM\n", 0, nullptr},
+            {"MemTotal:          ", sys.total / 1024, " kB\n"},
+            {"MemFree:           ", sys.free / 1024, " kB\n"},
+            {"MemReclaimable:    ", sys.reclaimable / 1024, " kB\n"},
+            {"MemKernel:         ", sys.kernel / 1024, " kB\n"},
+            {"MemFirmware:       ", sys.firmware / 1024, " kB\n"},
+            {"MemLargestFree:    ", sys.largest_free / 1024, " kB\n"},
+            {"MemTop:            ", sys.highest_addr / 1024, " kB\n"},
+            {"MemRegions:        ", sys.regions, "\n"},
+
+            // Kernel heap, from the allocator's running counters
+            {"\n", 0, nullptr},
+            {"Kernel heap\n", 0, nullptr},
+            {"MemTotal:          ", record.total / 1024, " kB\n"},
+            {"MemFree:           ", free_bytes / 1024, " kB\n"},
+            {"MemAvailable:      ", free_bytes / 1024, " kB\n"},
+            {"MemPeak:           ", record.peak / 1024, " kB\n"},
+            {"MemOffset:         ", record.offset / 1024, " kB\n"},
+            {"MemAllocations:    ", record.alloc_count, "\n"},
+            {"MemFrees:          ", record.free_count, "\n"},
+            {"MemAllocsFailed:   ", record.alloc_failed, "\n"},
+            {"MemFreesRejected:  ", record.free_rejected, "\n"},
         };
 
-    // A failed append leaves pos untouched and would cause a missing line, so stop at the first failure instead
     for (const Row& row : rows)
     {
         if (!append_string(buffer, max_size, pos, row.label))
             return pos;
+
+        if (!row.suffix)
+            continue;
 
         if (!append_uint(buffer, max_size, pos, row.value))
             return pos;
