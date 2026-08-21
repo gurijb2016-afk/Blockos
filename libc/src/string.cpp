@@ -1,81 +1,68 @@
 #include "../include/string.h"
+#include "../../kernel/memory/allocator.hpp"
 
 #include <stddef.h>
-
-#include "../../kernel/memory/allocator.hpp"
 
 extern "C"
 {
 
-void* memcpy(
-    void* destination,
-    const void* source,
-    size_t size)
+void* memcpy(void* dst, const void* src, size_t n)
 {
-    unsigned char* dst =
-        static_cast<unsigned char*>(destination);
+    unsigned char* d =
+        static_cast<unsigned char*>(dst);
 
-    const unsigned char* src =
-        static_cast<const unsigned char*>(source);
+    const unsigned char* s =
+        static_cast<const unsigned char*>(src);
 
-    for (size_t i = 0; i < size; ++i)
-        dst[i] = src[i];
+    for (size_t i = 0; i < n; ++i)
+        d[i] = s[i];
 
-    return destination;
+    return dst;
 }
 
 
-void* memmove(
-    void* destination,
-    const void* source,
-    size_t size)
+void* memmove(void* dst, const void* src, size_t n)
 {
-    unsigned char* dst =
-        static_cast<unsigned char*>(destination);
+    unsigned char* d =
+        static_cast<unsigned char*>(dst);
 
-    const unsigned char* src =
-        static_cast<const unsigned char*>(source);
+    const unsigned char* s =
+        static_cast<const unsigned char*>(src);
 
-    if (dst == src || size == 0)
-        return destination;
+    if (d == s || n == 0)
+        return dst;
 
-    if (dst < src)
+    if (d < s)
     {
-        for (size_t i = 0; i < size; ++i)
-            dst[i] = src[i];
+        for (size_t i = 0; i < n; ++i)
+            d[i] = s[i];
     }
     else
     {
-        for (size_t i = size; i > 0; --i)
-            dst[i - 1] = src[i - 1];
+        for (size_t i = n; i != 0; --i)
+            d[i - 1] = s[i - 1];
     }
 
-    return destination;
+    return dst;
 }
 
 
-void* memset(
-    void* destination,
-    int value,
-    size_t size)
+void* memset(void* dst, int c, size_t n)
 {
-    unsigned char* dst =
-        static_cast<unsigned char*>(destination);
+    unsigned char* d =
+        static_cast<unsigned char*>(dst);
 
-    unsigned char v =
-        static_cast<unsigned char>(value);
+    unsigned char value =
+        static_cast<unsigned char>(c);
 
-    for (size_t i = 0; i < size; ++i)
-        dst[i] = v;
+    for (size_t i = 0; i < n; ++i)
+        d[i] = value;
 
-    return destination;
+    return dst;
 }
 
 
-int memcmp(
-    const void* a,
-    const void* b,
-    size_t size)
+int memcmp(const void* a, const void* b, size_t n)
 {
     const unsigned char* x =
         static_cast<const unsigned char*>(a);
@@ -83,7 +70,7 @@ int memcmp(
     const unsigned char* y =
         static_cast<const unsigned char*>(b);
 
-    for (size_t i = 0; i < size; ++i)
+    for (size_t i = 0; i < n; ++i)
     {
         if (x[i] < y[i])
             return -1;
@@ -96,23 +83,21 @@ int memcmp(
 }
 
 
-size_t strlen(const char* str)
+size_t strlen(const char* s)
 {
-    if (!str)
+    if (!s)
         return 0;
 
-    size_t length = 0;
+    size_t n = 0;
 
-    while (str[length] != '\0')
-        ++length;
+    while (s[n] != '\0')
+        ++n;
 
-    return length;
+    return n;
 }
 
 
-int strcmp(
-    const char* a,
-    const char* b)
+int strcmp(const char* a, const char* b)
 {
     while (*a && *a == *b)
     {
@@ -126,24 +111,12 @@ int strcmp(
     unsigned char cb =
         static_cast<unsigned char>(*b);
 
-    if (ca < cb)
-        return -1;
-
-    if (ca > cb)
-        return 1;
-
-    return 0;
+    return (ca > cb) - (ca < cb);
 }
 
 
-int strncmp(
-    const char* a,
-    const char* b,
-    size_t n)
+int strncmp(const char* a, const char* b, size_t n)
 {
-    if (n == 0)
-        return 0;
-
     for (size_t i = 0; i < n; ++i)
     {
         unsigned char ca =
@@ -152,11 +125,8 @@ int strncmp(
         unsigned char cb =
             static_cast<unsigned char>(b[i]);
 
-        if (ca < cb)
-            return -1;
-
-        if (ca > cb)
-            return 1;
+        if (ca != cb)
+            return (ca > cb) - (ca < cb);
 
         if (ca == '\0')
             return 0;
@@ -166,141 +136,131 @@ int strncmp(
 }
 
 
-char* strcpy(
-    char* destination,
-    const char* source)
+char* strcpy(char* dst, const char* src)
 {
-    char* result = destination;
+    char* result = dst;
 
-    while ((*destination++ = *source++) != '\0')
+    while ((*dst++ = *src++) != '\0')
         ;
 
     return result;
 }
 
 
-char* strncpy(
-    char* destination,
-    const char* source,
-    size_t n)
+char* strncpy(char* dst, const char* src, size_t n)
 {
     size_t i = 0;
 
-    for (; i < n && source[i] != '\0'; ++i)
-        destination[i] = source[i];
-
-    for (; i < n; ++i)
-        destination[i] = '\0';
-
-    return destination;
-}
-
-
-char* strcat(
-    char* destination,
-    const char* source)
-{
-    char* result = destination;
-
-    while (*destination)
-        ++destination;
-
-    while ((*destination++ = *source++) != '\0')
-        ;
-
-    return result;
-}
-
-
-char* strncat(
-    char* destination,
-    const char* source,
-    size_t n)
-{
-    char* result = destination;
-
-    while (*destination)
-        ++destination;
-
-    size_t i = 0;
-
-    while (i < n && source[i] != '\0')
+    while (i < n && src[i])
     {
-        destination[i] = source[i];
+        dst[i] = src[i];
         ++i;
     }
 
-    destination[i] = '\0';
+    while (i < n)
+    {
+        dst[i] = '\0';
+        ++i;
+    }
+
+    return dst;
+}
+
+
+char* strcat(char* dst, const char* src)
+{
+    char* result = dst;
+
+    while (*dst)
+        ++dst;
+
+    while ((*dst++ = *src++) != '\0')
+        ;
 
     return result;
 }
 
 
-char* strchr(
-    const char* str,
-    int character)
+char* strncat(char* dst, const char* src, size_t n)
 {
-    unsigned char c =
-        static_cast<unsigned char>(character);
+    char* result = dst;
 
-    while (*str)
+    while (*dst)
+        ++dst;
+
+    size_t i = 0;
+
+    while (i < n && src[i])
     {
-        if (static_cast<unsigned char>(*str) == c)
-            return const_cast<char*>(str);
-
-        ++str;
+        dst[i] = src[i];
+        ++i;
     }
 
-    if (c == '\0')
-        return const_cast<char*>(str);
+    dst[i] = '\0';
+
+    return result;
+}
+
+
+char* strchr(const char* s, int c)
+{
+    unsigned char wanted =
+        static_cast<unsigned char>(c);
+
+    while (*s)
+    {
+        if (static_cast<unsigned char>(*s) == wanted)
+            return const_cast<char*>(s);
+
+        ++s;
+    }
+
+    if (wanted == 0)
+        return const_cast<char*>(s);
 
     return nullptr;
 }
 
 
-char* strrchr(
-    const char* str,
-    int character)
+char* strrchr(const char* s, int c)
 {
     const char* result = nullptr;
 
-    unsigned char c =
-        static_cast<unsigned char>(character);
+    unsigned char wanted =
+        static_cast<unsigned char>(c);
 
     while (true)
     {
-        if (static_cast<unsigned char>(*str) == c)
-            result = str;
+        if (static_cast<unsigned char>(*s) == wanted)
+            result = s;
 
-        if (*str == '\0')
+        if (*s == '\0')
             break;
 
-        ++str;
+        ++s;
     }
 
     return const_cast<char*>(result);
 }
 
 
-char* strstr(
-    const char* haystack,
-    const char* needle)
+char* strstr(const char* haystack, const char* needle)
 {
     if (!*needle)
         return const_cast<char*>(haystack);
 
     for (; *haystack; ++haystack)
     {
-        const char* h = haystack;
-        const char* n = needle;
+        const char* a = haystack;
+        const char* b = needle;
 
-        while (*h && *n && *h == *n)
+        while (*a && *b && *a == *b)
         {
-            ++h;
-            ++n;
+            ++a;
+            ++b;
         }
 
-        if (*n == '\0')
+        if (!*b)
             return const_cast<char*>(haystack);
     }
 
@@ -308,12 +268,12 @@ char* strstr(
 }
 
 
-char* strdup(const char* str)
+char* strdup(const char* s)
 {
-    if (!str)
+    if (!s)
         return nullptr;
 
-    size_t length = strlen(str);
+    size_t length = strlen(s);
 
     char* result =
         static_cast<char*>(
@@ -324,7 +284,7 @@ char* strdup(const char* str)
     if (!result)
         return nullptr;
 
-    memcpy(result, str, length + 1);
+    memcpy(result, s, length + 1);
 
     return result;
 }
