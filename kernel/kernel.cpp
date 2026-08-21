@@ -906,6 +906,10 @@ extern "C" EFI_STATUS EFIAPI efi_main(
     mouse.init();
     keyboard.init();
 
+    char char_buffer[256] = {0};
+    size_t char_length = 0;
+    size_t char_cap = sizeof(char_buffer);
+
 
     /*
      * ========================================================
