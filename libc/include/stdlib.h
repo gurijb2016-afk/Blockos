@@ -11,13 +11,11 @@ void* calloc(size_t count, size_t size);
 void* realloc(void* ptr, size_t size);
 void free(void* ptr);
 
-void exit(int status);
+int atoi(const char* s);
+long atol(const char* s);
 
-int atoi(const char* str);
-long atol(const char* str);
-
-int abs(int value);
-long labs(long value);
+int abs(int x);
+long labs(long x);
 
 void srand(unsigned int seed);
 int rand(void);
@@ -28,6 +26,8 @@ void qsort(
     size_t size,
     int (*compare)(const void*, const void*)
 );
+
+[[noreturn]] void exit(int status);
 
 #ifdef __cplusplus
 }
