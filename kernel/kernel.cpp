@@ -1,8 +1,10 @@
 #include "allocator.hpp"
 #include "backbuffer.h"
+#include "console.hpp"
 #include "drivers/Keymap.hpp"
 #include "events.hpp"
 #include "font8x8.h"
+#include "proc.hpp"
 #include "ps2keyboard.hpp"
 #include "ps2mouse.hpp"
 #include "vfs.hpp"
@@ -619,6 +621,30 @@ extern "C" EFI_STATUS EFIAPI efi_main(
         0,
         0};
 
+    static Console console;
+
+    console.attach(
+        win.x + 4,
+        win.y + 28,
+        win.w - 8,
+        win.h - 28 - 14);
+
+    console.set_colors(0x00000000, 0x00C0C0C0);
+    console.clear();
+
+    console.print("BlockOS console\n");
+    console.print("commands: ");
+
+    for (size_t i = 0; i < Blockos::proc::count(); ++i)
+    {
+        if (i)
+            console.print(" ");
+
+        console.print(Blockos::proc::name_at(i));
+    }
+
+    console.newline();
+
 
     /*
      * ========================================================
@@ -636,6 +662,11 @@ extern "C" EFI_STATUS EFIAPI efi_main(
         (uint8_t*) backbuf,
         fb.Width,
         win);
+
+    console.render(
+        (uint8_t*) backbuf,
+        fb.Width);
+
 
     bb_blit_to_fb(
         &fb,
@@ -1010,7 +1041,39 @@ extern "C" EFI_STATUS EFIAPI efi_main(
                         }
                     }
 
-                    if (char_length + 1 < char_cap && ch)
+                    if (key.key == NonCharacterKey::Enter)
+                    {
+                        console.print("> ");
+                        console.print(char_buffer);
+                        console.newline();
+
+                        if (char_length > 0)
+                        {
+                            char output[512];
+
+                            size_t written =
+                                Blockos::proc::read(
+                                    char_buffer,
+                                    output,
+                                    sizeof(output));
+
+                            if (written > 0)
+                            {
+                                console.print(output);
+                            }
+                            else
+                            {
+                                console.print("unknown command: ");
+                                console.print(char_buffer);
+                                console.newline();
+                            }
+                        }
+
+                        char_length = 0;
+                        char_buffer[0] = 0;
+                    }
+
+                    if (ch && char_length + 1 < char_cap)
                     {
                         char_buffer[char_length++] = ch;
                         char_buffer[char_length] = 0; // null-terminate
@@ -1049,6 +1112,21 @@ extern "C" EFI_STATUS EFIAPI efi_main(
                         strip_h);
                 }
             }
+        }
+
+        if (console.dirty())
+        {
+            console.render(
+                (uint8_t*) backbuf,
+                fb.Width);
+
+            bb_blit_region_to_fb(
+                &fb,
+                (const uint8_t*) backbuf,
+                console.x(),
+                console.y(),
+                console.w(),
+                console.h());
         }
 
         /*

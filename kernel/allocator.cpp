@@ -6,10 +6,18 @@
 #include <cstddef>
 #include <cstdint>
 
-
 static uint8_t* heap_base = nullptr;
 static size_t heap_size = 0;
 static size_t heap_off = 0;
+
+static allocator::AllocRecord record{};
+
+static inline void record_alloc(size_t bytes)
+{
+    record.alloc_count++;
+    record.used += bytes;
+    if (record.used > record.peak) record.peak = record.used;
+}
 
 struct header
 {
@@ -51,6 +59,7 @@ void init(void* base, size_t size)
     if (lost >= size)
     {
         heap_base = nullptr;
+        record = AllocRecord{}; // no usable arena -> report an empty heap
         return; // Not enough space to align, or size is too small
     }
 
@@ -58,6 +67,9 @@ void init(void* base, size_t size)
     size -= lost; // Adjust size to accomodate lost bytes due to alignment
     heap_size = size;
     heap_off = 0;
+
+    record = AllocRecord{};
+    record.total = heap_size;
 }
 
 static constexpr size_t GRANULARITY =
@@ -71,7 +83,10 @@ void* alloc(size_t size, size_t align)
     // to avoid header/general misalignment issues
 
     if (!heap_base || size > heap_size || !is_power_of_2(align))
+    {
+        record.alloc_failed++;
         return nullptr;
+    }
 
     // Align the block length to the header alignment to ensure blocks are densely
     // packed
@@ -128,6 +143,7 @@ void* alloc(size_t size, size_t align)
                 header* h2 = (header*) (heap_base + lead_in_offset);
                 h2->size = new_block_size;
                 h2->isFree = false;
+                record_alloc(new_block_size);
                 return h2 +
                        1; // Return pointer to the payload, which is after the header
             }
@@ -145,7 +161,10 @@ void* alloc(size_t size, size_t align)
     size_t off = (size_t) (payload - base - sizeof(header));
 
     if (block_length > heap_size || off > heap_size - block_length)
+    {
+        record.alloc_failed++;
         return nullptr;
+    }
 
     // If the offset is greater than the current heap offset, create a filler
     // block to fill the gap
@@ -161,18 +180,31 @@ void* alloc(size_t size, size_t align)
     h->size = block_length;
     h->isFree = false;
     heap_off = off + block_length;
+    record_alloc(block_length);
     return h + 1;
 }
 
 void free(void* ptr)
 {
-    if (!ptr || !heap_base) return;
+    if (!ptr) return; // freeing nullptr is legal and is not an error
+    if (!heap_base)
+    {
+        record.free_rejected++;
+        return;
+    }
     header* h = (header*) ptr - 1;
     size_t header_offset = (size_t) ((uint8_t*) h - heap_base);
     if (header_offset >= heap_off || header_offset % alignof(header) != 0 ||
         h->size == 0 || h->size > heap_off - header_offset || h->isFree)
+    {
+        record.free_rejected++;
         return; // should PANIC
+    }
     h->isFree = true;
+
+    // Read before the coalescing loops below mutate h->size.
+    record.free_count++;
+    record.used = (h->size <= record.used) ? record.used - h->size : 0;
 
     for (;;)
     { // absorb adjacent free blocks
@@ -216,6 +248,14 @@ void free(void* ptr)
 void reset()
 {
     heap_off = 0;
+    record.used = 0;
+    record.reset_count++;
+}
+
+const AllocRecord& get_record()
+{
+    record.offset = heap_off;
+    return record;
 }
 } // namespace allocator
 
