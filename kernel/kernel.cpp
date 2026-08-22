@@ -408,6 +408,7 @@ static bool name_matches(const char* a, const char* b)
 
 static void print_command_list(Console& out)
 {
+    out.print("commands: clear help ");
     for (size_t i = 0; i < Blockos::proc::count(); ++i)
     {
         if (i)
@@ -432,7 +433,6 @@ static void run_command(const char* line, Console& out)
 
     if (name_matches(line, "help"))
     {
-        out.print("commands: clear help ");
         print_command_list(out);
         return;
     }
