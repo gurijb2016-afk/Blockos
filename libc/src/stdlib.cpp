@@ -1,7 +1,7 @@
 #include "../include/stdlib.h"
 #include "../include/string.h"
 
-#include "../../kernel/memory/allocator.hpp"
+#include "allocator.hpp"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -338,6 +338,103 @@ long atol(const char* s)
     }
 
     return result * sign;
+}
+
+
+unsigned long strtoul(const char* s, char** endptr, int base)
+{
+    const char* start = s;
+
+    if (endptr)
+        *endptr = (char*) start;
+
+    if (!s || base < 0 || base == 1 || base > 36)
+        return 0;
+
+    while (*s == ' ' ||
+           *s == '\t' ||
+           *s == '\n' ||
+           *s == '\r' ||
+           *s == '\f' ||
+           *s == '\v')
+    {
+        ++s;
+    }
+
+    bool negate = false;
+
+    if (*s == '-')
+    {
+        negate = true;
+        ++s;
+    }
+    else if (*s == '+')
+    {
+        ++s;
+    }
+
+    if ((base == 0 || base == 16) &&
+        s[0] == '0' &&
+        (s[1] == 'x' || s[1] == 'X'))
+    {
+        base = 16;
+        s += 2;
+    }
+    else if (base == 0 && s[0] == '0')
+    {
+        base = 8;
+        ++s;
+    }
+    else if (base == 0)
+    {
+        base = 10;
+    }
+
+    unsigned long result = 0;
+    bool any = false;
+    bool overflow = false;
+
+    for (;; ++s)
+    {
+        unsigned long digit;
+
+        if (*s >= '0' && *s <= '9')
+            digit = (unsigned long) (*s - '0');
+        else if (*s >= 'a' && *s <= 'z')
+            digit = (unsigned long) (*s - 'a') + 10;
+        else if (*s >= 'A' && *s <= 'Z')
+            digit = (unsigned long) (*s - 'A') + 10;
+        else
+            break;
+
+        if (digit >= (unsigned long) base)
+            break;
+
+        const unsigned long limit = ULONG_MAX / (unsigned long) base;
+
+        if (result > limit)
+            overflow = true;
+
+        result = result * (unsigned long) base;
+
+        if (result > ULONG_MAX - digit)
+            overflow = true;
+
+        result += digit;
+        any = true;
+    }
+
+    // No digits converted: endptr stays at the original string, per the standard
+    if (!any)
+        return 0;
+
+    if (endptr)
+        *endptr = (char*) s;
+
+    if (overflow)
+        return ULONG_MAX;
+
+    return negate ? (unsigned long) (0 - result) : result;
 }
 
 

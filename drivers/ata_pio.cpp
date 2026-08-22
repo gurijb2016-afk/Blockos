@@ -181,35 +181,35 @@ const char* AtaPio::error_name(Error error)
     switch (error)
     {
         case Error::None:
-            return "none";
+            return "error: none";
         case Error::NotPresent:
-            return "no device";
+            return "error: no device";
         case Error::NotAta:
-            return "not an LBA28 ATA device";
+            return "error: not an LBA28 ATA device";
         case Error::Timeout:
-            return "timeout";
+            return "error: timeout";
         case Error::AddressMarkNotFound:
-            return "address mark not found";
+            return "error: address mark not found";
         case Error::TrackZeroNotFound:
-            return "track 0 not found";
+            return "error: track 0 not found";
         case Error::Aborted:
-            return "command aborted";
+            return "error: command aborted";
         case Error::MediaChangeRequest:
-            return "media change request";
+            return "error: media change request";
         case Error::IdNotFound:
-            return "sector not found";
+            return "error: sector not found";
         case Error::MediaChanged:
-            return "media changed";
+            return "error: media changed";
         case Error::UncorrectableData:
-            return "uncorrectable data error";
+            return "error: uncorrectable data error";
         case Error::BadBlock:
-            return "bad block";
+            return "error: bad block";
         case Error::DeviceError:
-            return "device error";
+            return "error: device error";
         case Error::DeviceFault:
-            return "device fault";
+            return "error: device fault";
         case Error::BadRequest:
-            return "bad request";
+            return "error: bad request";
     }
 
     return "unknown";
@@ -337,8 +337,15 @@ bool AtaPio::issue_command(uint32_t lba, uint8_t sectors, uint8_t command)
 
 bool AtaPio::identify()
 {
+    // The command block must not be written while BSY is set
+    if (!wait_not_busy()) return false;
+
     // Zero high LBA bits of shared registers to clear garbage
     select_drive(0);
+
+    // A newly selected device gets its own chance to release BSY
+    if (!wait_not_busy()) return false;
+
     io::outb(io_base_ + REG_SECTOR_COUNT, 0);
     io::outb(io_base_ + REG_LBA_LOW, 0);
     io::outb(io_base_ + REG_LBA_MID, 0);

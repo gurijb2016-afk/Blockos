@@ -1,5 +1,6 @@
 #include "allocator.hpp"
 #include "backbuffer.h"
+#include "cmd/cmd_ata.hpp"
 #include "console.hpp"
 #include "drivers/Keymap.hpp"
 #include "events.hpp"
@@ -408,7 +409,7 @@ static bool name_matches(const char* a, const char* b)
 
 static void print_command_list(Console& out)
 {
-    out.print("commands: clear help ");
+    out.print("commands: clear help");
     for (size_t i = 0; i < Blockos::proc::count(); ++i)
     {
         if (i)
@@ -420,28 +421,33 @@ static void print_command_list(Console& out)
     out.newline();
 }
 
-static void run_command(const char* line, Console& out)
+static void run_command(const Args& args, Console& out)
 {
-    if (line[0] == '\0')
+    if (args.count == 0)
         return;
 
-    if (name_matches(line, "clear"))
+    const char* name = args.argv[0];
+
+    if (name_matches(name, "clear"))
     {
         out.clear();
         return;
     }
 
-    if (name_matches(line, "help"))
+    if (name_matches(name, "help"))
     {
         print_command_list(out);
         return;
     }
 
+    if (ata_command(args, out))
+        return;
+
     char output[1024];
 
     const size_t written =
         Blockos::proc::read(
-            line,
+            name,
             output,
             sizeof(output));
 
@@ -452,7 +458,7 @@ static void run_command(const char* line, Console& out)
     }
 
     out.print("unknown command: ");
-    out.print(line);
+    out.print(name);
     out.newline();
 }
 
