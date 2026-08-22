@@ -1,6 +1,9 @@
 #include "vfs.hpp"
 
-#include <cstring>
+#include "kernel/allocator.hpp"
+#include "libc/include/string.h"
+#include "ramfs.hpp"
+
 
 #include "kernel/allocator.hpp"
 #include "ramfs.hpp"
@@ -23,7 +26,7 @@ static vfs_entry* find_entry(const char* name)
 {
     for (vfs_entry* e = vfs_root; e; e = e->next)
     {
-        if (std::strcmp(e->name, name) == 0) return e;
+        if (strcmp(e->name, name) == 0) return e;
     }
     return nullptr;
 }
@@ -59,7 +62,7 @@ bool vfs::create_file(const char* name, const uint8_t* data, uint32_t size)
 {
     if (find_entry(name)) return false; // exists
     // allocate entry and copy name/data using allocator
-    size_t name_len = std::strlen(name) + 1;
+    size_t name_len = strlen(name) + 1;
     vfs_entry* e = (vfs_entry*) allocator::alloc(sizeof(vfs_entry));
     if (!e) return false;
     char* n = (char*) allocator::alloc(name_len);

@@ -37,9 +37,15 @@ if [ -d "$PERSIST_DIR" ]; then
   done
 fi
 
-# Write the data image once for persistent storage
-if [ ! -f "${DATA_IMG}" ]; then
-  echo "Creating "${DATA_IMG}" of size "${IMG_SIZE}"..."
+# Write the data image once for persistent storage.
+# Guarded on size rather than existence: a zero-length or truncated data.img
+# would otherwise survive every run, and QEMU would keep attaching a broken
+# drive. Recreating also wipes persisted data when IMG_SIZE_MB changes.
+DATA_BYTES=$((IMG_SIZE_MB * 1024 * 1024))
+
+if [ ! -f "${DATA_IMG}" ] || [ $(wc -c < "${DATA_IMG}") -ne ${DATA_BYTES} ]; then
+  echo "Creating ${DATA_IMG} (${IMG_SIZE_MB}MB) ..."
+  rm -f "${DATA_IMG}"
   dd if=/dev/zero of=${DATA_IMG} bs=1M count=${IMG_SIZE_MB}
 fi
 
@@ -77,4 +83,9 @@ if [ "$1" = "usb" ]; then
   USB_OPTS="-device usb-ehci,id=ehci -device usb-tablet"
 fi
 
-qemu-system-x86_64 -bios "$OVMF" -drive file=${DISK_IMG},format=raw -m 1024 -device isa-debug-exit -boot order=d ${USB_OPTS}
+# index selects the IDE slot: 0 is primary master (the ESP we boot from), 1 is
+# primary slave, which is what the ata-read/ata-write commands talk to.
+qemu-system-x86_64 -bios "$OVMF" \
+  -drive file=${DISK_IMG},format=raw,if=ide,index=0 \
+  -drive file=${DATA_IMG},format=raw,if=ide,index=1 \
+  -m 1024 -device isa-debug-exit -boot order=d ${USB_OPTS}
