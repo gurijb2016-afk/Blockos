@@ -1,40 +1,77 @@
 #include "shell.hpp"
 
+#include <ctype.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "backbuffer.h"
 
-static size_t line_length(const char* s)
+static Args tokenize(char* line)
 {
-    size_t n = 0;
+    Args args;
 
-    while (s[n] != '\0')
-        ++n;
+    char* p = line;
 
-    return n;
+    while (args.count < Args::MAX)
+    {
+        while (isspace((unsigned char) *p))
+            ++p;
+
+        if (*p == '\0')
+            break;
+
+        args.argv[args.count++] = p;
+
+        while (*p != '\0' && !isspace((unsigned char) *p))
+            ++p;
+
+        if (*p == '\0')
+            break;
+
+        *p++ = '\0';
+    }
+
+    return args;
 }
 
+bool Args::uint(size_t index, uint32_t* out) const
+{
+    if (index >= count || !out)
+        return false;
+
+    const char* s = argv[index];
+
+    // Base 10 unless explicitly hex
+    const int base = (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) ? 16 : 10;
+
+    char* end = nullptr;
+
+    const unsigned long value = strtoul(s, &end, base);
+
+    if (end == s || *end != '\0')
+        return false;
+
+    if (value > 0xFFFFFFFFUL)
+        return false;
+
+    *out = (uint32_t) value;
+
+    return true;
+}
+
+// Truncating copy that always terminates, returning the length written
 static size_t copy_line(char* dst, const char* src)
 {
-    size_t n = 0;
+    size_t n = strlen(src);
 
-    while (src[n] != '\0' && n + 1 < Shell::LINE_MAX)
-    {
-        dst[n] = src[n];
-        ++n;
-    }
+    if (n > Shell::LINE_MAX - 1)
+        n = Shell::LINE_MAX - 1;
+
+    memcpy(dst, src, n);
 
     dst[n] = '\0';
 
     return n;
-}
-
-static bool lines_equal(const char* a, const char* b)
-{
-    size_t i = 0;
-
-    while (a[i] != '\0' && a[i] == b[i])
-        ++i;
-
-    return a[i] == b[i];
 }
 
 void Shell::attach(Console& out, int x, int y, int w, int h)
@@ -148,7 +185,7 @@ void Shell::submit()
             (history_head_ + HISTORY_MAX - 1) % HISTORY_MAX;
 
         const bool duplicate =
-            history_count_ > 0 && lines_equal(history_[newest], line_);
+            history_count_ > 0 && strcmp(history_[newest], line_) == 0;
 
         if (!duplicate)
         {
@@ -162,7 +199,10 @@ void Shell::submit()
     }
 
     if (handler_ && out_)
-        handler_(line_, *out_);
+    {
+        Args args = tokenize(line_);
+        handler_(args, *out_);
+    }
 
     history_pos_ = -1;
     len_ = 0;
@@ -270,7 +310,7 @@ void Shell::render(uint8_t* backbuf, uint32_t fb_width)
         bg_);
 
     const size_t columns = (size_t) w_ / Console::GLYPH_W;
-    const size_t prompt_len = line_length(PROMPT);
+    const size_t prompt_len = strlen(PROMPT);
 
     size_t col = 0;
 

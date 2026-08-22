@@ -14,6 +14,8 @@ void free(void* ptr);
 int atoi(const char* s);
 long atol(const char* s);
 
+unsigned long strtoul(const char* s, char** endptr, int base);
+
 int abs(int x);
 long labs(long x);
 

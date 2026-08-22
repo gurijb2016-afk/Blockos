@@ -1,5 +1,5 @@
 #include "../include/string.h"
-#include "../../kernel/memory/allocator.hpp"
+#include "allocator.hpp"
 
 #include <stddef.h>
 

@@ -6,6 +6,23 @@
 #include "console.hpp"
 #include "drivers/keymap.hpp"
 
+// A submitted line split on whitespace
+struct Args
+{
+    static constexpr size_t MAX = 16;
+
+    size_t count = 0;
+    char* argv[MAX] = {};
+
+    const char* at(size_t index) const
+    {
+        return index < count ? argv[index] : "";
+    }
+
+    // Decimal, or hex with a 0x prefix. False if absent, not numeric, or > 32 bits.
+    bool uint(size_t index, uint32_t* out) const;
+};
+
 // Line editor and command history for the input strip
 class Shell
 {
@@ -15,7 +32,7 @@ class Shell
 
     static constexpr const char* PROMPT = "> ";
 
-    using CommandHandler = void (*)(const char* line, Console& out);
+    using CommandHandler = void (*)(const Args& args, Console& out);
 
     void attach(Console& out, int x, int y, int w, int h);
     void set_handler(CommandHandler fn);

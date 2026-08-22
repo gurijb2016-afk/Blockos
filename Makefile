@@ -40,6 +40,7 @@ CXXFLAGS := \
 	-Idrivers \
 	-Ifs \
 	-Iexamples \
+	-Ilibc/include \
 	-fvisibility=hidden \
 	-MMD \
 	-MP
@@ -77,7 +78,8 @@ SRC_DIRS := \
 	drivers \
 	examples \
 	fs \
-	kernel
+	kernel \
+	libc/src
 
 S_SRC_DIRS := \
 	drivers \
@@ -107,6 +109,8 @@ EXCLUDED_SRC := \
 
 SRC := $(filter-out $(EXCLUDED_SRC), \
 	$(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.cpp)))
+
+SRC += kernel/cmd/cmd_ata.cpp
 
 S_SRC := $(foreach dir,$(S_SRC_DIRS),$(wildcard $(dir)/*.S))
 
@@ -158,10 +162,23 @@ all: $(EFI_OUT)
 	$(CXX) $(ASFLAGS) -c $< -o $@
 
 # ============================================================
+# WEAKENED GNU-EFI LIB
+# Weaken gnu-efi's memcpy and memset so our libc wins when linking kernel.so.
+# ============================================================
+
+EFI_LIB_WEAK := $(BUILD_DIR)/libefi-weak.a
+
+$(EFI_LIB_WEAK): $(EFI_LIB)
+	@mkdir -p $(BUILD_DIR)
+	@echo "[OBJCOPY] weakening memcpy/memset in $(notdir $(EFI_LIB))"
+	cp $< $@
+	$(OBJCOPY) --weaken-symbol=memcpy --weaken-symbol=memset $@
+
+# ============================================================
 # LINK KERNEL.SO
 # ============================================================
 
-$(SO_OUT): $(OBJ)
+$(SO_OUT): $(OBJ) $(EFI_LIB_WEAK)
 	@mkdir -p $(BUILD_DIR)
 	@echo ""
 	@echo "=============================================="
@@ -174,7 +191,7 @@ $(SO_OUT): $(OBJ)
 		$(EFI_CRT) \
 		$(OBJ) \
 		$(GNU_EFI_LIB) \
-		$(EFI_LIB) \
+		$(EFI_LIB_WEAK) \
 		-o $@
 
 	@echo ""
@@ -261,10 +278,17 @@ rebuild:
 	$(MAKE) all
 
 # ============================================================
+# RUN
+# ============================================================
+
+run: all
+	sh build_and_run.sh
+
+# ============================================================
 # PHONY
 # ============================================================
 
-.PHONY: all clean rebuild menuconfig check-efi
+.PHONY: all clean rebuild menuconfig check-efi run
 
 # ============================================================
 # HEADER DEPENDENCIES
