@@ -38,9 +38,6 @@ if [ -d "$PERSIST_DIR" ]; then
 fi
 
 # Write the data image once for persistent storage.
-# Guarded on size rather than existence: a zero-length or truncated data.img
-# would otherwise survive every run, and QEMU would keep attaching a broken
-# drive. Recreating also wipes persisted data when IMG_SIZE_MB changes.
 DATA_BYTES=$((IMG_SIZE_MB * 1024 * 1024))
 
 if [ ! -f "${DATA_IMG}" ] || [ $(wc -c < "${DATA_IMG}") -ne ${DATA_BYTES} ]; then

@@ -51,6 +51,9 @@ constexpr uint16_t IDENT_CAP_LBA = 1 << 9;
 
 constexpr uint32_t POLL_LIMIT = 100000;
 
+// flush() requires a higher poll limit to avoid timeouts
+constexpr uint32_t POLL_LIMIT_FLUSH = 5000000;
+
 } // namespace
 
 
@@ -165,8 +168,16 @@ bool AtaPio::flush()
     io::outb(io_base_ + REG_COMMAND, CMD_FLUSH_CACHE);
     delay_400ns();
 
-    if (!wait_not_busy()) return false;
-    return check_status(status());
+    uint32_t limit = POLL_LIMIT_FLUSH;
+
+    while (limit--)
+    {
+        if (!(alt_status() & ST_BSY))
+            return check_status(status());
+    }
+
+    push_error(Error::FlushTimeout);
+    return false;
 }
 
 
@@ -210,6 +221,8 @@ const char* AtaPio::error_name(Error error)
             return "error: device fault";
         case Error::BadRequest:
             return "error: bad request";
+        case Error::FlushTimeout:
+            return "error: cache flush timeout, sectors were written";
     }
 
     return "unknown";
