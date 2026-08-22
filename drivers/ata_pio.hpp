@@ -80,7 +80,8 @@ class AtaPio
         BadBlock, // BBK: bad block detected
         DeviceError, // ERR set, but none of the above bits matched
         DeviceFault, // DF set in status
-        BadRequest // LBA past the end of the disk or a null buffer
+        BadRequest, // LBA past the end of the disk or a null buffer
+        FlushTimeout // Sectors transferred, but FLUSH CACHE did not complete
     };
 
     AtaPio() = default;
