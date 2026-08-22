@@ -104,6 +104,7 @@ add_compile_options(
         -fno-rtti
         -fshort-wchar
         -fPIC
+        -fvisibility=hidden
         -DEFI_FUNCTION_WRAPPER
         -ffreestanding
         -O2
@@ -239,6 +240,7 @@ target_compile_options(
         -fno-rtti
         -fshort-wchar
         -fPIC
+        -fvisibility=hidden
         -DEFI_FUNCTION_WRAPPER
         -ffreestanding
         -O2
