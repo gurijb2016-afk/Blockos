@@ -8,6 +8,7 @@ MAKE=make
 BUILD_DIR=build
 EFI_FILE=${BUILD_DIR}/BOOTX64.EFI
 DISK_IMG=disk.img
+DATA_IMG=data.img
 IMG_SIZE_MB=16
 PERSIST_DIR=persistent
 
@@ -34,6 +35,12 @@ if [ -d "$PERSIST_DIR" ]; then
       mcopy -i ${DISK_IMG} "$f" ::/
     fi
   done
+fi
+
+# Write the data image once for persistent storage
+if [ ! -f "${DATA_IMG}" ]; then
+  echo "Creating "${DATA_IMG}" of size "${IMG_SIZE}"..."
+  dd if=/dev/zero of=${DATA_IMG} bs=1M count=${IMG_SIZE_MB}
 fi
 
 # QEMU firmware. OVMF is the UEFI implementation QEMU needs to boot an EFI
