@@ -88,10 +88,18 @@ void write(const Args& args, Console& out)
 
     memset(sector, 0, sizeof(sector));
 
-    const char* text = args.argv[2];
+    size_t pos = 0;
 
-    for (size_t i = 0; text[i] != '\0' && i < sizeof(sector); ++i)
-        sector[i] = (uint8_t) text[i];
+    for (size_t i = 2; i < args.count && pos < sizeof(sector); ++i)
+    {
+        if (i > 2)
+            sector[pos++] = ' ';
+
+        const char* token = args.argv[i];
+
+        for (size_t j = 0; token[j] != '\0' && pos < sizeof(sector); ++j)
+            sector[pos++] = (uint8_t) token[j];
+    }
 
     if (!disk.write_sectors(lba, 1, sector))
     {
@@ -99,7 +107,9 @@ void write(const Args& args, Console& out)
         return;
     }
 
-    out.print("ata: wrote sector ");
+    out.print("ata: wrote ");
+    out.print_uint(pos);
+    out.print(" bytes to sector ");
     out.print_uint(lba);
     out.newline();
 }
