@@ -98,6 +98,16 @@ void Shell::set_colors(uint32_t fg, uint32_t bg)
     dirty_ = true;
 }
 
+size_t Shell::page_rows() const
+{
+    if (!out_)
+        return 1;
+
+    const size_t rows = out_->visible_rows();
+
+    return (rows > 1) ? rows - 1 : 1;
+}
+
 void Shell::handle(const KeyPress& key)
 {
     switch (key.key)
@@ -128,6 +138,16 @@ void Shell::handle(const KeyPress& key)
 
         case NonCharacterKey::Down:
             recall(+1);
+            return;
+
+        case NonCharacterKey::PageUp:
+            if (out_)
+                out_->scroll_up(page_rows());
+            return;
+
+        case NonCharacterKey::PageDown:
+            if (out_)
+                out_->scroll_down(page_rows());
             return;
 
         case NonCharacterKey::Left:
@@ -174,6 +194,9 @@ void Shell::submit()
 {
     if (out_)
     {
+        // Running a command jumps back to live output so its result is visible
+        out_->scroll_to_bottom();
+
         out_->print(PROMPT);
         out_->print(line_);
         out_->newline();

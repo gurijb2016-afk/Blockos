@@ -66,6 +66,9 @@ class Shell
    private:
     void submit();
 
+    // Console lines a PageUp/PageDown moves, keeping one line of overlap
+    size_t page_rows() const;
+
     // direction < 0 walks toward older entries, > 0 toward newer
     void recall(int direction);
 

@@ -21,7 +21,7 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
+#include <string.h>
 
 namespace blockos::tty {
 
@@ -417,7 +417,7 @@ public:
             return;
         }
 
-        std::memset(&termios_, 0, sizeof(termios_));
+        memset(&termios_, 0, sizeof(termios_));
         termios_.iflag = IFLAG_ICRNL;
         termios_.oflag = OFLAG_OPOST | OFLAG_ONLCR;
         termios_.cflag = 0;
