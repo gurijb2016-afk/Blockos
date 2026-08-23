@@ -1,0 +1,41 @@
+mainmenu "BlockOS Configuration"
+
+config BLOCKOS
+    bool "BlockOS kernel"
+    default y
+
+menu "Architecture"
+
+source "Kconfig.arch"
+
+endmenu
+
+menu "File systems"
+
+source "Kconfig.fs"
+
+endmenu
+
+menu "Drivers"
+
+source "Kconfig.drivers"
+
+endmenu
+
+menu "Networking"
+
+source "Kconfig.network"
+
+endmenu
+
+menu "Graphics"
+
+source "Kconfig.gui"
+
+endmenu
+
+menu "Applications"
+
+source "Kconfig.apps"
+
+endmenu
