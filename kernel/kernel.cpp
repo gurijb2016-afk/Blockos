@@ -1,6 +1,7 @@
 #include "allocator.hpp"
 #include "backbuffer.h"
 #include "cmd/cmd_ata.hpp"
+#include "cmd/cmd_forth.hpp"
 #include "console.hpp"
 #include "drivers/Keymap.hpp"
 #include "events.hpp"
@@ -453,6 +454,9 @@ static void print_command_list(Console& out)
 
 static void run_command(const Args& args, Console& out)
 {
+    if (blockos::cmd::forth::command(args))
+        return;
+
     if (args.count == 0)
         return;
 
