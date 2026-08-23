@@ -106,7 +106,7 @@ EXCLUDED_SRC := \
 	fs/tmpfs.cpp \
 	kernel/login.cpp \
 	kernel/panic.cpp
-
+	
 SRC := $(filter-out $(EXCLUDED_SRC), \
 	$(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.cpp)))
 

@@ -1,9 +1,10 @@
 #include "../include/stdio.h"
-#include "../include/string.h"
-#include "../include/stdlib.h"
 
 #include <stddef.h>
 #include <stdint.h>
+
+#include "../include/stdlib.h"
+#include "../include/string.h"
 
 
 namespace
@@ -65,7 +66,9 @@ static size_t append_unsigned(
     size_t pos,
     unsigned long long value,
     unsigned base,
-    bool upper)
+    bool upper,
+    unsigned width = 0,
+    bool zero_pad = false)
 {
     char digits[] =
         "0123456789abcdef";
@@ -96,6 +99,17 @@ static size_t append_unsigned(
         }
     }
 
+    const char pad = zero_pad ? '0' : ' ';
+
+    for (size_t i = count; i < width; ++i)
+    {
+        pos = append_char(
+            buffer,
+            capacity,
+            pos,
+            pad);
+    }
+
     while (count)
     {
         --count;
@@ -115,21 +129,45 @@ static size_t append_signed(
     char* buffer,
     size_t capacity,
     size_t pos,
-    long long value)
+    long long value,
+    unsigned width = 0,
+    bool zero_pad = false)
 {
     if (value < 0)
     {
+        unsigned long long magnitude =
+            static_cast<unsigned long long>(
+                -(value + 1));
+
+        ++magnitude;
+
+        if (!zero_pad)
+        {
+            unsigned long long scan = magnitude;
+            unsigned digits = 1;
+
+            while (scan >= 10)
+            {
+                scan /= 10;
+                ++digits;
+            }
+
+            for (unsigned i = digits + 1; i < width; ++i)
+            {
+                pos = append_char(
+                    buffer,
+                    capacity,
+                    pos,
+                    ' ');
+            }
+        }
+
         pos = append_char(
             buffer,
             capacity,
             pos,
             '-');
 
-        unsigned long long magnitude =
-            static_cast<unsigned long long>(
-                -(value + 1));
-
-        ++magnitude;
 
         return append_unsigned(
             buffer,
@@ -137,7 +175,9 @@ static size_t append_signed(
             pos,
             magnitude,
             10,
-            false);
+            false,
+            (zero_pad && width > 0) ? width - 1 : 0,
+            zero_pad);
     }
 
     return append_unsigned(
@@ -146,7 +186,9 @@ static size_t append_signed(
         pos,
         static_cast<unsigned long long>(value),
         10,
-        false);
+        false,
+        width,
+        zero_pad);
 }
 
 
@@ -186,6 +228,24 @@ static int format_to(
             continue;
         }
 
+        bool zero_pad = false;
+
+        while (*format == '0')
+        {
+            zero_pad = true;
+            ++format;
+        }
+
+        unsigned width = 0;
+
+        while (*format >= '0' && *format <= '9')
+        {
+            width = (width * 10) +
+                    static_cast<unsigned>(*format - '0');
+
+            ++format;
+        }
+
         bool long_flag = false;
         bool long_long_flag = false;
 
@@ -200,6 +260,9 @@ static int format_to(
                 ++format;
             }
         }
+
+        if (*format == '\0')
+            break;
 
         switch (*format)
         {
@@ -219,7 +282,9 @@ static int format_to(
                     buffer,
                     capacity,
                     pos,
-                    value);
+                    value,
+                    width,
+                    zero_pad);
 
                 break;
             }
@@ -247,7 +312,9 @@ static int format_to(
                     pos,
                     value,
                     10,
-                    false);
+                    false,
+                    width,
+                    zero_pad);
 
                 break;
             }
@@ -276,7 +343,9 @@ static int format_to(
                     pos,
                     value,
                     16,
-                    *format == 'X');
+                    *format == 'X',
+                    width,
+                    zero_pad);
 
                 break;
             }
@@ -304,7 +373,9 @@ static int format_to(
                     pos,
                     value,
                     8,
-                    false);
+                    false,
+                    width,
+                    zero_pad);
 
                 break;
             }
@@ -393,437 +464,435 @@ static int format_to(
     return static_cast<int>(pos);
 }
 
-}
+} // namespace
 
 
 extern "C"
 {
-
-FILE* stdin = &g_stdin;
-FILE* stdout = &g_stdout;
-FILE* stderr = &g_stderr;
-
-
-void blockos_stdio_set_ops(
-    const BlockOSFileOps* ops)
-{
-    if (ops)
-        g_ops = *ops;
-    else
-        memset(&g_ops, 0, sizeof(g_ops));
-}
+    FILE* stdin = &g_stdin;
+    FILE* stdout = &g_stdout;
+    FILE* stderr = &g_stderr;
 
 
-void blockos_stdio_set_console(
-    BlockOSConsoleWriteFn fn)
-{
-    g_console = fn;
-}
-
-
-FILE* fopen(
-    const char* path,
-    const char* mode)
-{
-    if (!path || !mode || !g_ops.open)
-        return nullptr;
-
-    void* handle =
-        g_ops.open(path, mode);
-
-    if (!handle)
-        return nullptr;
-
-    FILE* file =
-        static_cast<FILE*>(malloc(sizeof(FILE)));
-
-    if (!file)
+    void blockos_stdio_set_ops(
+        const BlockOSFileOps* ops)
     {
-        if (g_ops.close)
-            g_ops.close(handle);
-
-        return nullptr;
+        if (ops)
+            g_ops = *ops;
+        else
+            memset(&g_ops, 0, sizeof(g_ops));
     }
 
-    memset(file, 0, sizeof(FILE));
 
-    file->handle = handle;
-    file->owns_handle = 1;
-    file->readable =
-        (strchr(mode, 'r') != nullptr) ||
-        (strchr(mode, '+') != nullptr);
-
-    file->writable =
-        (strchr(mode, 'w') != nullptr) ||
-        (strchr(mode, 'a') != nullptr) ||
-        (strchr(mode, '+') != nullptr);
-
-    return file;
-}
-
-
-int fclose(FILE* stream)
-{
-    if (!stream)
-        return -1;
-
-    int result = 0;
-
-    if (stream->handle &&
-        g_ops.close)
+    void blockos_stdio_set_console(
+        BlockOSConsoleWriteFn fn)
     {
-        result =
-            g_ops.close(stream->handle);
+        g_console = fn;
     }
 
-    if (stream != stdin &&
-        stream != stdout &&
-        stream != stderr)
+
+    FILE* fopen(
+        const char* path,
+        const char* mode)
     {
-        free(stream);
-    }
+        if (!path || !mode || !g_ops.open)
+            return nullptr;
 
-    return result;
-}
+        void* handle =
+            g_ops.open(path, mode);
 
+        if (!handle)
+            return nullptr;
 
-size_t fread(
-    void* ptr,
-    size_t size,
-    size_t count,
-    FILE* stream)
-{
-    if (!ptr ||
-        !stream ||
-        !stream->handle ||
-        !g_ops.read ||
-        size == 0 ||
-        count == 0)
-    {
-        return 0;
-    }
+        FILE* file =
+            static_cast<FILE*>(malloc(sizeof(FILE)));
 
-    if (count >
-        SIZE_MAX / size)
-    {
-        return 0;
-    }
-
-    size_t bytes =
-        size * count;
-
-    size_t got =
-        g_ops.read(
-            stream->handle,
-            ptr,
-            bytes);
-
-    if (got < bytes)
-        stream->eof = 1;
-
-    return got / size;
-}
-
-
-size_t fwrite(
-    const void* ptr,
-    size_t size,
-    size_t count,
-    FILE* stream)
-{
-    if (!ptr ||
-        !stream ||
-        size == 0 ||
-        count == 0)
-    {
-        return 0;
-    }
-
-    if (stream == stdout ||
-        stream == stderr)
-    {
-        if (g_console)
+        if (!file)
         {
-            size_t bytes =
-                size * count;
+            if (g_ops.close)
+                g_ops.close(handle);
 
-            g_console(
-                static_cast<const char*>(ptr),
+            return nullptr;
+        }
+
+        memset(file, 0, sizeof(FILE));
+
+        file->handle = handle;
+        file->owns_handle = 1;
+        file->readable =
+            (strchr(mode, 'r') != nullptr) ||
+            (strchr(mode, '+') != nullptr);
+
+        file->writable =
+            (strchr(mode, 'w') != nullptr) ||
+            (strchr(mode, 'a') != nullptr) ||
+            (strchr(mode, '+') != nullptr);
+
+        return file;
+    }
+
+
+    int fclose(FILE* stream)
+    {
+        if (!stream)
+            return -1;
+
+        int result = 0;
+
+        if (stream->handle &&
+            g_ops.close)
+        {
+            result =
+                g_ops.close(stream->handle);
+        }
+
+        if (stream != stdin &&
+            stream != stdout &&
+            stream != stderr)
+        {
+            free(stream);
+        }
+
+        return result;
+    }
+
+
+    size_t fread(
+        void* ptr,
+        size_t size,
+        size_t count,
+        FILE* stream)
+    {
+        if (!ptr ||
+            !stream ||
+            !stream->handle ||
+            !g_ops.read ||
+            size == 0 ||
+            count == 0)
+        {
+            return 0;
+        }
+
+        if (count >
+            SIZE_MAX / size)
+        {
+            return 0;
+        }
+
+        size_t bytes =
+            size * count;
+
+        size_t got =
+            g_ops.read(
+                stream->handle,
+                ptr,
                 bytes);
 
-            return count;
+        if (got < bytes)
+            stream->eof = 1;
+
+        return got / size;
+    }
+
+
+    size_t fwrite(
+        const void* ptr,
+        size_t size,
+        size_t count,
+        FILE* stream)
+    {
+        if (!ptr ||
+            !stream ||
+            size == 0 ||
+            count == 0)
+        {
+            return 0;
         }
+
+        if (stream == stdout ||
+            stream == stderr)
+        {
+            if (g_console)
+            {
+                size_t bytes =
+                    size * count;
+
+                g_console(
+                    static_cast<const char*>(ptr),
+                    bytes);
+
+                return count;
+            }
+        }
+
+        if (!stream->handle ||
+            !g_ops.write)
+        {
+            return 0;
+        }
+
+        if (count >
+            SIZE_MAX / size)
+        {
+            return 0;
+        }
+
+        size_t bytes =
+            size * count;
+
+        size_t written =
+            g_ops.write(
+                stream->handle,
+                ptr,
+                bytes);
+
+        return written / size;
     }
 
-    if (!stream->handle ||
-        !g_ops.write)
+
+    int fseek(
+        FILE* stream,
+        long offset,
+        int whence)
     {
-        return 0;
-    }
+        if (!stream ||
+            !stream->handle ||
+            !g_ops.seek)
+        {
+            return -1;
+        }
 
-    if (count >
-        SIZE_MAX / size)
-    {
-        return 0;
-    }
+        stream->eof = 0;
 
-    size_t bytes =
-        size * count;
-
-    size_t written =
-        g_ops.write(
+        return g_ops.seek(
             stream->handle,
-            ptr,
-            bytes);
-
-    return written / size;
-}
-
-
-int fseek(
-    FILE* stream,
-    long offset,
-    int whence)
-{
-    if (!stream ||
-        !stream->handle ||
-        !g_ops.seek)
-    {
-        return -1;
+            offset,
+            whence);
     }
 
-    stream->eof = 0;
 
-    return g_ops.seek(
-        stream->handle,
-        offset,
-        whence);
-}
-
-
-long ftell(FILE* stream)
-{
-    if (!stream ||
-        !stream->handle ||
-        !g_ops.tell)
+    long ftell(FILE* stream)
     {
-        return -1;
+        if (!stream ||
+            !stream->handle ||
+            !g_ops.tell)
+        {
+            return -1;
+        }
+
+        return g_ops.tell(
+            stream->handle);
     }
 
-    return g_ops.tell(
-        stream->handle);
-}
+
+    void rewind(FILE* stream)
+    {
+        if (stream)
+            fseek(stream, 0, 0);
+    }
 
 
-void rewind(FILE* stream)
-{
-    if (stream)
-        fseek(stream, 0, 0);
-}
+    int feof(FILE* stream)
+    {
+        return stream ? stream->eof : 0;
+    }
 
 
-int feof(FILE* stream)
-{
-    return stream ? stream->eof : 0;
-}
+    int ferror(FILE* stream)
+    {
+        return stream ? stream->error : 1;
+    }
 
 
-int ferror(FILE* stream)
-{
-    return stream ? stream->error : 1;
-}
+    int fflush(FILE*)
+    {
+        return 0;
+    }
 
 
-int fflush(FILE*)
-{
-    return 0;
-}
+    int fgetc(FILE* stream)
+    {
+        unsigned char c = 0;
+
+        if (fread(&c, 1, 1, stream) != 1)
+            return -1;
+
+        return c;
+    }
 
 
-int fgetc(FILE* stream)
-{
-    unsigned char c = 0;
+    int fputc(int c, FILE* stream)
+    {
+        unsigned char ch =
+            static_cast<unsigned char>(c);
 
-    if (fread(&c, 1, 1, stream) != 1)
-        return -1;
-
-    return c;
-}
-
-
-int fputc(int c, FILE* stream)
-{
-    unsigned char ch =
-        static_cast<unsigned char>(c);
-
-    return fwrite(
-        &ch,
-        1,
-        1,
-        stream) == 1
-        ? c
-        : -1;
-}
+        return fwrite(
+                   &ch,
+                   1,
+                   1,
+                   stream) == 1
+                   ? c
+                   : -1;
+    }
 
 
-int vsnprintf(
-    char* buffer,
-    size_t size,
-    const char* format,
-    va_list args)
-{
-    if (!format)
-        return -1;
+    int vsnprintf(
+        char* buffer,
+        size_t size,
+        const char* format,
+        va_list args)
+    {
+        if (!format)
+            return -1;
 
-    return format_to(
-        buffer,
-        size,
-        format,
-        args);
-}
-
-
-int snprintf(
-    char* buffer,
-    size_t size,
-    const char* format,
-    ...)
-{
-    va_list args;
-
-    va_start(args, format);
-
-    int result =
-        vsnprintf(
+        return format_to(
             buffer,
             size,
             format,
             args);
-
-    va_end(args);
-
-    return result;
-}
+    }
 
 
-int vsprintf(
-    char* buffer,
-    const char* format,
-    va_list args)
-{
-    return format_to(
-        buffer,
-        SIZE_MAX,
-        format,
-        args);
-}
+    int snprintf(
+        char* buffer,
+        size_t size,
+        const char* format,
+        ...)
+    {
+        va_list args;
 
+        va_start(args, format);
 
-int sprintf(
-    char* buffer,
-    const char* format,
-    ...)
-{
-    va_list args;
+        int result =
+            vsnprintf(
+                buffer,
+                size,
+                format,
+                args);
 
-    va_start(args, format);
+        va_end(args);
 
-    int result =
-        vsprintf(
-            buffer,
-            format,
-            args);
-
-    va_end(args);
-
-    return result;
-}
-
-
-int vfprintf(
-    FILE* stream,
-    const char* format,
-    va_list args)
-{
-    if (!stream)
-        return -1;
-
-    char buffer[1024];
-
-    int result =
-        vsnprintf(
-            buffer,
-            sizeof(buffer),
-            format,
-            args);
-
-    if (result < 0)
         return result;
-
-    size_t length =
-        static_cast<size_t>(result);
-
-    if (length >= sizeof(buffer))
-        length = sizeof(buffer) - 1;
-
-    fwrite(
-        buffer,
-        1,
-        length,
-        stream);
-
-    return result;
-}
+    }
 
 
-int fprintf(
-    FILE* stream,
-    const char* format,
-    ...)
-{
-    va_list args;
-
-    va_start(args, format);
-
-    int result =
-        vfprintf(
-            stream,
+    int vsprintf(
+        char* buffer,
+        const char* format,
+        va_list args)
+    {
+        return format_to(
+            buffer,
+            SIZE_MAX,
             format,
             args);
-
-    va_end(args);
-
-    return result;
-}
+    }
 
 
-int vprintf(
-    const char* format,
-    va_list args)
-{
-    return vfprintf(
-        stdout,
-        format,
-        args);
-}
+    int sprintf(
+        char* buffer,
+        const char* format,
+        ...)
+    {
+        va_list args;
+
+        va_start(args, format);
+
+        int result =
+            vsprintf(
+                buffer,
+                format,
+                args);
+
+        va_end(args);
+
+        return result;
+    }
 
 
-int printf(
-    const char* format,
-    ...)
-{
-    va_list args;
+    int vfprintf(
+        FILE* stream,
+        const char* format,
+        va_list args)
+    {
+        if (!stream)
+            return -1;
 
-    va_start(args, format);
+        char buffer[1024];
 
-    int result =
-        vprintf(
+        int result =
+            vsnprintf(
+                buffer,
+                sizeof(buffer),
+                format,
+                args);
+
+        if (result < 0)
+            return result;
+
+        size_t length =
+            static_cast<size_t>(result);
+
+        if (length >= sizeof(buffer))
+            length = sizeof(buffer) - 1;
+
+        fwrite(
+            buffer,
+            1,
+            length,
+            stream);
+
+        return result;
+    }
+
+
+    int fprintf(
+        FILE* stream,
+        const char* format,
+        ...)
+    {
+        va_list args;
+
+        va_start(args, format);
+
+        int result =
+            vfprintf(
+                stream,
+                format,
+                args);
+
+        va_end(args);
+
+        return result;
+    }
+
+
+    int vprintf(
+        const char* format,
+        va_list args)
+    {
+        return vfprintf(
+            stdout,
             format,
             args);
+    }
 
-    va_end(args);
 
-    return result;
-}
+    int printf(
+        const char* format,
+        ...)
+    {
+        va_list args;
 
+        va_start(args, format);
+
+        int result =
+            vprintf(
+                format,
+                args);
+
+        va_end(args);
+
+        return result;
+    }
 }

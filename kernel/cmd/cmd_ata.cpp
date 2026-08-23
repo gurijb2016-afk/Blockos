@@ -1,5 +1,6 @@
 #include "cmd_ata.hpp"
 
+#include <libc/include/stdio.h>
 #include <string.h>
 
 #include "ata_pio.hpp"
@@ -13,9 +14,6 @@ uint8_t sector[AtaPio::SECTOR_SIZE];
 
 constexpr AtaPio::Bus BUS = AtaPio::Bus::Primary;
 constexpr AtaPio::Drive DRIVE = AtaPio::Drive::Slave;
-
-constexpr uint32_t PREVIEW_BYTES = 64;
-
 
 bool ready(Console& out)
 {
@@ -42,6 +40,30 @@ void fail(Console& out, const char* what)
 }
 
 
+void hexdump(const uint8_t* data, size_t output_length, uint32_t offset = 0)
+{
+    const size_t hex_per_row = 16;
+
+    for (size_t i = 0; i < output_length - offset; i += hex_per_row)
+    {
+        printf("%08X", (unsigned int) (offset + i));
+
+        for (size_t j = 0; j < hex_per_row && i + j < output_length; ++j)
+        {
+            printf(" %02X", (unsigned int) data[i + j + offset]);
+        }
+
+        printf(" ");
+        for (size_t j = 0; j < hex_per_row && i + j < output_length; ++j)
+        {
+            const char c = (char) data[i + j + offset];
+            (c >= 32 && c < 127) ? printf("%c", c) : printf(".");
+        }
+
+        printf("\n");
+    }
+}
+
 void read(const Args& args, Console& out)
 {
     if (!ready(out))
@@ -61,17 +83,10 @@ void read(const Args& args, Console& out)
         return;
     }
 
-    for (uint32_t i = 0; i < PREVIEW_BYTES; ++i)
-    {
-        const char c = (char) sector[i];
-        const char text[2] = {(c >= 32 && c < 127) ? c : ' ', '\0'};
-
-        out.print(text);
-    }
+    hexdump(sector, sizeof(sector), 0);
 
     out.newline();
 }
-
 
 void write(const Args& args, Console& out)
 {
@@ -80,16 +95,19 @@ void write(const Args& args, Console& out)
 
     uint32_t lba = 0;
 
+    // Get second argument (<lba>) and if present convert it to an unsigned integer, else return
     if (!args.uint(1, &lba) || args.count < 3)
     {
         out.print("usage: ata-write <lba> <text>\n");
         return;
     }
 
+    // zero initialize sector
     memset(sector, 0, sizeof(sector));
 
     size_t pos = 0;
 
+    // Parse command as string, but output raw binary
     for (size_t i = 2; i < args.count && pos < sizeof(sector); ++i)
     {
         if (i > 2)

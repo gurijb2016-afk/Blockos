@@ -24,6 +24,7 @@ extern "C"
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 
@@ -389,6 +390,35 @@ static void survey_memory_map(
         if (top > out.highest_addr)
             out.highest_addr = top;
     }
+}
+
+/*
+ * ============================================================
+ * Console output sink
+ * ============================================================
+ */
+
+extern "C" void blockos_tty_init();
+
+extern "C" void blockos_tty_set_output_callback(
+    void (*callback)(const char* data, size_t length, void* user),
+    void* user);
+
+static Console* g_console_sink = nullptr;
+
+static void console_sink(const char* data, size_t length, void*)
+{
+    if (!g_console_sink || !data)
+        return;
+
+    for (size_t i = 0; i < length; ++i)
+        g_console_sink->putc(data[i]);
+}
+
+// printf and friends land straight on the console; the TTY is not in this path
+static void stdio_sink(const char* data, size_t length)
+{
+    console_sink(data, length, nullptr);
 }
 
 /*
@@ -935,10 +965,6 @@ extern "C" EFI_STATUS EFIAPI efi_main(
     static Console console;
     static Shell shell;
 
-    /*
-     * The console and shell exist and accumulate output from boot, but nothing
-     * of theirs is drawn until the splash is dismissed.
-     */
     bool splash_active = true;
 
     shell.attach(
@@ -959,7 +985,13 @@ extern "C" EFI_STATUS EFIAPI efi_main(
     console.set_colors(0x00000000, 0x00C0C0C0);
     console.clear();
 
-    console.print("BlockOS console\n");
+    g_console_sink = &console;
+
+    blockos_tty_init();
+    blockos_tty_set_output_callback(console_sink, nullptr);
+    blockos_stdio_set_console(stdio_sink);
+
+    printf("BlockOS console\n");
     console.print("commands: ");
 
     for (size_t i = 0; i < Blockos::proc::count(); ++i)

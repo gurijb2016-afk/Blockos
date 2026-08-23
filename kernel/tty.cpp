@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string.h>
 
 namespace blockos::tty {
 
@@ -408,18 +409,9 @@ public:
         if (initialized_)
             return;
 
-        __builtin_memset(
-            &termios_,
-            0,
-            sizeof(termios_));
-
-        termios_.iflag =
-            IFLAG_ICRNL;
-
-        termios_.oflag =
-            OFLAG_OPOST |
-            OFLAG_ONLCR;
-
+        memset(&termios_, 0, sizeof(termios_));
+        termios_.iflag = IFLAG_ICRNL;
+        termios_.oflag = OFLAG_OPOST | OFLAG_ONLCR;
         termios_.cflag = 0;
 
         termios_.lflag =
