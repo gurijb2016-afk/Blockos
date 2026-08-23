@@ -1,0 +1,62 @@
+menu "C Library / libc"
+
+config LIBC
+    bool "Enable BlockOS libc"
+    default y
+
+config LIBC_STRING
+    bool "String functions"
+    default y
+    depends on LIBC
+
+config LIBC_MEMORY
+    bool "Memory functions"
+    default y
+    depends on LIBC
+
+config LIBC_STDIO
+    bool "stdio"
+    default y
+    depends on LIBC
+
+config LIBC_STDLIB
+    bool "stdlib"
+    default y
+    depends on LIBC
+
+config LIBC_CTYPE
+    bool "ctype"
+    default y
+    depends on LIBC
+
+config LIBC_TIME
+    bool "Time functions"
+    default y
+    depends on LIBC
+
+config LIBC_UNISTD
+    bool "POSIX unistd"
+    default y
+    depends on LIBC
+
+config LIBC_POSIX
+    bool "POSIX compatibility"
+    default y
+    depends on LIBC
+
+config LIBC_MATH
+    bool "Math library"
+    default y
+    depends on LIBC
+
+config LIBC_PTHREAD
+    bool "pthread compatibility"
+    default n
+    depends on LIBC
+
+config LIBC_DYNAMIC_ALLOC
+    bool "Dynamic memory allocation"
+    default y
+    depends on LIBC
+
+endmenu
