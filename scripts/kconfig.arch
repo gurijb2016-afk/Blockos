@@ -1,0 +1,16 @@
+choice
+    prompt "Target architecture"
+    default BLOCKOS_X86_64
+
+config BLOCKOS_X86_64
+    bool "x86_64"
+
+config BLOCKOS_AARCH64
+    bool "AArch64"
+
+endchoice
+
+config BLOCKOS_UEFI
+    bool "UEFI boot support"
+    default y
+    depends on BLOCKOS_X86_64

@@ -1,18 +1,7 @@
 .text
 
-# ============================================================
-# context_switch
-#
-# Arguments - System V AMD64 ABI:
-#
-#   RDI = uint64_t* old_sp_ptr
-#   RSI = uint64_t  new_sp
-#   RDX = uint64_t  new_cr3
-#
-# ============================================================
-
-.global context_switch
-.type context_switch, @function
+.globl context_switch
+.extern context_switch
 
 context_switch:
 
@@ -20,51 +9,56 @@ context_switch:
     # Save callee-saved registers
     # --------------------------------------------------------
 
-    push %rbp
-    push %rbx
-    push %r12
-    push %r13
-    push %r14
-    push %r15
+    pushq %rbp
+    pushq %rbx
+    pushq %r12
+    pushq %r13
+    pushq %r14
+    pushq %r15
 
     # --------------------------------------------------------
-    # Save current RSP
+    # Save current stack pointer
+    #
+    # RDI -> uint64_t old_sp
     # --------------------------------------------------------
 
-    mov %rsp, (%rdi)
+    movq %rsp, (%rdi)
 
     # --------------------------------------------------------
-    # Switch address space
+    # Switch address space if CR3 != 0
+    #
+    # RDX = new CR3
     # --------------------------------------------------------
 
-    mov %rdx, %rax
+    movq %rdx, %rax
+    testq %rax, %rax
+    jz .Lskip_cr3
 
-    test %rax, %rax
-    jz 1f
+    movq %rax, %cr3
 
-    mov %rax, %cr3
-
-1:
+.Lskip_cr3:
 
     # --------------------------------------------------------
-    # Switch stack
+    # Switch to new stack
+    #
+    # RSI = new stack pointer
     # --------------------------------------------------------
 
-    mov %rsi, %rsp
+    movq %rsi, %rsp
 
     # --------------------------------------------------------
     # Restore callee-saved registers
     # --------------------------------------------------------
 
-    pop %r15
-    pop %r14
-    pop %r13
-    pop %r12
-    pop %rbx
-    pop %rbp
+    popq %r15
+    popq %r14
+    popq %r13
+    popq %r12
+    popq %rbx
+    popq %rbp
 
     # --------------------------------------------------------
-    # Return to saved instruction/trampoline
+    # Return using the return address on the new stack
     # --------------------------------------------------------
 
     ret
@@ -73,25 +67,26 @@ context_switch:
 # ============================================================
 # task_start_trampoline
 #
-# Initial task stack:
+# Expected initial stack:
 #
-#   rbp
-#   rbx
-#   r12
-#   r13
-#   r14
-#   r15
-#   return address -> task_start_trampoline
-#   entry
-#   arg
+#   [RSP + 0]  = return/trampoline address
+#   [RSP + 8]  = task entry function
+#   [RSP + 16] = task argument
 #
-# context_switch restores the six registers and RET jumps
-# here.
+# After context_switch:
+#
+#   pop %rdi -> entry
+#   pop %rsi -> argument
+#
+# Then:
+#   RAX = entry
+#   RDI = argument
+#   call *RAX
+#   call task_exit
 # ============================================================
 
-.global task_start_trampoline
-.type task_start_trampoline, @function
-
+.globl task_start_trampoline
+.extern task_start_trampoline
 .extern task_exit
 
 task_start_trampoline:
@@ -100,25 +95,25 @@ task_start_trampoline:
     # Get task entry address
     # --------------------------------------------------------
 
-    pop %rdi
+    popq %rdi
 
     # --------------------------------------------------------
     # Get task argument
     # --------------------------------------------------------
 
-    pop %rsi
+    popq %rsi
 
     # --------------------------------------------------------
-    # entry function -> RAX
+    # Save entry address in RAX
     # --------------------------------------------------------
 
-    mov %rdi, %rax
+    movq %rdi, %rax
 
     # --------------------------------------------------------
-    # First argument of entry(void*) -> RDI
+    # First argument of entry(void*) = RDI
     # --------------------------------------------------------
 
-    mov %rsi, %rdi
+    movq %rsi, %rdi
 
     # --------------------------------------------------------
     # Call task entry
@@ -132,20 +127,8 @@ task_start_trampoline:
 
     call task_exit
 
-# task_exit should not return.
-# Protect against accidental return.
-
 .Ltask_exit_halt:
 
     cli
     hlt
     jmp .Ltask_exit_halt
-
-
-# ============================================================
-# GNU stack marker
-#
-# Prevents executable-stack warning.
-# ============================================================
-
-.section .note.GNU-stack,"",@progbits

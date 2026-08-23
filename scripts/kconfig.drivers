@@ -1,0 +1,49 @@
+menu "Device Drivers"
+
+config DRIVERS
+    bool "Device drivers"
+    default y
+
+if DRIVERS
+
+config DRIVER_PCI
+    bool "PCI"
+    default y
+
+config DRIVER_AHCI
+    bool "AHCI"
+    default y
+
+config DRIVER_NVME
+    bool "NVMe"
+    default y
+
+config DRIVER_VIRTIO
+    bool "VirtIO"
+    default y
+
+config DRIVER_VIRTIO_NET
+    bool "VirtIO network"
+    depends on DRIVER_VIRTIO
+    default y
+
+config DRIVER_VIRTIO_GPU
+    bool "VirtIO GPU"
+    depends on DRIVER_VIRTIO
+    default y
+
+config DRIVER_PS2
+    bool "PS/2"
+    default y
+
+config DRIVER_USB
+    bool "USB"
+    default y
+
+config DRIVER_NVIDIA
+    bool "NVIDIA"
+    default n
+
+endif
+
+endmenu

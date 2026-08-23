@@ -1,0 +1,10 @@
+mainmenu "BlockOS Configuration"
+
+source "Kconfig.arch"
+source "Kconfig.kernel"
+source "Kconfig.libc"
+source "Kconfig.drivers"
+source "Kconfig.fs"
+source "Kconfig.network"
+source "Kconfig.gui"
+source "Kconfig.apps"

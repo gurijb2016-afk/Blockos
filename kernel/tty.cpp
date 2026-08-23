@@ -1,21 +1,4 @@
-/*
- * BlockOS TTY / Console Driver
- *
- * Device name:
- *     /devices/console0
- *
- * This implementation intentionally does NOT use Linux /dev/tty* naming.
- * It provides a BlockOS-native console/TTY endpoint backed by a fixed-size
- * input ring buffer and an output callback.
- *
- * Integration points:
- *   - fs/vfs.hpp       : creates /devices/console0
- *   - output callback  : routes console output to your real framebuffer/GUI
- *   - keyboard input   : call blockos_tty_input_char()/blockos_tty_input_bytes()
- *   - syscall layer    : use read/write/ioctl wrappers below
- *
- * No dynamic allocation is required by the TTY itself.
- */
+
 
 #include "../fs/vfs.hpp"
 
@@ -25,25 +8,14 @@
 
 namespace blockos::tty {
 
-/* -------------------------------------------------------------------------
- * Configuration
- * ---------------------------------------------------------------------- */
-
 static constexpr char DEVICE_PATH[] = "/devices/console0";
 static constexpr std::size_t INPUT_CAPACITY = 4096;
 static constexpr std::size_t LINE_CAPACITY  = 4096;
 
-static constexpr std::int64_t TTY_OK         = 0;
-static constexpr std::int64_t TTY_EINVAL     = -22;
-static constexpr std::int64_t TTY_ENOTTY     = -25;
-static constexpr std::int64_t TTY_EIO        = -5;
-static constexpr std::int64_t TTY_EAGAIN     = -11;
-static constexpr std::int64_t TTY_ENOSPC     = -28;
-static constexpr std::int64_t TTY_EINTR      = -4;
-
-/* -------------------------------------------------------------------------
- * Minimal kernel lock
- * ---------------------------------------------------------------------- */
+static constexpr std::int64_t TTY_OK     = 0;
+static constexpr std::int64_t TTY_EINVAL = -22;
+static constexpr std::int64_t TTY_ENOTTY = -25;
+static constexpr std::int64_t TTY_EAGAIN = -11;
 
 class SpinLock {
 private:
@@ -68,7 +40,6 @@ public:
 };
 
 class LockGuard {
-private:
     SpinLock& lock_;
 
 public:
@@ -84,29 +55,25 @@ public:
     LockGuard& operator=(const LockGuard&) = delete;
 };
 
-/* -------------------------------------------------------------------------
- * TTY configuration/state
- * ---------------------------------------------------------------------- */
-
 enum LocalFlag : std::uint32_t {
-    LFLAG_ECHO     = 1u << 0,
-    LFLAG_ECHOE    = 1u << 1,
-    LFLAG_ECHOK    = 1u << 2,
-    LFLAG_ICANON   = 1u << 3,
-    LFLAG_ISIG     = 1u << 4,
-    LFLAG_IEXTEN   = 1u << 5,
+    LFLAG_ECHO   = 1u << 0,
+    LFLAG_ECHOE  = 1u << 1,
+    LFLAG_ECHOK  = 1u << 2,
+    LFLAG_ICANON = 1u << 3,
+    LFLAG_ISIG   = 1u << 4,
+    LFLAG_IEXTEN = 1u << 5
 };
 
 enum InputFlag : std::uint32_t {
-    IFLAG_ICRNL    = 1u << 0,
-    IFLAG_INLCR    = 1u << 1,
-    IFLAG_IGNCR    = 1u << 2,
-    IFLAG_ISTRIP   = 1u << 3,
+    IFLAG_ICRNL  = 1u << 0,
+    IFLAG_INLCR  = 1u << 1,
+    IFLAG_IGNCR  = 1u << 2,
+    IFLAG_ISTRIP = 1u << 3
 };
 
 enum OutputFlag : std::uint32_t {
-    OFLAG_OPOST    = 1u << 0,
-    OFLAG_ONLCR    = 1u << 1,
+    OFLAG_OPOST = 1u << 0,
+    OFLAG_ONLCR = 1u << 1
 };
 
 struct WindowSize {
@@ -121,56 +88,65 @@ struct Termios {
     std::uint32_t oflag;
     std::uint32_t cflag;
     std::uint32_t lflag;
-    std::uint8_t  cc[20];
+    std::uint8_t cc[20];
 };
 
-/* BlockOS-native ioctl command values.
- * Kept in a private numeric range so the driver does not depend on Linux
- * ioctl ABI values.
- */
-static constexpr std::uint64_t IOCTL_GET_WINSZ  = 0x424F5301ULL; // "BOS1"
-static constexpr std::uint64_t IOCTL_SET_WINSZ  = 0x424F5302ULL;
-static constexpr std::uint64_t IOCTL_GET_TERMIOS = 0x424F5303ULL;
-static constexpr std::uint64_t IOCTL_SET_TERMIOS = 0x424F5304ULL;
-static constexpr std::uint64_t IOCTL_GET_PGRP   = 0x424F5305ULL;
-static constexpr std::uint64_t IOCTL_SET_PGRP   = 0x424F5306ULL;
-static constexpr std::uint64_t IOCTL_FLUSH      = 0x424F5307ULL;
-static constexpr std::uint64_t IOCTL_SET_NONBLOCK = 0x424F5308ULL;
-static constexpr std::uint64_t IOCTL_GET_NONBLOCK = 0x424F5309ULL;
+static constexpr std::uint64_t IOCTL_GET_WINSZ =
+    0x424F5301ULL;
 
-/* Control characters. */
-static constexpr std::uint8_t CC_VINTR  = 3;   // Ctrl-C
-static constexpr std::uint8_t CC_VEOF   = 4;   // Ctrl-D
-static constexpr std::uint8_t CC_VERASE = 127; // Backspace
-static constexpr std::uint8_t CC_VKILL  = 21;  // Ctrl-U
-static constexpr std::uint8_t CC_VSTART = 17;  // Ctrl-Q
-static constexpr std::uint8_t CC_VSTOP  = 19;  // Ctrl-S
-static constexpr std::uint8_t CC_VSUSP  = 26;  // Ctrl-Z
+static constexpr std::uint64_t IOCTL_SET_WINSZ =
+    0x424F5302ULL;
 
-/* -------------------------------------------------------------------------
- * Output callback
- * ---------------------------------------------------------------------- */
+static constexpr std::uint64_t IOCTL_GET_TERMIOS =
+    0x424F5303ULL;
 
-using OutputCallback = void (*)(const char* data, std::size_t length, void* user);
-using SignalCallback = void (*)(int signal, std::uint64_t pgrp, void* user);
+static constexpr std::uint64_t IOCTL_SET_TERMIOS =
+    0x424F5304ULL;
 
-static void default_output(const char* data, std::size_t length, void*) {
-    /*
-     * Safe fallback: no direct hardware assumption here.
-     * A real BlockOS console should replace this callback with framebuffer,
-     * serial, or GUI terminal output.
-     */
+static constexpr std::uint64_t IOCTL_GET_PGRP =
+    0x424F5305ULL;
+
+static constexpr std::uint64_t IOCTL_SET_PGRP =
+    0x424F5306ULL;
+
+static constexpr std::uint64_t IOCTL_FLUSH =
+    0x424F5307ULL;
+
+static constexpr std::uint64_t IOCTL_SET_NONBLOCK =
+    0x424F5308ULL;
+
+static constexpr std::uint64_t IOCTL_GET_NONBLOCK =
+    0x424F5309ULL;
+
+static constexpr std::uint8_t CC_VINTR  = 3;
+static constexpr std::uint8_t CC_VEOF   = 4;
+static constexpr std::uint8_t CC_VERASE = 127;
+static constexpr std::uint8_t CC_VKILL  = 21;
+static constexpr std::uint8_t CC_VSTART = 17;
+static constexpr std::uint8_t CC_VSTOP  = 19;
+static constexpr std::uint8_t CC_VSUSP  = 26;
+
+using OutputCallback =
+    void (*)(const char*, std::size_t, void*);
+
+using SignalCallback =
+    void (*)(int, std::uint64_t, void*);
+
+static void default_output(
+    const char* data,
+    std::size_t length,
+    void*)
+{
     (void)data;
     (void)length;
 }
 
-static void default_signal(int, std::uint64_t, void*) {
-    /* Signal delivery is owned by the process/scheduler subsystem. */
+static void default_signal(
+    int,
+    std::uint64_t,
+    void*)
+{
 }
-
-/* -------------------------------------------------------------------------
- * Ring buffer
- * ---------------------------------------------------------------------- */
 
 class RingBuffer {
 private:
@@ -181,24 +157,24 @@ private:
 
 public:
     bool push(std::uint8_t value) {
-        if (count_ >= INPUT_CAPACITY) {
+        if (count_ >= INPUT_CAPACITY)
             return false;
-        }
 
         buffer_[head_] = value;
         head_ = (head_ + 1) % INPUT_CAPACITY;
         ++count_;
+
         return true;
     }
 
     bool pop(std::uint8_t& value) {
-        if (count_ == 0) {
+        if (count_ == 0)
             return false;
-        }
 
         value = buffer_[tail_];
         tail_ = (tail_ + 1) % INPUT_CAPACITY;
         --count_;
+
         return true;
     }
 
@@ -212,10 +188,6 @@ public:
         count_ = 0;
     }
 };
-
-/* -------------------------------------------------------------------------
- * Console object
- * ---------------------------------------------------------------------- */
 
 class ConsoleTTY {
 private:
@@ -235,25 +207,27 @@ private:
     bool nonblock_ = false;
     bool initialized_ = false;
 
-    /* Canonical line state. */
     char line_[LINE_CAPACITY]{};
     std::size_t line_len_ = 0;
     bool line_ready_ = false;
 
-    /* Helpers ------------------------------------------------------------- */
-
-    void output_raw_locked(const char* data, std::size_t len) {
-        if (!output_ || !data || len == 0) {
+    void output_raw_locked(
+        const char* data,
+        std::size_t len)
+    {
+        if (!output_ || !data || len == 0)
             return;
-        }
+
         output_(data, len, callback_user_);
     }
 
     void output_char_locked(char c) {
         if ((termios_.oflag & OFLAG_OPOST) &&
-            (termios_.oflag & OFLAG_ONLCR) && c == '\n') {
+            (termios_.oflag & OFLAG_ONLCR) &&
+            c == '\n')
+        {
             const char nl[] = "\r\n";
-            output_raw_locked(nl, sizeof(nl) - 1);
+            output_raw_locked(nl, 2);
             return;
         }
 
@@ -261,11 +235,13 @@ private:
     }
 
     void echo_char_locked(std::uint8_t c) {
-        if (!(termios_.lflag & LFLAG_ECHO)) {
+        if (!(termios_.lflag & LFLAG_ECHO))
             return;
-        }
 
-        if (c == '\n' || c == '\r' || c == '\t') {
+        if (c == '\n' ||
+            c == '\r' ||
+            c == '\t')
+        {
             output_char_locked(static_cast<char>(c));
             return;
         }
@@ -273,15 +249,17 @@ private:
         if (c == CC_VERASE) {
             if (termios_.lflag & LFLAG_ECHOE) {
                 const char erase[] = "\b \b";
-                output_raw_locked(erase, sizeof(erase) - 1);
+                output_raw_locked(erase, 3);
             }
             return;
         }
 
         if (c < 0x20u) {
             char caret[2];
+
             caret[0] = '^';
             caret[1] = static_cast<char>(c + '@');
+
             output_raw_locked(caret, 2);
             return;
         }
@@ -294,12 +272,11 @@ private:
         SignalCallback cb = signal_;
         void* user = callback_user_;
 
-        /* Callback may call into scheduler/process code, so do not keep
-         * the internal lock while invoking it. */
         lock_.unlock();
-        if (cb) {
+
+        if (cb)
             cb(signal, pgrp, user);
-        }
+
         lock_.lock();
     }
 
@@ -307,29 +284,32 @@ private:
         if (c == '\r') {
             if (termios_.iflag & IFLAG_ICRNL) {
                 c = '\n';
-            } else if (termios_.iflag & IFLAG_IGNCR) {
+            }
+            else if (termios_.iflag & IFLAG_IGNCR) {
                 return true;
             }
-        } else if (c == '\n' && (termios_.iflag & IFLAG_INLCR)) {
+        }
+        else if (c == '\n' &&
+                 (termios_.iflag & IFLAG_INLCR))
+        {
             c = '\r';
         }
 
         if (c == termios_.cc[CC_VINTR]) {
-            if (termios_.lflag & LFLAG_ISIG) {
-                signal_locked(2); // SIGINT
-            }
+            if (termios_.lflag & LFLAG_ISIG)
+                signal_locked(2);
+
             return true;
         }
 
         if (c == termios_.cc[CC_VSUSP]) {
-            if (termios_.lflag & LFLAG_ISIG) {
-                signal_locked(20); // SIGTSTP
-            }
+            if (termios_.lflag & LFLAG_ISIG)
+                signal_locked(20);
+
             return true;
         }
 
         if (c == termios_.cc[CC_VEOF]) {
-            /* EOF in canonical mode: complete current line immediately. */
             line_ready_ = true;
             return true;
         }
@@ -337,72 +317,85 @@ private:
         if (c == termios_.cc[CC_VERASE]) {
             if (line_len_ != 0) {
                 --line_len_;
+                line_[line_len_] = '\0';
                 echo_char_locked(c);
             }
+
             return true;
         }
 
         if (c == termios_.cc[CC_VKILL]) {
             line_len_ = 0;
-            if ((termios_.lflag & LFLAG_ECHOK) != 0) {
+            line_[0] = '\0';
+
+            if (termios_.lflag & LFLAG_ECHOK) {
                 const char nl[] = "\r\n";
-                output_raw_locked(nl, sizeof(nl) - 1);
+                output_raw_locked(nl, 2);
             }
+
             return true;
         }
 
-        if (c == termios_.cc[CC_VSTART] || c == termios_.cc[CC_VSTOP]) {
-            /* Flow-control bytes are consumed for now. */
+        if (c == termios_.cc[CC_VSTART] ||
+            c == termios_.cc[CC_VSTOP])
+        {
             return true;
         }
 
-        if ((termios_.iflag & IFLAG_ISTRIP) != 0) {
+        if (termios_.iflag & IFLAG_ISTRIP)
             c &= 0x7Fu;
-        }
 
-        if (line_len_ + 1 >= LINE_CAPACITY) {
+        if (line_len_ + 1 >= LINE_CAPACITY)
             return false;
-        }
 
         line_[line_len_++] = static_cast<char>(c);
+        line_[line_len_] = '\0';
+
         echo_char_locked(c);
 
-        if (c == '\n') {
+        if (c == '\n')
             line_ready_ = true;
-        }
 
         return true;
     }
 
     bool publish_line_locked() {
-        if (!line_ready_ || line_len_ == 0) {
-            return line_ready_;
-        }
+        if (!line_ready_)
+            return false;
 
         for (std::size_t i = 0; i < line_len_; ++i) {
-            if (!input_.push(static_cast<std::uint8_t>(line_[i]))) {
+            if (!input_.push(
+                    static_cast<std::uint8_t>(line_[i])))
+            {
                 return false;
             }
         }
 
         line_len_ = 0;
+        line_[0] = '\0';
         line_ready_ = false;
+
         return true;
     }
 
-    std::size_t drain_input_locked(void* dst, std::size_t len) {
-        if (!dst || len == 0) {
+    std::size_t drain_input_locked(
+        void* dst,
+        std::size_t len)
+    {
+        if (!dst || len == 0)
             return 0;
-        }
 
-        auto* bytes = static_cast<std::uint8_t*>(dst);
+        auto* bytes =
+            static_cast<std::uint8_t*>(dst);
+
         std::size_t n = 0;
 
         while (n < len) {
             std::uint8_t c = 0;
-            if (!input_.pop(c)) {
+
+            if (!input_.pop(c))
                 break;
-            }
+
             bytes[n++] = c;
         }
 
@@ -413,16 +406,21 @@ public:
     void init() {
         LockGuard guard(lock_);
 
-        if (initialized_) {
+        if (initialized_)
             return;
-        }
 
         memset(&termios_, 0, sizeof(termios_));
         termios_.iflag = IFLAG_ICRNL;
         termios_.oflag = OFLAG_OPOST | OFLAG_ONLCR;
         termios_.cflag = 0;
-        termios_.lflag = LFLAG_ECHO | LFLAG_ECHOE | LFLAG_ECHOK |
-                         LFLAG_ICANON | LFLAG_ISIG | LFLAG_IEXTEN;
+
+        termios_.lflag =
+            LFLAG_ECHO |
+            LFLAG_ECHOE |
+            LFLAG_ECHOK |
+            LFLAG_ICANON |
+            LFLAG_ISIG |
+            LFLAG_IEXTEN;
 
         termios_.cc[CC_VINTR]  = 3;
         termios_.cc[CC_VEOF]   = 4;
@@ -433,22 +431,36 @@ public:
         termios_.cc[CC_VSUSP]  = 26;
 
         input_.clear();
+
         line_len_ = 0;
         line_ready_ = false;
+
         foreground_pgrp_ = session_id_;
         nonblock_ = false;
         initialized_ = true;
     }
 
-    void set_output_callback(OutputCallback output, void* user) {
+    void set_output_callback(
+        OutputCallback output,
+        void* user)
+    {
         LockGuard guard(lock_);
-        output_ = output ? output : default_output;
+
+        output_ =
+            output ? output : default_output;
+
         callback_user_ = user;
     }
 
-    void set_signal_callback(SignalCallback signal, void* user) {
+    void set_signal_callback(
+        SignalCallback signal,
+        void* user)
+    {
         LockGuard guard(lock_);
-        signal_ = signal ? signal : default_signal;
+
+        signal_ =
+            signal ? signal : default_signal;
+
         callback_user_ = user;
     }
 
@@ -456,163 +468,208 @@ public:
         return DEVICE_PATH;
     }
 
-    std::int64_t write(const void* data, std::size_t len) {
-        if (!data && len != 0) {
+    std::int64_t write(
+        const void* data,
+        std::size_t len)
+    {
+        if (!data && len != 0)
             return TTY_EINVAL;
-        }
 
-        if (!initialized_) {
+        if (!initialized_)
             init();
-        }
 
         LockGuard guard(lock_);
-        const auto* bytes = static_cast<const char*>(data);
 
-        for (std::size_t i = 0; i < len; ++i) {
+        const auto* bytes =
+            static_cast<const char*>(data);
+
+        for (std::size_t i = 0; i < len; ++i)
             output_char_locked(bytes[i]);
-        }
 
         return static_cast<std::int64_t>(len);
     }
 
-    std::int64_t read(void* dst, std::size_t len) {
-        if (!dst && len != 0) {
+    std::int64_t read(
+        void* dst,
+        std::size_t len)
+    {
+        if (!dst && len != 0)
             return TTY_EINVAL;
-        }
 
-        if (len == 0) {
+        if (len == 0)
             return 0;
-        }
 
-        if (!initialized_) {
+        if (!initialized_)
             init();
-        }
 
         LockGuard guard(lock_);
 
-        if ((termios_.lflag & LFLAG_ICANON) != 0) {
+        if (termios_.lflag & LFLAG_ICANON)
             publish_line_locked();
-        }
 
-        if (input_.size() == 0) {
+        if (input_.size() == 0)
             return nonblock_ ? TTY_EAGAIN : 0;
-        }
 
-        return static_cast<std::int64_t>(drain_input_locked(dst, len));
+        return static_cast<std::int64_t>(
+            drain_input_locked(dst, len));
     }
 
     void input_char(std::uint8_t c) {
-        if (!initialized_) {
+        if (!initialized_)
             init();
-        }
 
         LockGuard guard(lock_);
 
-        if ((termios_.lflag & LFLAG_ICANON) != 0) {
-            if (!push_canonical_locked(c)) {
+        if (termios_.lflag & LFLAG_ICANON) {
+            if (!push_canonical_locked(c))
                 return;
-            }
-            if (line_ready_) {
+
+            if (line_ready_)
                 publish_line_locked();
-            }
+
             return;
         }
 
         if (c == '\r') {
-            if (termios_.iflag & IFLAG_ICRNL) {
+            if (termios_.iflag & IFLAG_ICRNL)
                 c = '\n';
-            } else if (termios_.iflag & IFLAG_IGNCR) {
+            else if (termios_.iflag & IFLAG_IGNCR)
                 return;
-            }
-        } else if (c == '\n' && (termios_.iflag & IFLAG_INLCR)) {
+        }
+        else if (c == '\n' &&
+                 (termios_.iflag & IFLAG_INLCR))
+        {
             c = '\r';
         }
 
-        if (termios_.iflag & IFLAG_ISTRIP) {
+        if (termios_.iflag & IFLAG_ISTRIP)
             c &= 0x7Fu;
-        }
 
-        if (c == termios_.cc[CC_VINTR] && (termios_.lflag & LFLAG_ISIG)) {
+        if (c == termios_.cc[CC_VINTR] &&
+            (termios_.lflag & LFLAG_ISIG))
+        {
             signal_locked(2);
             return;
         }
 
-        if (!input_.push(c)) {
+        if (!input_.push(c))
             return;
-        }
 
         echo_char_locked(c);
     }
 
-    void input_bytes(const void* data, std::size_t len) {
-        if (!data || len == 0) {
+    void input_bytes(
+        const void* data,
+        std::size_t len)
+    {
+        if (!data || len == 0)
             return;
-        }
 
-        const auto* p = static_cast<const std::uint8_t*>(data);
-        for (std::size_t i = 0; i < len; ++i) {
+        const auto* p =
+            static_cast<const std::uint8_t*>(data);
+
+        for (std::size_t i = 0; i < len; ++i)
             input_char(p[i]);
-        }
     }
 
-    std::int64_t ioctl(std::uint64_t request, void* arg) {
-        if (!initialized_) {
+    std::int64_t ioctl(
+        std::uint64_t request,
+        void* arg)
+    {
+        if (!initialized_)
             init();
-        }
 
         LockGuard guard(lock_);
 
         switch (request) {
-            case IOCTL_GET_WINSZ:
-                if (!arg) return TTY_EINVAL;
-                *static_cast<WindowSize*>(arg) = winsz_;
-                return TTY_OK;
+        case IOCTL_GET_WINSZ:
+            if (!arg)
+                return TTY_EINVAL;
 
-            case IOCTL_SET_WINSZ:
-                if (!arg) return TTY_EINVAL;
-                winsz_ = *static_cast<const WindowSize*>(arg);
-                if (winsz_.rows == 0) winsz_.rows = 25;
-                if (winsz_.cols == 0) winsz_.cols = 80;
-                return TTY_OK;
+            *static_cast<WindowSize*>(arg) =
+                winsz_;
 
-            case IOCTL_GET_TERMIOS:
-                if (!arg) return TTY_EINVAL;
-                *static_cast<Termios*>(arg) = termios_;
-                return TTY_OK;
+            return TTY_OK;
 
-            case IOCTL_SET_TERMIOS:
-                if (!arg) return TTY_EINVAL;
-                termios_ = *static_cast<const Termios*>(arg);
-                return TTY_OK;
+        case IOCTL_SET_WINSZ:
+            if (!arg)
+                return TTY_EINVAL;
 
-            case IOCTL_GET_PGRP:
-                if (!arg) return TTY_EINVAL;
-                *static_cast<std::uint64_t*>(arg) = foreground_pgrp_;
-                return TTY_OK;
+            winsz_ =
+                *static_cast<const WindowSize*>(arg);
 
-            case IOCTL_SET_PGRP:
-                if (!arg) return TTY_EINVAL;
-                foreground_pgrp_ = *static_cast<const std::uint64_t*>(arg);
-                return TTY_OK;
+            if (winsz_.rows == 0)
+                winsz_.rows = 25;
 
-            case IOCTL_FLUSH:
-                input_.clear();
-                line_len_ = 0;
-                line_ready_ = false;
-                return TTY_OK;
+            if (winsz_.cols == 0)
+                winsz_.cols = 80;
 
-            case IOCTL_SET_NONBLOCK:
-                if (!arg) return TTY_EINVAL;
-                nonblock_ = (*static_cast<const std::uint32_t*>(arg) != 0);
-                return TTY_OK;
+            return TTY_OK;
 
-            case IOCTL_GET_NONBLOCK:
-                if (!arg) return TTY_EINVAL;
-                *static_cast<std::uint32_t*>(arg) = nonblock_ ? 1u : 0u;
-                return TTY_OK;
+        case IOCTL_GET_TERMIOS:
+            if (!arg)
+                return TTY_EINVAL;
 
-            default:
-                return TTY_ENOTTY;
+            *static_cast<Termios*>(arg) =
+                termios_;
+
+            return TTY_OK;
+
+        case IOCTL_SET_TERMIOS:
+            if (!arg)
+                return TTY_EINVAL;
+
+            termios_ =
+                *static_cast<const Termios*>(arg);
+
+            return TTY_OK;
+
+        case IOCTL_GET_PGRP:
+            if (!arg)
+                return TTY_EINVAL;
+
+            *static_cast<std::uint64_t*>(arg) =
+                foreground_pgrp_;
+
+            return TTY_OK;
+
+        case IOCTL_SET_PGRP:
+            if (!arg)
+                return TTY_EINVAL;
+
+            foreground_pgrp_ =
+                *static_cast<const std::uint64_t*>(arg);
+
+            return TTY_OK;
+
+        case IOCTL_FLUSH:
+            input_.clear();
+            line_len_ = 0;
+            line_[0] = '\0';
+            line_ready_ = false;
+
+            return TTY_OK;
+
+        case IOCTL_SET_NONBLOCK:
+            if (!arg)
+                return TTY_EINVAL;
+
+            nonblock_ =
+                (*static_cast<const std::uint32_t*>(arg) != 0);
+
+            return TTY_OK;
+
+        case IOCTL_GET_NONBLOCK:
+            if (!arg)
+                return TTY_EINVAL;
+
+            *static_cast<std::uint32_t*>(arg) =
+                nonblock_ ? 1u : 0u;
+
+            return TTY_OK;
+
+        default:
+            return TTY_ENOTTY;
         }
     }
 
@@ -635,54 +692,40 @@ public:
 
 static ConsoleTTY g_console;
 
-/* -------------------------------------------------------------------------
- * Device registration
- * ---------------------------------------------------------------------- */
-
 bool register_device() {
-    if (!g_console.initialized()) {
+    if (!g_console.initialized())
         g_console.init();
-    }
 
-    /*
-     * The current BlockOS VFS models device nodes as files.  The contents are
-     * only a descriptor string; runtime I/O is routed through this TTY object.
-     */
     static constexpr std::uint8_t descriptor[] = {
-        'B','l','o','c','k','O','S',' ','c','o','n','s','o','l','e','0','\n'
+        'B','l','o','c','k','O','S',' ',
+        'c','o','n','s','o','l','e','0','\n'
     };
 
-    const std::uint8_t* existing = nullptr;
     std::uint32_t existing_size = 0;
-    existing = vfs::read_file(DEVICE_PATH, &existing_size);
 
-    if (existing != nullptr) {
+    const std::uint8_t* existing =
+        vfs::read_file(
+            DEVICE_PATH,
+            &existing_size);
+
+    if (existing != nullptr)
         return true;
-    }
 
     return vfs::create_file(
         DEVICE_PATH,
         descriptor,
-        static_cast<std::uint32_t>(sizeof(descriptor))
-    );
+        static_cast<std::uint32_t>(
+            sizeof(descriptor)));
 }
 
-/* -------------------------------------------------------------------------
- * Public native API
- * ---------------------------------------------------------------------- */
-
 ConsoleTTY& console() {
-    if (!g_console.initialized()) {
+    if (!g_console.initialized())
         g_console.init();
-    }
+
     return g_console;
 }
 
 } // namespace blockos::tty
-
-/* -------------------------------------------------------------------------
- * C ABI for keyboard, syscall and driver integration
- * ---------------------------------------------------------------------- */
 
 extern "C" {
 
@@ -691,41 +734,70 @@ void blockos_tty_init() {
     (void)blockos::tty::register_device();
 }
 
-void blockos_tty_input_char(std::uint8_t c) {
+void blockos_tty_input_char(
+    std::uint8_t c)
+{
     blockos::tty::console().input_char(c);
 }
 
-void blockos_tty_input_bytes(const void* data, std::size_t len) {
-    blockos::tty::console().input_bytes(data, len);
+void blockos_tty_input_bytes(
+    const void* data,
+    std::size_t len)
+{
+    blockos::tty::console().input_bytes(
+        data,
+        len);
 }
 
-std::int64_t blockos_tty_read(void* buffer, std::size_t length) {
-    return blockos::tty::console().read(buffer, length);
+std::int64_t blockos_tty_read(
+    void* buffer,
+    std::size_t length)
+{
+    return blockos::tty::console().read(
+        buffer,
+        length);
 }
 
-std::int64_t blockos_tty_write(const void* buffer, std::size_t length) {
-    return blockos::tty::console().write(buffer, length);
+std::int64_t blockos_tty_write(
+    const void* buffer,
+    std::size_t length)
+{
+    return blockos::tty::console().write(
+        buffer,
+        length);
 }
 
-std::int64_t blockos_tty_ioctl(std::uint64_t request, void* arg) {
-    return blockos::tty::console().ioctl(request, arg);
+std::int64_t blockos_tty_ioctl(
+    std::uint64_t request,
+    void* arg)
+{
+    return blockos::tty::console().ioctl(
+        request,
+        arg);
 }
 
 void blockos_tty_set_output_callback(
     blockos::tty::OutputCallback callback,
     void* user)
 {
-    blockos::tty::console().set_output_callback(callback, user);
+    blockos::tty::console().set_output_callback(
+        callback,
+        user);
 }
 
 void blockos_tty_set_signal_callback(
     blockos::tty::SignalCallback callback,
     void* user)
 {
-    blockos::tty::console().set_signal_callback(callback, user);
+    blockos::tty::console().set_signal_callback(
+        callback,
+        user);
 }
 
-void blockos_terminal_print(const char* text, std::size_t length) {
+void blockos_terminal_print(
+    const char* text,
+    std::size_t length)
+{
     (void)blockos_tty_write(text, length);
 }
 
