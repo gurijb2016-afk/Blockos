@@ -111,6 +111,7 @@ SRC := $(filter-out $(EXCLUDED_SRC), \
 	$(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.cpp)))
 
 SRC += kernel/cmd/cmd_ata.cpp
+SRC += kernel/cmd/cmd_forth.cpp
 
 S_SRC := $(foreach dir,$(S_SRC_DIRS),$(wildcard $(dir)/*.S))
 
