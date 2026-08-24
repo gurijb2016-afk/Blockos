@@ -12,10 +12,8 @@ DATA_IMG=data.img
 IMG_SIZE_MB=16
 PERSIST_DIR=persistent
 
-if [ ! -f "$EFI_FILE" ]; then
-  echo "Building..."
-  $MAKE
-fi
+echo "Building..."
+$MAKE
 
 echo "Creating ${DISK_IMG} (${IMG_SIZE_MB}MB) ..."
 rm -f ${DISK_IMG}
