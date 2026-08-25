@@ -1,8 +1,10 @@
 #include "allocator.hpp"
 #include "backbuffer.h"
-#include "cmd/cmd_ata.hpp"
 #include "cmd/cmd_forth.hpp"
+#include "cmd/command.hpp"
 #include "console.hpp"
+#include "drivers/ata_devices.hpp"
+#include "fs/fat32.hpp"
 #include "drivers/Keymap.hpp"
 #include "events.hpp"
 #include "font8x8.h"
@@ -424,37 +426,97 @@ static void stdio_sink(const char* data, size_t length)
 
 /*
  * ============================================================
+ * Block devices
+ * ============================================================
+ */
+
+static AtaPio g_ata_boot;
+static AtaPio g_ata_data;
+static AtaPio g_ata_fs;
+
+AtaPio& ata_boot_disk()
+{
+    return g_ata_boot;
+}
+
+AtaPio& ata_data_disk()
+{
+    return g_ata_data;
+}
+
+AtaPio& ata_fs_disk()
+{
+    return g_ata_fs;
+}
+
+static Framebuffer* g_flush_fb = nullptr;
+static void* g_flush_backbuf = nullptr;
+
+static void flush_console()
+{
+    if (!g_console_sink || !g_flush_fb || !g_flush_backbuf)
+        return;
+
+    g_console_sink->render(
+        (uint8_t*) g_flush_backbuf,
+        g_flush_fb->Width);
+
+    bb_blit_region_to_fb(
+        g_flush_fb,
+        (const uint8_t*) g_flush_backbuf,
+        g_console_sink->x(),
+        g_console_sink->y(),
+        g_console_sink->w(),
+        g_console_sink->h());
+}
+
+__attribute__((unused)) static void trace(Console& out, const char* message)
+{
+    out.print(message);
+    out.newline();
+
+    flush_console();
+}
+
+static void init_block_devices(Console& out)
+{
+    if (!g_ata_boot.init(AtaPio::Bus::Primary, AtaPio::Drive::Master))
+    {
+        out.print("ata0: ");
+        out.print(AtaPio::error_name(g_ata_boot.error_at(0)));
+        out.newline();
+    }
+
+    if (!g_ata_data.init(AtaPio::Bus::Primary, AtaPio::Drive::Slave))
+    {
+        out.print("ata1: ");
+        out.print(AtaPio::error_name(g_ata_data.error_at(0)));
+        out.newline();
+    }
+
+    if (!g_ata_fs.init(AtaPio::Bus::Secondary, AtaPio::Drive::Master))
+    {
+        out.print("ata2: ");
+        out.print(AtaPio::error_name(g_ata_fs.error_at(0)));
+        out.newline();
+    }
+
+    if (g_ata_fs.present())
+    {
+        legacy_fat32_fs.attach(g_ata_fs);
+        legacy_fat32_fs.initialize_fat32();
+    }
+}
+
+/*
+ * ============================================================
  * Command dispatch
  * ============================================================
  */
 
-static bool name_matches(const char* a, const char* b)
-{
-    size_t i = 0;
-
-    while (a[i] != '\0' && a[i] == b[i])
-        ++i;
-
-    return a[i] == b[i];
-}
-
-static void print_command_list(Console& out)
-{
-    out.print("commands: clear help");
-    for (size_t i = 0; i < Blockos::proc::count(); ++i)
-    {
-        if (i)
-            out.print(" ");
-
-        out.print(Blockos::proc::name_at(i));
-    }
-
-    out.newline();
-}
-
 static void run_command(const Args& args, Console& out)
 {
-    if (blockos::cmd::forth::command(args))
+    if (blockos::cmd::forth_main(args))
         return;
 
     if (args.count == 0)
@@ -462,25 +524,15 @@ static void run_command(const Args& args, Console& out)
 
     const char* name = args.argv[0];
 
-    if (name_matches(name, "clear"))
-    {
-        out.clear();
-        return;
-    }
+    int status = 0;
 
-    if (name_matches(name, "help"))
-    {
-        print_command_list(out);
-        return;
-    }
-
-    if (ata_command(args, out))
+    if (blockos::cmd::run_registered(args, out, &status))
         return;
 
     char output[1024];
 
     const size_t written =
-        Blockos::proc::read(
+        blockos::proc::read(
             name,
             output,
             sizeof(output));
@@ -998,15 +1050,20 @@ extern "C" EFI_STATUS EFIAPI efi_main(
     printf("BlockOS console\n");
     console.print("commands: ");
 
-    for (size_t i = 0; i < Blockos::proc::count(); ++i)
+    for (size_t i = 0; i < blockos::proc::count(); ++i)
     {
         if (i)
             console.print(" ");
 
-        console.print(Blockos::proc::name_at(i));
+        console.print(blockos::proc::name_at(i));
     }
 
     console.newline();
+
+    g_flush_fb = &fb;
+    g_flush_backbuf = backbuf;
+
+    init_block_devices(console);
 
 
     /*

@@ -4,9 +4,9 @@
 
 #include "shell.hpp"
 
-namespace blockos::cmd::forth
+namespace blockos::cmd
 {
 
-bool command(const Args& args);
+bool forth_main(const Args& args);
 
-} // namespace blockos::cmd::forth
+} // namespace blockos::cmd

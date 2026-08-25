@@ -2,8 +2,10 @@
 
 #include <stddef.h>
 
-namespace Blockos {
-namespace proc {
+namespace blockos
+{
+namespace proc
+{
 
 size_t read(const char* name, char* buffer, size_t max_size);
 bool exists(const char* name);
@@ -13,6 +15,6 @@ void init();
 bool test();
 
 } // namespace proc
-} // namespace Blockos
+} // namespace blockos
 
 void init_proc_fs();

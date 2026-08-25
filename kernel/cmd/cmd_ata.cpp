@@ -1,31 +1,27 @@
-#include "cmd_ata.hpp"
+#include "command.hpp"
 
 #include <libc/include/stdio.h>
 #include <string.h>
 
+#include "ata_devices.hpp"
 #include "ata_pio.hpp"
 
 namespace
 {
 
-AtaPio disk;
-
 uint8_t sector[AtaPio::SECTOR_SIZE];
 
-constexpr AtaPio::Bus BUS = AtaPio::Bus::Primary;
-constexpr AtaPio::Drive DRIVE = AtaPio::Drive::Slave;
+AtaPio& disk()
+{
+    return ata_data_disk();
+}
 
 bool ready(Console& out)
 {
-    if (disk.present())
+    if (disk().present())
         return true;
 
-    if (disk.init(BUS, DRIVE))
-        return true;
-
-    out.print("ata: ");
-    out.print(AtaPio::error_name(disk.error_at(0)));
-    out.newline();
+    out.print("ata: device not initialized\n");
 
     return false;
 }
@@ -35,7 +31,7 @@ void fail(Console& out, const char* what)
 {
     out.print(what);
     out.print(": ");
-    out.print(AtaPio::error_name(disk.error_at(0)));
+    out.print(AtaPio::error_name(disk().error_at(0)));
     out.newline();
 }
 
@@ -77,7 +73,7 @@ void read(const Args& args, Console& out)
         return;
     }
 
-    if (!disk.read_sectors(lba, 1, sector))
+    if (!disk().read_sectors(lba, 1, sector))
     {
         fail(out, "ata: read failed");
         return;
@@ -119,7 +115,7 @@ void write(const Args& args, Console& out)
             sector[pos++] = (uint8_t) token[j];
     }
 
-    if (!disk.write_sectors(lba, 1, sector))
+    if (!disk().write_sectors(lba, 1, sector))
     {
         fail(out, "ata: write failed");
         return;
@@ -135,22 +131,21 @@ void write(const Args& args, Console& out)
 } // namespace
 
 
-bool ata_command(const Args& args, Console& out)
+namespace blockos::cmd
 {
-    if (args.count == 0)
-        return false;
 
-    if (strcmp(args.argv[0], "ata-read") == 0)
-    {
-        read(args, out);
-        return true;
-    }
+extern "C" int ata_read_main(const Args& args, Console& out)
+{
+    read(args, out);
 
-    if (strcmp(args.argv[0], "ata-write") == 0)
-    {
-        write(args, out);
-        return true;
-    }
-
-    return false;
+    return 0;
 }
+
+extern "C" int ata_write_main(const Args& args, Console& out)
+{
+    write(args, out);
+
+    return 0;
+}
+
+} // namespace blockos::cmd

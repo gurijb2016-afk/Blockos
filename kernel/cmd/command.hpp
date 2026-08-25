@@ -1,19 +1,28 @@
 #pragma once
-#include <cstdint>
-#include <string_view>
 
-namespace blockos::cmd {
+#include <stddef.h>
 
-using CommandFn = int (*)(int argc, char** argv);
+#include "console.hpp"
+#include "shell.hpp"
 
-struct CommandEntry {
-    std::string_view name;
+namespace blockos::cmd
+{
+
+using CommandFn = int (*)(const Args& args, Console& out);
+
+struct CommandEntry
+{
+    const char* name;
     CommandFn fn;
-    std::string_view help;
+    const char* help;
 };
 
-int print_usage(std::string_view name, std::string_view help);
-bool arg_equals(const char* s, std::string_view expected);
-int parse_int(const char* s, int fallback = 0);
+const CommandEntry* find_command(const char* name);
+
+const CommandEntry* command_at(size_t index);
+
+size_t command_count();
+
+bool run_registered(const Args& args, Console& out, int* status);
 
 } // namespace blockos::cmd

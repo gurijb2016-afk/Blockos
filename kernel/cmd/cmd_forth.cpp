@@ -1,4 +1,5 @@
 #include "cmd_forth.hpp"
+#include "command.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -7,7 +8,7 @@
 #include "libc/include/stdio.h"
 #include "libc/include/string.h"
 
-namespace blockos::cmd::forth
+namespace blockos::cmd
 {
 
 constexpr size_t STACK_SIZE = 1024;
@@ -455,7 +456,7 @@ void outer_interpreter(const char* line)
 bool active = false;
 constexpr size_t LINE_MAX = 256;
 
-bool command(const Args& args)
+bool forth_main(const Args& args)
 {
     size_t first = 0;
 
@@ -502,4 +503,17 @@ bool command(const Args& args)
     return true;
 }
 
-} // namespace blockos::cmd::forth
+} // namespace blockos::cmd
+namespace blockos::cmd
+{
+
+extern "C" int forth_enter_main(const Args& args, Console& out)
+{
+    (void)out;
+
+    forth_main(args);
+
+    return 0;
+}
+
+} // namespace blockos::cmd
