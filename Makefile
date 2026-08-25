@@ -113,6 +113,7 @@ SRC := $(filter-out $(EXCLUDED_SRC), \
 SRC += kernel/cmd/cmd_ata.cpp
 SRC += kernel/cmd/cmd_forth.cpp
 SRC += kernel/cmd/cmd_ls.cpp
+SRC += kernel/cmd/cmd_cat.cpp
 SRC += kernel/cmd/command_registry.cpp
 SRC += kernel/cmd/cmd_clear.cpp
 SRC += kernel/cmd/cmd_help.cpp

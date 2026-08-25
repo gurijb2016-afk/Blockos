@@ -78,6 +78,7 @@ bool Fat32Reader::initialize_fat32()
     fat_start_sector = reserved_sectors;
     data_start_sector = reserved_sectors + (bpb.num_fats * fat_size);
     root_cluster_num = bpb.root_cluster;
+    cluster_size_bytes = bpb.sectors_per_cluster * AtaPio::SECTOR_SIZE;
 
     printf("Computed FAT start:  sector %u\n", fat_start_sector);
     printf("Computed data start: sector %u\n", data_start_sector);
@@ -171,4 +172,134 @@ void Fat32Reader::list_root_directories()
     }
 
     return;
+}
+
+// Current implementation assumes the file name is in 8.3 format (8 uppercase characters for the name, 3 for the extension)
+static bool to_short_name(const char* name, char* out)
+{
+    for (uint32_t i = 0; i < 11; i++)
+        out[i] = ' ';
+
+    uint32_t base = 0;
+    while (name[base] != '\0' && name[base] != '.')
+    {
+        if (base >= 8) return false;
+        char c = name[base];
+        out[base] = (c >= 'a' && c <= 'z') ? static_cast<char>(c - 32) : c;
+        base++;
+    }
+
+    if (base == 0) return false;
+    if (name[base] == '\0') return true;
+
+    uint32_t ext = 0;
+    while (name[base + 1 + ext] != '\0')
+    {
+        if (ext >= 3) return false;
+        char c = name[base + 1 + ext];
+        out[8 + ext] = (c >= 'a' && c <= 'z') ? static_cast<char>(c - 32) : c;
+        ext++;
+    }
+
+    return true;
+}
+
+// NOTE: dest is unbounded. Nothing stops this function from writing past the end of dest.
+bool Fat32Reader::read_fat32_file(const char* name, uint8_t* dest, size_t* bytes_read)
+{
+    if (!is_initialized)
+    {
+        printf("fat32: not initialized\n");
+        return false;
+    }
+
+    char target_name[11];
+    if (!to_short_name(name, target_name))
+    {
+        printf("fat32: not a valid 8.3 name: %s\n", name);
+        return false;
+    }
+
+    uint32_t current_cluster = root_cluster_num;
+    uint32_t file_start_cluster = 0;
+    uint8_t sector_buffer[AtaPio::SECTOR_SIZE];
+    uint8_t scratch_buffer[AtaPio::SECTOR_SIZE];
+    size_t dest_length = 0;
+    uint32_t file_size = 0;
+    uint32_t bytes_remaining = 0;
+    uint32_t entries_per_sector = bytes_per_sector / sizeof(Fat32DirEntry);
+
+    bool file_found = false;
+
+    while (current_cluster >= 2 && current_cluster < 0x0FFFFFF8 && !file_found)
+    {
+        uint32_t lba = cluster_to_lba(current_cluster);
+
+        for (uint32_t s = 0; s < sectors_per_cluster && !file_found; s++)
+        {
+            if (!ata_driver->read_sectors(lba + s, 1, sector_buffer))
+            {
+                printf("fat32: read failed at lba %u\n", lba + s);
+                return false;
+            }
+
+            Fat32DirEntry* directory_entry = reinterpret_cast<Fat32DirEntry*>(sector_buffer);
+            for (uint32_t e = 0; e < entries_per_sector; e++)
+            {
+                if (static_cast<uint8_t>(directory_entry[e].name[0]) == 0x00) return false; // end of directory, no entries follow
+                if (static_cast<uint8_t>(directory_entry[e].name[0]) == 0xE5) continue; // deleted entry
+                if (directory_entry[e].attr == 0x0F) continue; // LFN entry, not a real 8.3 record
+                if (directory_entry[e].attr & 0x08) continue; // volume label, not a file
+                if (directory_entry[e].attr & 0x10) continue; // subdirectory, not a file
+                if (memcmp(directory_entry[e].name, target_name, 11) == 0)
+                {
+                    file_found = true;
+                    file_start_cluster = directory_entry[e].data_cluster_lo | (static_cast<uint32_t>(directory_entry[e].data_cluster_hi) << 16);
+                    file_size = directory_entry[e].file_size;
+                    bytes_remaining = file_size;
+                    break;
+                }
+            }
+        }
+
+        if (!file_found) current_cluster = get_next_cluster(current_cluster);
+    }
+
+    if (!file_found) return false;
+    if (bytes_remaining == 0)
+    {
+        if (bytes_read) *bytes_read = dest_length;
+        return true;
+    }
+
+    while (file_start_cluster >= 2 && file_start_cluster < 0x0FFFFFF8)
+    {
+        uint32_t cluster_lba = cluster_to_lba(file_start_cluster);
+
+        for (uint32_t s = 0; s < sectors_per_cluster; s++)
+        {
+            if (!ata_driver->read_sectors(cluster_lba + s, 1, scratch_buffer))
+            {
+                printf("fat32: read failed at lba %u\n", cluster_lba + s);
+                return false;
+            }
+
+            uint32_t bytes_to_copy = bytes_remaining < AtaPio::SECTOR_SIZE ? bytes_remaining : AtaPio::SECTOR_SIZE;
+            memcpy(dest + dest_length, scratch_buffer, bytes_to_copy);
+            dest_length += bytes_to_copy;
+            bytes_remaining -= bytes_to_copy;
+
+            if (bytes_remaining == 0)
+            {
+                if (bytes_read) *bytes_read = dest_length;
+                return true;
+            }
+        }
+
+        file_start_cluster = get_next_cluster(file_start_cluster);
+    }
+
+    printf("fat32: cluster chain ended with %u bytes left of %u\n", bytes_remaining, file_size);
+
+    return false;
 }

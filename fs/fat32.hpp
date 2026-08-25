@@ -52,6 +52,7 @@ class Fat32Reader
     uint32_t data_start_sector = 0;
     uint32_t fat_size = 0;
     uint32_t root_cluster_num = 0;
+    uint32_t cluster_size_bytes = 0;
     Fat32BPB bpb = {};
     AtaPio* ata_driver = nullptr;
     bool is_initialized = false;
@@ -67,7 +68,7 @@ class Fat32Reader
     void attach(AtaPio& disk);
     bool initialize_fat32();
     bool ready() const;
-    bool read_fat32_file(const char* name, uint8_t* dest, size_t max_size);
+    bool read_fat32_file(const char* name, uint8_t* dest, size_t* bytes_read = nullptr);
     void list_root_directories();
 };
 

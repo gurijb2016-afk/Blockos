@@ -10,6 +10,7 @@ namespace blockos::cmd
 DECLARE_CMD(clear)
 DECLARE_CMD(help)
 DECLARE_CMD(ls)
+DECLARE_CMD(cat)
 DECLARE_CMD(ata_read)
 DECLARE_CMD(ata_write)
 DECLARE_CMD(forth_enter)
@@ -18,6 +19,7 @@ static const CommandEntry commands[] = {
     {"clear", clear_main, "Clear the console."},
     {"help", help_main, "List commands, or show help for one."},
     {"ls", ls_main, "List files in the VFS."},
+    {"cat", cat_main, "Hex dump a file from the FAT32 volume."},
     {"ata-read", ata_read_main, "Read sectors from the ATA disk."},
     {"ata-write", ata_write_main, "Write a sector to the ATA disk."},
     {"forth", forth_enter_main, "Enter the Forth interpreter."},

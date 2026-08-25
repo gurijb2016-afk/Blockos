@@ -5,6 +5,7 @@
 
 #include "ata_devices.hpp"
 #include "ata_pio.hpp"
+#include "print_format.hpp"
 
 namespace
 {
@@ -35,30 +36,6 @@ void fail(Console& out, const char* what)
     out.newline();
 }
 
-
-void hexdump(const uint8_t* data, size_t output_length, uint32_t offset = 0)
-{
-    const size_t hex_per_row = 16;
-
-    for (size_t i = 0; i < output_length - offset; i += hex_per_row)
-    {
-        printf("%08X", (unsigned int) (offset + i));
-
-        for (size_t j = 0; j < hex_per_row && i + j < output_length; ++j)
-        {
-            printf(" %02X", (unsigned int) data[i + j + offset]);
-        }
-
-        printf(" ");
-        for (size_t j = 0; j < hex_per_row && i + j < output_length; ++j)
-        {
-            const char c = (char) data[i + j + offset];
-            (c >= 32 && c < 127) ? printf("%c", c) : printf(".");
-        }
-
-        printf("\n");
-    }
-}
 
 void read(const Args& args, Console& out)
 {
