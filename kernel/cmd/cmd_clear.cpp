@@ -1,10 +1,15 @@
 #include "command.hpp"
-#include <iostream>
 
-namespace blockos::cmd {
-extern "C" int clear_main(int argc, char** argv) {
-    (void)argc; (void)argv;
-    std::cout << "\033[2J\033[H";
+namespace blockos::cmd
+{
+
+extern "C" int clear_main(const Args& args, Console& out)
+{
+    (void)args;
+
+    out.clear();
+
     return 0;
 }
+
 } // namespace blockos::cmd

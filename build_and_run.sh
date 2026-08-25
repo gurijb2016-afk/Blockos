@@ -9,7 +9,9 @@ BUILD_DIR=build
 EFI_FILE=${BUILD_DIR}/BOOTX64.EFI
 DISK_IMG=disk.img
 DATA_IMG=data.img
+FS_IMG=fat32_test.img
 IMG_SIZE_MB=16
+FS_IMG_SIZE_MB=64
 PERSIST_DIR=persistent
 
 echo "Building..."
@@ -42,6 +44,13 @@ if [ ! -f "${DATA_IMG}" ] || [ $(wc -c < "${DATA_IMG}") -ne ${DATA_BYTES} ]; the
   echo "Creating ${DATA_IMG} (${IMG_SIZE_MB}MB) ..."
   rm -f "${DATA_IMG}"
   dd if=/dev/zero of=${DATA_IMG} bs=1M count=${IMG_SIZE_MB}
+fi
+
+# Write the fat32 test image
+if [ ! -f "${FS_IMG}" ]; then
+  echo "Creating ${FS_IMG} (${FS_IMG_SIZE_MB}MB, FAT32) ..."
+  dd if=/dev/zero of=${FS_IMG} bs=1M count=${FS_IMG_SIZE_MB}
+  mkfs.fat -F 32 ${FS_IMG}
 fi
 
 # QEMU firmware. OVMF is the UEFI implementation QEMU needs to boot an EFI
@@ -83,4 +92,5 @@ fi
 qemu-system-x86_64 -bios "$OVMF" \
   -drive file=${DISK_IMG},format=raw,if=ide,index=0 \
   -drive file=${DATA_IMG},format=raw,if=ide,index=1 \
+  -drive file=${FS_IMG},format=raw,if=ide,index=2 \
   -m 1024 -device isa-debug-exit -boot order=d ${USB_OPTS}

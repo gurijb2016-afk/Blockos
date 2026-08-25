@@ -6,7 +6,7 @@
 #include "vfs.hpp"
 
 
-namespace Blockos
+namespace blockos
 {
 namespace proc
 {
@@ -636,7 +636,7 @@ bool test()
 }
 
 } // namespace proc
-} // namespace Blockos
+} // namespace blockos
 
 
 /*
@@ -653,5 +653,5 @@ bool test()
 
 void init_proc_fs()
 {
-    Blockos::proc::init();
+    blockos::proc::init();
 }
