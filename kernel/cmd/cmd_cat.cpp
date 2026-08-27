@@ -35,9 +35,19 @@ extern "C" int cat_main(const Args& args, Console& out)
         return 1;
     }
 
+    char path[CMD_PATH_MAX];
+
+    if (!resolve_arg(out, args.at(1), path, sizeof(path)))
+    {
+        out.print("cat: path too long");
+        out.newline();
+
+        return 1;
+    }
+
     size_t bytes_read = 0;
 
-    if (!legacy_fat32_fs.read_fat32_file(args.at(1), file_buffer, &bytes_read))
+    if (!legacy_fat32_fs.read_fat32_file(path, file_buffer, &bytes_read))
     {
         out.print("cat: cannot read ");
         out.print(args.at(1));

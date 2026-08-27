@@ -3,11 +3,11 @@
 #include "cmd/cmd_forth.hpp"
 #include "cmd/command.hpp"
 #include "console.hpp"
-#include "drivers/ata_devices.hpp"
-#include "fs/fat32.hpp"
 #include "drivers/Keymap.hpp"
+#include "drivers/ata_devices.hpp"
 #include "events.hpp"
 #include "font8x8.h"
+#include "fs/fat32.hpp"
 #include "proc.hpp"
 #include "ps2keyboard.hpp"
 #include "ps2mouse.hpp"
@@ -15,6 +15,7 @@
 #include "sysmem.hpp"
 #include "vfs.hpp"
 #include "virtio_input.hpp"
+
 
 extern "C"
 {
@@ -1048,15 +1049,16 @@ extern "C" EFI_STATUS EFIAPI efi_main(
     blockos_stdio_set_console(stdio_sink);
 
     printf("BlockOS console\n");
-    console.print("commands: ");
 
-    for (size_t i = 0; i < blockos::proc::count(); ++i)
-    {
-        if (i)
-            console.print(" ");
+    // console.print("commands: ");
 
-        console.print(blockos::proc::name_at(i));
-    }
+    // for (size_t i = 0; i < blockos::proc::count(); ++i)
+    // {
+    //     if (i)
+    //         console.print(" ");
+
+    //     console.print(blockos::proc::name_at(i));
+    // }
 
     console.newline();
 

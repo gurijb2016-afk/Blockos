@@ -31,6 +31,7 @@ class Shell
     static constexpr size_t HISTORY_MAX = 32;
 
     static constexpr const char* PROMPT = "> ";
+    static constexpr size_t PROMPT_MAX = 288;
 
     using CommandHandler = void (*)(const Args& args, Console& out);
 
@@ -65,6 +66,8 @@ class Shell
 
    private:
     void submit();
+
+    size_t build_prompt(char* buffer, size_t capacity) const;
 
     // Console lines a PageUp/PageDown moves, keeping one line of overlap
     size_t page_rows() const;

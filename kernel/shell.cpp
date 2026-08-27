@@ -190,6 +190,26 @@ void Shell::handle(const KeyPress& key)
         insert_char(key.ch);
 }
 
+size_t Shell::build_prompt(char* buffer, size_t capacity) const
+{
+    const char* cwd = out_->get_current_directory();
+
+    if (cwd[0] == '\0')
+        cwd = "/";
+
+    size_t len = 0;
+
+    for (size_t i = 0; cwd[i] != '\0' && len + 1 < capacity; ++i)
+        buffer[len++] = cwd[i];
+
+    for (size_t i = 0; PROMPT[i] != '\0' && len + 1 < capacity; ++i)
+        buffer[len++] = PROMPT[i];
+
+    buffer[len] = '\0';
+
+    return len;
+}
+
 void Shell::submit()
 {
     if (out_)
@@ -197,7 +217,10 @@ void Shell::submit()
         // Running a command jumps back to live output so its result is visible
         out_->scroll_to_bottom();
 
-        out_->print(PROMPT);
+        char prompt[PROMPT_MAX];
+        build_prompt(prompt, sizeof(prompt));
+
+        out_->print(prompt);
         out_->print(line_);
         out_->newline();
     }
@@ -333,18 +356,20 @@ void Shell::render(uint8_t* backbuf, uint32_t fb_width)
         bg_);
 
     const size_t columns = (size_t) w_ / Console::GLYPH_W;
-    const size_t prompt_len = strlen(PROMPT);
+
+    char prompt[PROMPT_MAX];
+    const size_t prompt_len = build_prompt(prompt, sizeof(prompt));
 
     size_t col = 0;
 
-    for (size_t i = 0; PROMPT[i] != '\0' && col < columns; ++i, ++col)
+    for (size_t i = 0; prompt[i] != '\0' && col < columns; ++i, ++col)
     {
         bb_draw_char(
             backbuf,
             fb_width,
             (uint32_t) (x_ + (int) (col * Console::GLYPH_W)),
             (uint32_t) y_,
-            PROMPT[i],
+            prompt[i],
             fg_);
     }
 
