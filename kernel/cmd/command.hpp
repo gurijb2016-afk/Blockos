@@ -17,6 +17,11 @@ struct CommandEntry
     const char* help;
 };
 
+constexpr size_t CMD_PATH_MAX = 256;
+
+// Makes a command argument absolute: relative names resolve against the current directory
+bool resolve_arg(const Console& console, const char* arg, char* out, size_t capacity);
+
 const CommandEntry* find_command(const char* name);
 
 const CommandEntry* command_at(size_t index);

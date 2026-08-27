@@ -18,6 +18,7 @@ class Console
 
     void attach(int x, int y, int w, int h);
     void set_colors(uint32_t fg, uint32_t bg);
+    void set_current_directory(const char* path);
 
     void clear();
     void newline();
@@ -35,15 +36,35 @@ class Console
     // Lines the view can still move up; 0 when already at the oldest retained line
     size_t max_scroll() const;
 
-    bool dirty() const { return dirty_; }
+    bool dirty() const
+    {
+        return dirty_;
+    }
 
-    int x() const { return x_; }
-    int y() const { return y_; }
-    int w() const { return w_; }
-    int h() const { return h_; }
+    int x() const
+    {
+        return x_;
+    }
+    int y() const
+    {
+        return y_;
+    }
+    int w() const
+    {
+        return w_;
+    }
+    int h() const
+    {
+        return h_;
+    }
 
     size_t visible_rows() const;
     size_t visible_cols() const;
+
+    const char* get_current_directory() const
+    {
+        return current_directory;
+    }
 
    private:
     // Ring slot holding absolute line number line
@@ -52,6 +73,10 @@ class Console
 
     // Lines held in the ring, counting the one currently being written
     size_t retained() const;
+
+    // The initializer is required. Leaving any member uninitialized causes g++ to guard it
+    // with __cxa_guard_acquire, which this kernel never defines
+    char current_directory[256] = {};
 
     char lines_[SCROLLBACK][COLS + 1] = {};
 

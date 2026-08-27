@@ -114,9 +114,12 @@ SRC += kernel/cmd/cmd_ata.cpp
 SRC += kernel/cmd/cmd_forth.cpp
 SRC += kernel/cmd/cmd_ls.cpp
 SRC += kernel/cmd/cmd_cat.cpp
+SRC += kernel/cmd/cmd_touch.cpp
 SRC += kernel/cmd/command_registry.cpp
 SRC += kernel/cmd/cmd_clear.cpp
 SRC += kernel/cmd/cmd_help.cpp
+SRC += kernel/cmd/cmd_mkdir.cpp
+SRC += kernel/cmd/cmd_cd.cpp
 
 S_SRC := $(foreach dir,$(S_SRC_DIRS),$(wildcard $(dir)/*.S))
 

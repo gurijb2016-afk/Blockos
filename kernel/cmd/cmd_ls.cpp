@@ -1,5 +1,4 @@
 #include "command.hpp"
-
 #include "fs/fat32.hpp"
 
 namespace blockos
@@ -9,7 +8,7 @@ namespace cmd
 
 extern "C" int ls_main(const Args& args, Console& out)
 {
-    (void)args;
+    (void) args;
 
     if (!legacy_fat32_fs.ready())
     {
@@ -19,7 +18,7 @@ extern "C" int ls_main(const Args& args, Console& out)
         return 1;
     }
 
-    legacy_fat32_fs.list_root_directories();
+    legacy_fat32_fs.list_directory(out.get_current_directory());
 
     return 0;
 }

@@ -1,5 +1,7 @@
 #include "console.hpp"
 
+#include <string.h>
+
 #include "drivers/backbuffer.h"
 #include "fs/proc.hpp"
 
@@ -9,6 +11,17 @@ void Console::attach(int x, int y, int w, int h)
     y_ = y;
     w_ = w;
     h_ = h;
+}
+
+void Console::set_current_directory(const char* path)
+{
+    size_t len = strlen(path);
+    if (len >= sizeof(current_directory))
+    {
+        len = sizeof(current_directory) - 1; // truncate to fit, leaving room for '\0'
+    }
+    memcpy(current_directory, path, len);
+    current_directory[len] = '\0';
 }
 
 void Console::set_colors(uint32_t fg, uint32_t bg)
