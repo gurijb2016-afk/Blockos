@@ -1,4 +1,5 @@
 #include "allocator.hpp"
+#include "arch/86_64x/hardware_tables.hpp"
 #include "backbuffer.h"
 #include "cmd/cmd_forth.hpp"
 #include "cmd/command.hpp"
@@ -970,6 +971,14 @@ extern "C" EFI_STATUS EFIAPI efi_main(
         return EFI_ABORTED;
     }
 
+
+    /*
+    * ========================================================
+    *   GDT/IDT
+    * ========================================================
+    */
+
+    cpu_tables.init();
 
     /*
      * ========================================================
