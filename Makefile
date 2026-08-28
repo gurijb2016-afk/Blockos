@@ -120,8 +120,12 @@ SRC += kernel/cmd/cmd_clear.cpp
 SRC += kernel/cmd/cmd_help.cpp
 SRC += kernel/cmd/cmd_mkdir.cpp
 SRC += kernel/cmd/cmd_cd.cpp
+SRC += kernel/cmd/cmd_uptime.cpp
+SRC += arch/86_64x/hardware_tables.cpp
+SRC += arch/86_64x/irq.cpp
 
 S_SRC := $(foreach dir,$(S_SRC_DIRS),$(wildcard $(dir)/*.S))
+S_SRC += arch/86_64x/irq_stubs.S
 
 # ============================================================
 # OBJECT FILES

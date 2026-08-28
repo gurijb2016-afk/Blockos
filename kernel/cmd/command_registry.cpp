@@ -17,6 +17,7 @@ DECLARE_CMD(ata_write)
 DECLARE_CMD(forth_enter)
 DECLARE_CMD(mkdir)
 DECLARE_CMD(cd)
+DECLARE_CMD(uptime)
 
 static const CommandEntry commands[] = {
     {"clear", clear_main, "Clear the console."},
@@ -28,7 +29,8 @@ static const CommandEntry commands[] = {
     {"ata-write", ata_write_main, "Write a sector to the ATA disk."},
     {"forth", forth_enter_main, "Enter the Forth interpreter."},
     {"mkdir", mkdir_main, "Create a directory in the FAT32 root directory."},
-    {"cd", cd_main, "Change the current working directory."}};
+    {"cd", cd_main, "Change the current working directory."},
+    {"uptime", uptime_main, "Show time elapsed since the timer started."}};
 
 static constexpr size_t COMMAND_COUNT = sizeof(commands) / sizeof(commands[0]);
 
