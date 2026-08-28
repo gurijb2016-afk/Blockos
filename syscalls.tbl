@@ -61,24 +61,24 @@
 59 readv
 60 writev
 61 service
-62getdents64
-63lseek
-64ioctl
-65fcntl
-66dup
-67dup2
-68pipe2
-69rename
-70unlink
-71mkdir
-72rmdir
-73getpid
-74kill
-75tgkill
-76rt_sigaction
-77rt_sigprocmask
-78rt_sigreturn
-79set_robust_list
-80ftruncate
-81fsync
-82statx
+62 getdents64
+63 lseek
+64 ioctl
+65 fcntl
+66 dup
+67 dup2
+68 pipe2
+69 rename
+70 unlink
+71 mkdir
+72 rmdir
+73 getpid
+74 kill
+75 tgkill
+76 rt_sigaction
+77 rt_sigprocmask
+78 rt_sigreturn
+79 set_robust_list
+80 ftruncate
+81 fsync
+82 statx
