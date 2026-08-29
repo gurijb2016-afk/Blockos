@@ -18,7 +18,7 @@ extern "C" int ls_main(const Args& args, Console& out)
         return 1;
     }
 
-    legacy_fat32_fs.list_directory(out.get_current_directory());
+    legacy_fat32_fs.print_directory(out.get_current_directory());
 
     return 0;
 }

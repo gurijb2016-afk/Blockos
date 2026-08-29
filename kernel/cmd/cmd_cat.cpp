@@ -47,7 +47,7 @@ extern "C" int cat_main(const Args& args, Console& out)
 
     size_t bytes_read = 0;
 
-    if (!legacy_fat32_fs.read_fat32_file(path, file_buffer, &bytes_read))
+    if (!legacy_fat32_fs.read_file(path, file_buffer, &bytes_read))
     {
         out.print("cat: cannot read ");
         out.print(args.at(1));

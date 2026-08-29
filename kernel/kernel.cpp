@@ -506,7 +506,7 @@ static void init_block_devices(Console& out)
     if (g_ata_fs.present())
     {
         legacy_fat32_fs.attach(g_ata_fs);
-        legacy_fat32_fs.initialize_fat32();
+        legacy_fat32_fs.initialize();
     }
 }
 
