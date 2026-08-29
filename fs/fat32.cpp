@@ -32,7 +32,7 @@ bool Fat32Reader::ready() const
     return is_initialized;
 }
 
-bool Fat32Reader::initialize_fat32()
+bool Fat32Reader::initialize()
 {
     is_initialized = false;
 
@@ -97,19 +97,20 @@ bool Fat32Reader::initialize_fat32()
     return true;
 }
 
-bool Fat32Reader::is_valid_path(const char* path)
+bool Fat32Reader::directory_exists(const char* path)
 {
     uint32_t tmp = root_cluster_num;
     return resolve_path(path, tmp);
 }
 
-bool Fat32Reader::read_fat_sector(uint64_t sector, uint8_t* buffer)
+// Reads a single sector of the FAT, indexed relative to the start of the FAT region
+bool Fat32Reader::read_fat_table(uint64_t sector, uint8_t* buffer)
 {
     uint32_t lba = fat_start_sector + sector;
     return ata_driver->read_sectors(lba, 1, buffer);
 }
 
-bool Fat32Reader::write_fat_sector(uint64_t sector, const uint8_t* buffer)
+bool Fat32Reader::write_fat_table(uint64_t sector, const uint8_t* buffer)
 {
     uint32_t lba = fat_start_sector + sector;
     return ata_driver->write_sectors(lba, 1, buffer);
@@ -120,7 +121,7 @@ uint32_t Fat32Reader::cluster_to_lba(uint32_t cluster)
     return data_start_sector + (cluster - 2) * sectors_per_cluster;
 }
 
-uint32_t Fat32Reader::get_next_cluster(uint32_t cluster)
+uint32_t Fat32Reader::next_cluster_in_chain(uint32_t cluster)
 {
     // Each cluster entry is 4 bytes (32 bits) in FAT32, but only the lower 28 bits are used for the cluster number
     uint32_t fat_entry = cluster * 4;
@@ -128,7 +129,7 @@ uint32_t Fat32Reader::get_next_cluster(uint32_t cluster)
     uint32_t sector_entry = fat_entry % bytes_per_sector;
 
     uint8_t sector_buffer[AtaPio::SECTOR_SIZE];
-    if (!read_fat_sector(sector_offset, sector_buffer))
+    if (!read_fat_table(sector_offset, sector_buffer))
     {
         return 0x0FFFFFFF;
     }
@@ -147,7 +148,7 @@ uint32_t Fat32Reader::get_first_free_cluster()
     // Start searching from cluster 2, as clusters 0 and 1 are reserved
     for (uint32_t sector = 2; sector < fat_size; sector++)
     {
-        if (!read_fat_sector(sector, sector_buffer))
+        if (!read_fat_table(sector, sector_buffer))
         {
             printf("fat32: failed to read FAT sector %u\n", sector);
             return 0xFFFFFFFF;
@@ -176,7 +177,7 @@ bool Fat32Reader::write_fat_entry(uint32_t cluster, uint32_t value)
     uint32_t sector_entry = fat_entry % bytes_per_sector;
 
     uint8_t sector_buffer[AtaPio::SECTOR_SIZE];
-    if (!read_fat_sector(sector_offset, sector_buffer))
+    if (!read_fat_table(sector_offset, sector_buffer))
     {
         return false;
     }
@@ -188,7 +189,7 @@ bool Fat32Reader::write_fat_entry(uint32_t cluster, uint32_t value)
 
     memcpy(&sector_buffer[sector_entry], &new_value, sizeof(new_value));
 
-    if (!write_fat_sector(sector_offset, sector_buffer))
+    if (!write_fat_table(sector_offset, sector_buffer))
     {
         return false;
     }
@@ -196,37 +197,83 @@ bool Fat32Reader::write_fat_entry(uint32_t cluster, uint32_t value)
     return true;
 }
 
-bool Fat32Reader::write_fat_dir_entry(uint32_t cluster, const Fat32DirEntry& entry)
+bool Fat32Reader::insert_directory_entry(uint32_t cluster, const Fat32DirEntry& entry)
 {
-    uint32_t lba = cluster_to_lba(cluster);
     uint8_t sector_buffer[AtaPio::SECTOR_SIZE];
+    uint32_t entries_per_sector = bytes_per_sector / sizeof(Fat32DirEntry);
 
-    if (!ata_driver->read_sectors(lba, 1, sector_buffer))
+    while (cluster >= 2 && cluster < 0x0FFFFFF8)
     {
-        return false;
-    }
+        uint32_t lba = cluster_to_lba(cluster);
 
-    // Find the first free directory entry
-    Fat32DirEntry* entries = reinterpret_cast<Fat32DirEntry*>(sector_buffer);
-    for (uint32_t i = 0; i < bpb.sectors_per_cluster * AtaPio::SECTOR_SIZE / sizeof(Fat32DirEntry); i++)
-    {
-        if (static_cast<uint8_t>(entries[i].name[0]) == 0x00 || static_cast<uint8_t>(entries[i].name[0]) == 0xE5)
+        // Find the first free directory entry
+        for (uint32_t s = 0; s < sectors_per_cluster; s++)
         {
-            memcpy(&entries[i], &entry, sizeof(Fat32DirEntry));
-            if (!ata_driver->write_sectors(lba, 1, sector_buffer))
+            if (!ata_driver->read_sectors(lba + s, 1, sector_buffer))
             {
+                printf("fat32: read failed at lba %u\n", lba + s);
                 return false;
             }
-            return true;
+
+            Fat32DirEntry* entries = reinterpret_cast<Fat32DirEntry*>(sector_buffer);
+            for (uint32_t e = 0; e < entries_per_sector; e++)
+            {
+                if (static_cast<uint8_t>(entries[e].name[0]) == 0x00 || static_cast<uint8_t>(entries[e].name[0]) == 0xE5)
+                {
+                    memcpy(&entries[e], &entry, sizeof(Fat32DirEntry));
+                    return ata_driver->write_sectors(lba + s, 1, sector_buffer);
+                }
+            }
         }
+
+        uint32_t next_cluster = next_cluster_in_chain(cluster);
+
+        if (next_cluster >= 2 && next_cluster < 0x0FFFFFF8)
+        {
+            cluster = next_cluster;
+            continue;
+        }
+
+        uint32_t new_cluster = get_first_free_cluster();
+        if (new_cluster == 0xFFFFFFFF)
+        {
+            printf("fat32: no free clusters available\n");
+            return false;
+        }
+
+        if (!write_fat_entry(new_cluster, 0x0FFFFFFF))
+        {
+            printf("fat32: failed to claim cluster %u\n", new_cluster);
+            return false;
+        }
+
+        memset(sector_buffer, 0, AtaPio::SECTOR_SIZE);
+        uint32_t new_cluster_lba = cluster_to_lba(new_cluster);
+
+        for (uint32_t s = 0; s < sectors_per_cluster; s++)
+        {
+            if (!ata_driver->write_sectors(new_cluster_lba + s, 1, sector_buffer))
+            {
+                printf("fat32: write failed at lba %u\n", new_cluster_lba + s);
+                return false;
+            }
+        }
+
+        if (!write_fat_entry(cluster, new_cluster))
+        {
+            printf("fat32: failed to link cluster %u to %u\n", cluster, new_cluster);
+            return false;
+        }
+
+        cluster = new_cluster;
     }
 
-    return false; // No free directory entry found
+    return false;
 }
 
 // TODO: FAT1/FAT2 mirroring is not implemented. This implementation only writes to FAT1.
 
-void Fat32Reader::list_directory(const char* path)
+void Fat32Reader::print_directory(const char* path)
 {
     if (!is_initialized)
     {
@@ -280,7 +327,7 @@ void Fat32Reader::list_directory(const char* path)
             }
         }
 
-        current_cluster = get_next_cluster(current_cluster);
+        current_cluster = next_cluster_in_chain(current_cluster);
     }
 
     return;
@@ -355,7 +402,7 @@ bool Fat32Reader::find_entry_in_directory(uint32_t dir_cluster, const char* shor
             }
         }
 
-        dir_cluster = get_next_cluster(dir_cluster);
+        dir_cluster = next_cluster_in_chain(dir_cluster);
     }
 
     return false;
@@ -402,7 +449,7 @@ bool Fat32Reader::resolve_path(const char* path, uint32_t& current_cluster)
 }
 
 // NOTE: dest is unbounded. Nothing stops this function from writing past the end of dest.
-bool Fat32Reader::read_fat32_file(const char* path, uint8_t* dest, size_t* bytes_read)
+bool Fat32Reader::read_file(const char* path, uint8_t* dest, size_t* bytes_read)
 {
     if (!is_initialized)
     {
@@ -423,7 +470,7 @@ bool Fat32Reader::read_fat32_file(const char* path, uint8_t* dest, size_t* bytes
 
     if (!get_parent_directory_cluster(path, current_cluster))
     {
-        printf("fat32: no such directory in path %s\n", path);
+        printf("fat32: cannot resolve parent of %s\n", path);
         return false;
     }
 
@@ -466,7 +513,7 @@ bool Fat32Reader::read_fat32_file(const char* path, uint8_t* dest, size_t* bytes
             }
         }
 
-        if (!file_found) current_cluster = get_next_cluster(current_cluster);
+        if (!file_found) current_cluster = next_cluster_in_chain(current_cluster);
     }
 
     if (!file_found) return false;
@@ -500,7 +547,7 @@ bool Fat32Reader::read_fat32_file(const char* path, uint8_t* dest, size_t* bytes
             }
         }
 
-        file_start_cluster = get_next_cluster(file_start_cluster);
+        file_start_cluster = next_cluster_in_chain(file_start_cluster);
     }
 
     printf("fat32: cluster chain ended with %u bytes left of %u\n", bytes_remaining, file_size);
@@ -537,7 +584,7 @@ bool Fat32Reader::get_parent_directory_cluster(const char* path, uint32_t& paren
 }
 
 // TODO: . and .. entries -> A spec-conformant FAT32 subdirectory
-bool Fat32Reader::create_fat32_subdirectory(const char* path)
+bool Fat32Reader::create_directory(const char* path)
 {
     if (!is_initialized)
     {
@@ -548,7 +595,7 @@ bool Fat32Reader::create_fat32_subdirectory(const char* path)
     uint32_t current_cluster = root_cluster_num;
     if (!get_parent_directory_cluster(path, current_cluster))
     {
-        printf("No such directory");
+        printf("Cannot resolve parent path");
         return false;
     }
 
@@ -591,7 +638,7 @@ bool Fat32Reader::create_fat32_subdirectory(const char* path)
     new_entry.data_cluster_hi = static_cast<uint16_t>((first_free_cluster >> 16) & 0xFFFF);
 
     // Write the directory entry to the root directory
-    if (!write_fat_dir_entry(current_cluster, new_entry))
+    if (!insert_directory_entry(current_cluster, new_entry))
     {
         printf("fat32: failed to write directory entry for %s\n", path);
         return false;
@@ -601,7 +648,7 @@ bool Fat32Reader::create_fat32_subdirectory(const char* path)
 }
 
 // TODO: check if dir/filename already exists before writing
-bool Fat32Reader::write_fat32_file(const char* name, const uint8_t* src, size_t length)
+bool Fat32Reader::write_file(const char* name, const uint8_t* src, size_t length)
 {
     if (!is_initialized)
     {
@@ -613,7 +660,7 @@ bool Fat32Reader::write_fat32_file(const char* name, const uint8_t* src, size_t 
 
     if (!get_parent_directory_cluster(name, current_cluster))
     {
-        printf("fat32: no such directory in path %s\n", name);
+        printf("fat32: cannot resolve parent of %s\n", name);
         return false;
     }
 
@@ -630,7 +677,7 @@ bool Fat32Reader::write_fat32_file(const char* name, const uint8_t* src, size_t 
         memcpy(empty_entry.name, target_name, 11);
         empty_entry.attr = ATTR_ARCHIVE;
 
-        if (!write_fat_dir_entry(current_cluster, empty_entry))
+        if (!insert_directory_entry(current_cluster, empty_entry))
         {
             printf("fat32: failed to write directory entry for %s\n", name);
             return false;
@@ -653,7 +700,7 @@ bool Fat32Reader::write_fat32_file(const char* name, const uint8_t* src, size_t 
     new_entry.data_cluster_hi = static_cast<uint16_t>((first_free_cluster >> 16) & 0xFFFF);
     new_entry.file_size = static_cast<uint32_t>(length);
 
-    if (!write_fat_dir_entry(current_cluster, new_entry))
+    if (!insert_directory_entry(current_cluster, new_entry))
     {
         printf("fat32: failed to write directory entry for %s\n", name);
         return false;

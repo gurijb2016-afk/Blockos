@@ -57,7 +57,7 @@ extern "C" int cd_main(const Args& args, Console& console)
         return 1;
     }
 
-    if (legacy_fat32_fs.is_valid_path(path))
+    if (legacy_fat32_fs.directory_exists(path))
     {
         console.set_current_directory(path);
         console.print("\n");

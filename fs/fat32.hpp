@@ -57,14 +57,14 @@ class Fat32Reader
     AtaPio* ata_driver = nullptr;
     bool is_initialized = false;
 
-    bool read_fat_sector(uint64_t sector, uint8_t* buffer);
-    bool write_fat_sector(uint64_t sector, const uint8_t* buffer);
+    bool read_fat_table(uint64_t sector, uint8_t* buffer);
+    bool write_fat_table(uint64_t sector, const uint8_t* buffer);
     // Helpers
     uint32_t cluster_to_lba(uint32_t cluster);
-    uint32_t get_next_cluster(uint32_t current_cluster);
+    uint32_t next_cluster_in_chain(uint32_t current_cluster);
     uint32_t get_first_free_cluster();
     bool write_fat_entry(uint32_t cluster, uint32_t value);
-    bool write_fat_dir_entry(uint32_t cluster, const Fat32DirEntry& entry);
+    bool insert_directory_entry(uint32_t cluster, const Fat32DirEntry& entry);
     bool get_parent_directory_cluster(const char* path, uint32_t& parent_cluster);
     bool resolve_path(const char* path, uint32_t& current_cluster);
     bool find_entry_in_directory(uint32_t dir_cluster, const char* short_name, Fat32DirEntry& out);
@@ -72,13 +72,13 @@ class Fat32Reader
    public:
     Fat32Reader();
     void attach(AtaPio& disk);
-    bool initialize_fat32();
+    bool initialize();
     bool ready() const;
-    bool read_fat32_file(const char* name, uint8_t* dest, size_t* bytes_read = nullptr);
-    bool write_fat32_file(const char* name, const uint8_t* src, size_t length);
-    bool create_fat32_subdirectory(const char* path);
-    void list_directory(const char* path);
-    bool is_valid_path(const char* path);
+    bool read_file(const char* name, uint8_t* dest, size_t* bytes_read = nullptr);
+    bool write_file(const char* name, const uint8_t* src, size_t length);
+    bool create_directory(const char* path);
+    void print_directory(const char* path);
+    bool directory_exists(const char* path);
 };
 
 extern Fat32Reader legacy_fat32_fs;

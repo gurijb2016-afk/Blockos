@@ -23,7 +23,7 @@ extern "C" int mkdir_main(const Args& args, Console& console)
         return 1;
     }
 
-    if (!legacy_fat32_fs.create_fat32_subdirectory(path))
+    if (!legacy_fat32_fs.create_directory(path))
     {
         console.print("Failed to create directory: ");
         console.print(dir_name);
