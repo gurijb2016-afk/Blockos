@@ -32,6 +32,7 @@ CXXFLAGS := \
 	-I$(EFI_INCL) \
 	-I$(EFI_INCL_X86) \
 	-ffreestanding \
+	-mno-red-zone \
 	-O2 \
 	-Wall \
 	-Wextra \
