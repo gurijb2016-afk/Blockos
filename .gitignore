@@ -1,0 +1,11 @@
+# build artifacts
+*.o
+*.d
+
+# generated image files
+*.img
+
+# build output
+build/BOOTX64.EFI
+build/kernel.so
+build/libefi-weak.a
