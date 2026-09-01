@@ -1,0 +1,7 @@
+#include "usb_storage.hpp"
+namespace usb::storage {
+static uint32_t next_tag=1; static void z(char*p,size_t n){for(size_t i=0;i<n;i++)p[i]=0;}
+static bool command(const Transport*t,uint8_t lun,const uint8_t*cdb,uint8_t clen,uint32_t xfer,bool in,void*buf){if(!t||!t->bulk_in||!t->bulk_out)return false;CBW cbw{};cbw.sig=0x43425355;cbw.tag=next_tag++;cbw.xfer=xfer;cbw.flags=in?0x80:0;cbw.lun=lun;cbw.len=clen;for(unsigned i=0;i<clen&&i<16;i++)cbw.cdb[i]=cdb[i];if(!t->bulk_out(t->ctx,t->ep_out,&cbw,sizeof(cbw)))return false;if(xfer){bool ok=in?t->bulk_in(t->ctx,t->ep_in,buf,xfer):t->bulk_out(t->ctx,t->ep_out,buf,xfer);if(!ok)return false;}CSW csw{};if(!t->bulk_in(t->ctx,t->ep_in,&csw,sizeof(csw)))return false;return csw.sig==0x53425355&&csw.tag==cbw.tag&&csw.status==0;}
+bool inquiry(const Transport*t,uint8_t lun,char*v,size_t vl,char*p,size_t pl){uint8_t c[6]={0x12,0,lun,0,36,0};uint8_t b[36]{};if(!command(t,lun,c,6,36,true,b))return false;if(v&&vl){size_t n=8<vl-1?8:vl-1;for(size_t i=0;i<n;i++)v[i]=(char)b[8+i];v[n]=0;}if(p&&pl){size_t n=16<pl-1?16:pl-1;for(size_t i=0;i<n;i++)p[i]=(char)b[16+i];p[n]=0;}return true;}
+bool read10(const Transport*t,uint8_t lun,uint32_t lba,uint16_t blocks,uint32_t bs,void*b){if(!b||blocks==0)return false;uint8_t c[10]={0x28,0,(uint8_t)(lba>>24),(uint8_t)(lba>>16),(uint8_t)(lba>>8),(uint8_t)lba,(uint8_t)(blocks>>8),(uint8_t)blocks,0,0};return command(t,lun,c,10,uint32_t(blocks)*bs,true,b);}
+}
