@@ -29,6 +29,7 @@ CXXFLAGS := \
 	-fPIC \
 	-DEFI_FUNCTION_WRAPPER \
 	-I. \
+	-Ikernel \
 	-I$(EFI_INCL) \
 	-I$(EFI_INCL_X86) \
 	-ffreestanding \
@@ -107,7 +108,7 @@ EXCLUDED_SRC := \
 	fs/tmpfs.cpp \
 	kernel/login.cpp \
 	kernel/panic.cpp
-	
+
 SRC := $(filter-out $(EXCLUDED_SRC), \
 	$(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.cpp)))
 
