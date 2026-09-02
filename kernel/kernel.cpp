@@ -4,7 +4,7 @@
 #include "cmd/cmd_forth.hpp"
 #include "cmd/command.hpp"
 #include "console.hpp"
-#include "drivers/Keymap.hpp"
+#include "drivers/keymap.hpp"
 #include "drivers/ata_devices.hpp"
 #include "events.hpp"
 #include "font8x8.h"
