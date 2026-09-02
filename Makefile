@@ -29,7 +29,7 @@ CXXFLAGS := \
 	-fPIC \
 	-DEFI_FUNCTION_WRAPPER \
 	-I. \
-	-Ikernel \
+	-Ikernel\
 	-I$(EFI_INCL) \
 	-I$(EFI_INCL_X86) \
 	-ffreestanding \
@@ -78,6 +78,7 @@ LDFLAGS := \
 
 SRC_DIRS := \
 	drivers \
+	drivers/kdriver_specific \
 	examples \
 	fs \
 	kernel \
@@ -224,6 +225,8 @@ $(EFI_OUT): $(SO_OUT)
 	@echo "=============================================="
 
 	$(OBJCOPY) \
+		-I elf64-x86-64 \
+		-O efi-app-x86_64 \
 		-j .text \
 		-j .plt \
 		-j .init_array \
@@ -238,9 +241,9 @@ $(EFI_OUT): $(SO_OUT)
 		-j .rel.* \
 		-j .rela.* \
 		-j .reloc \
-		--target=efi-app-x86_64 \
 		$(SO_OUT) \
 		$(EFI_OUT)
+
 
 	@echo ""
 	@echo "[OK] $@"
