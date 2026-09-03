@@ -1,4 +1,5 @@
 #include "virtio_net_driver.hpp"
+#include "virtio_net_internal.hpp"
 #include "virtio_common.hpp"
 #include "virtqueue.hpp"
 #include "virtqueue_ops.hpp"
@@ -17,52 +18,11 @@ extern "C" {
 
 namespace {
 
-static bool g_ready = false;
-
 static virtio_common::DeviceHandle g_device{};
-
-static VirtQueueView g_tx_vq{};
-static VirtQueueView g_rx_vq{};
-
 static void* g_tx_mem = nullptr;
 static void* g_rx_mem = nullptr;
-
 static const uint32_t TX_QUEUE_SIZE = 128;
 static const uint32_t RX_QUEUE_SIZE = 128;
-
-struct TxSlot {
-    void* buf;
-    uint64_t submit_tick;
-};
-
-static TxSlot g_tx_slots[TX_QUEUE_SIZE]{};
-
-
-/*
- * --------------------------------------------------------------------------
- * TX buffer recycling
- * --------------------------------------------------------------------------
- *
- * The current dma.hpp API does not expose a dma::free() function in the
- * code shown so far. Therefore this function is intentionally conservative.
- *
- * Once BlockOS has a DMA free API, it can be connected here.
- */
-static void tx_pool_push(void* buf)
-{
-    if (buf == nullptr) {
-        return;
-    }
-
-    /*
-     * Do not call an unknown dma::free() API here.
-     *
-     * The buffer remains allocated for now. This avoids introducing another
-     * compile error into the driver.
-     */
-    (void)buf;
-}
-
 
 static void clear_tx_slot(uint32_t id)
 {
@@ -70,8 +30,8 @@ static void clear_tx_slot(uint32_t id)
         return;
     }
 
-    g_tx_slots[id].buf = nullptr;
-    g_tx_slots[id].submit_tick = 0;
+    virtio_net::g_tx_slots[id].buf = nullptr;
+    virtio_net::g_tx_slots[id].submit_tick = 0;
 }
 
 
@@ -84,6 +44,20 @@ static void print_message(const CHAR16* message)
 
 
 namespace virtio_net {
+
+bool g_ready = false;
+VirtQueueView g_tx_vq{};
+VirtQueueView g_rx_vq{};
+TxSlot g_tx_slots[256]{};
+
+void tx_pool_push(void* buf)
+{
+    if (buf == nullptr) {
+        return;
+    }
+
+    (void)buf;
+}
 
 
 bool init()

@@ -102,12 +102,12 @@ bool paging::init_paging() {
     // Map low memory (0..4MB) identity to ensure simple accesses if needed
     for (uint64_t addr = 0; addr < 4 * 1024 * 1024; addr += 0x1000) {
         if (!paging::map_4k(pml4, addr, addr, PTE_WRITABLE)) {
-            Print(L"paging: map_4k failed during init\n");
+            Print((const CHAR16*)L"paging: map_4k failed during init\n");
             return false;
         }
     }
     CHAR16 buf[128];
-    UnicodeSPrint(buf, sizeof(buf), L"paging: created PML4 at phys 0x%016lx\n", pml4);
+    UnicodeSPrint(buf, sizeof(buf), (const CHAR16*)L"paging: created PML4 at phys 0x%016lx\n", pml4);
     Print(buf);
     // Do not switch CR3 automatically; caller decides when to enable paging
     return true;
