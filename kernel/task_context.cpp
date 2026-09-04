@@ -1,9 +1,7 @@
 #include "task_context.hpp"
-#include <stdint.h>
 
-
-namespace task {
-
+namespace task
+{
 
 void init_context(
     TaskContext* ctx,
@@ -13,11 +11,8 @@ void init_context(
     if (!ctx)
         return;
 
-
+    ctx->rsp = 0;
     ctx->rip = entry;
-
-    // Kezdeti stack hely
-    ctx->rsp = 0x00007FFFFFF00000;
 
     ctx->rbp = 0;
 
@@ -29,8 +24,8 @@ void init_context(
     ctx->rsi = 0;
     ctx->rdi = 0;
 
-    ctx->r8  = 0;
-    ctx->r9  = 0;
+    ctx->r8 = 0;
+    ctx->r9 = 0;
     ctx->r10 = 0;
     ctx->r11 = 0;
     ctx->r12 = 0;
@@ -41,26 +36,25 @@ void init_context(
     ctx->flags = 0x202;
 }
 
-
-void switch_to(TaskContext* ctx)
+void switch_to(
+    TaskContext* ctx
+)
 {
-    /*
-       Később ide jön:
-       context_switch.S
+    if (!ctx)
+        return;
 
-       - regiszter mentés
-       - CR3 váltás
-       - új RIP/RSP betöltés
-    */
+    if (ctx->rsp == 0 || ctx->rip == 0)
+        return;
 
     asm volatile(
         "mov %0, %%rsp\n"
-        "jmp *%1\n"
+        "push %1\n"
+        "ret\n"
         :
         : "r"(ctx->rsp),
           "r"(ctx->rip)
+        : "memory"
     );
 }
-
 
 }
