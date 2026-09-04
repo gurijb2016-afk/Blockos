@@ -4,8 +4,7 @@
 #include <stddef.h>
 
 #define MAX_DEVICES 64
-#define DRIVER_NAME_MAX 32
-#define DEVICE_NAME_MAX 32
+#define MAX_DRIVERS 64
 
 enum DeviceType {
     DEV_TYPE_UNKNOWN = 0,
@@ -19,24 +18,25 @@ enum DeviceType {
 };
 
 enum DeviceState {
-    DEV_STATE_EMPTY = 0,
-    DEV_STATE_REGISTERED,
-    DEV_STATE_INITIALIZING,
-    DEV_STATE_READY,
-    DEV_STATE_FAILED
+    DEVICE_EMPTY = 0,
+    DEVICE_REGISTERED,
+    DEVICE_INITIALIZING,
+    DEVICE_READY,
+    DEVICE_FAILED
 };
 
 struct DeviceDescriptor {
     uint32_t id;
 
-    char name[DEVICE_NAME_MAX];
-    char driver[DRIVER_NAME_MAX];
+    char name[64];
+    char driver[64];
 
     DeviceType type;
     DeviceState state;
 
     uint64_t io_base_addr;
-    uint64_t io_size;
+    uint64_t mmio_base;
+    uint64_t mmio_size;
 
     uint8_t irq_vector;
 
@@ -59,14 +59,14 @@ typedef bool (*DriverInitFn)(DeviceDescriptor* device);
 typedef void (*DriverRemoveFn)(DeviceDescriptor* device);
 
 struct DriverDescriptor {
-    char name[DRIVER_NAME_MAX];
+    char name[64];
 
     DeviceType type;
 
     uint16_t vendor_id;
     uint16_t device_id;
 
-    uint8_t class_code;
+    uint8_t class_id;
     uint8_t subclass;
     uint8_t prog_if;
 
@@ -80,15 +80,17 @@ struct DriverDescriptor {
 class DeviceManager {
 private:
     DeviceDescriptor device_list[MAX_DEVICES];
-    DriverDescriptor driver_list[MAX_DEVICES];
+    DriverDescriptor driver_list[MAX_DRIVERS];
 
     uint32_t total_devices;
     uint32_t total_drivers;
-    uint32_t next_device_id;
 
-    void local_strcpy(char* dest, const char* src, size_t max_len);
-    bool driver_matches(const DriverDescriptor& driver,
-                        const DeviceDescriptor& device) const;
+    void local_strcpy(char* dst, const char* src, size_t max_len);
+
+    bool driver_matches(
+        const DriverDescriptor& driver,
+        const DeviceDescriptor& device
+    );
 
 public:
     DeviceManager();
@@ -97,7 +99,6 @@ public:
         const char* name,
         DeviceType type,
         uint64_t io_base,
-        uint64_t io_size,
         uint8_t irq
     );
 
@@ -107,13 +108,13 @@ public:
         uint8_t bus,
         uint8_t slot,
         uint8_t func,
-        uint16_t vendor_id,
-        uint16_t device_id,
-        uint8_t class_code,
+        uint16_t vendor,
+        uint16_t device,
+        uint8_t class_id,
         uint8_t subclass,
         uint8_t prog_if,
-        uint64_t io_base,
-        uint64_t io_size,
+        uint64_t mmio_base,
+        uint64_t mmio_size,
         uint8_t irq
     );
 
@@ -122,7 +123,7 @@ public:
         DeviceType type,
         uint16_t vendor_id,
         uint16_t device_id,
-        uint8_t class_code,
+        uint8_t class_id,
         uint8_t subclass,
         uint8_t prog_if,
         DriverProbeFn probe,
@@ -130,31 +131,30 @@ public:
         DriverRemoveFn remove
     );
 
-    bool bind_device(uint32_t device_id);
-    void bind_all_devices();
+    bool bind_device(DeviceDescriptor* device);
+    uint32_t bind_all_devices();
 
-    bool initialize_device(uint32_t device_id);
-    void initialize_all_hardware();
+    bool initialize_device(DeviceDescriptor* device);
+    uint32_t initialize_all_hardware();
 
-    bool remove_device(uint32_t device_id);
+    bool remove_device(DeviceDescriptor* device);
 
-    DeviceDescriptor* find_device(uint32_t device_id);
+    DeviceDescriptor* find_device_by_id(uint32_t id);
     DeviceDescriptor* find_device_by_type(DeviceType type);
     DeviceDescriptor* find_device_by_name(const char* name);
 
     DriverDescriptor* find_driver_for_device(DeviceDescriptor* device);
 
-    DeviceDescriptor* devices();
-    const DeviceDescriptor* devices() const;
+    DriverDescriptor* find_driver_by_name(const char* name);
 
-    DriverDescriptor* drivers();
-    const DriverDescriptor* drivers() const;
+    void set_device_ready(DeviceDescriptor* device);
+    void set_device_failed(DeviceDescriptor* device);
 
-    uint32_t count() const;
+    uint32_t device_count() const;
     uint32_t driver_count() const;
 
-    bool set_ready(uint32_t device_id);
-    bool set_failed(uint32_t device_id);
+    DeviceDescriptor* device_at(uint32_t index);
+    DriverDescriptor* driver_at(uint32_t index);
 
     void show_device_status_report();
 };
