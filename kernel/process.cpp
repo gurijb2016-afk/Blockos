@@ -5,65 +5,92 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <string.h>
 
-namespace process {
+namespace process
+{
 
-#define MAX_PROCESS 128
+static constexpr size_t MAX_PROCESS = 128;
 
 static Process processes[MAX_PROCESS];
+
 static uint64_t next_pid = 1;
+
 static Process* current_process = nullptr;
 
-/*
- * Scheduler wrapper.
- *
- * A scheduler void (*)(void*) entry-pointot vár.
- * A process objektumot arg-ként adjuk át.
- */
-static void process_entry(void* arg)
+static Process* find_free()
 {
-    Process* proc = static_cast<Process*>(arg);
+    for (size_t i = 0; i < MAX_PROCESS; ++i)
+    {
+        if (processes[i].state == State::EMPTY)
+            return &processes[i];
+    }
+
+    return nullptr;
+}
+
+static Process* find_by_pid(uint64_t pid)
+{
+    if (pid == 0)
+        return nullptr;
+
+    for (size_t i = 0; i < MAX_PROCESS; ++i)
+    {
+        if (processes[i].state != State::EMPTY &&
+            processes[i].pid == pid)
+        {
+            return &processes[i];
+        }
+    }
+
+    return nullptr;
+}
+
+static void process_stub(void* arg)
+{
+    Process* proc =
+        static_cast<Process*>(arg);
 
     if (!proc)
         return;
 
     current_process = proc;
+
+    if (proc->state != State::READY &&
+        proc->state != State::RUNNING)
+    {
+        current_process = nullptr;
+        return;
+    }
+
     proc->state = State::RUNNING;
 
-    /*
-     * Az ELF entry címét itt tároljuk.
-     *
-     * FONTOS:
-     * Ez még nem jelent valódi user-mode context switch-et.
-     * Ehhez később szükség lesz GDT/IDT/TSS + CR3 + ring3
-     * context switch implementációra.
-     */
-    using EntryPoint = void (*)();
+    if (proc->entry != 0)
+    {
+        /*
+         * Ez továbbra is egy kernel/userspace előkészítési pont.
+         * Ring3 váltás nélkül nem szabad valódi user ELF-et
+         * közvetlenül kernelből meghívni.
+         */
+    }
 
-    EntryPoint entry =
-        reinterpret_cast<EntryPoint>(
-            static_cast<uintptr_t>(proc->entry)
-        );
+    if (proc->state == State::RUNNING)
+        proc->state = State::TERMINATED;
 
-    if (entry)
-        entry();
-
-    proc->state = State::TERMINATED;
-    current_process = nullptr;
+    if (current_process == proc)
+        current_process = nullptr;
 }
 
-
-/*
- * Initialize process table.
- */
 void init()
 {
-    for (int i = 0; i < MAX_PROCESS; ++i)
+    memset(
+        processes,
+        0,
+        sizeof(processes)
+    );
+
+    for (size_t i = 0; i < MAX_PROCESS; ++i)
     {
-        processes[i].pid = 0;
-        processes[i].pml4 = 0;
-        processes[i].entry = 0;
-        processes[i].stack = 0;
         processes[i].state = State::EMPTY;
     }
 
@@ -71,10 +98,6 @@ void init()
     current_process = nullptr;
 }
 
-
-/*
- * Create process from an ELF64 image.
- */
 Process* create(
     const void* elf,
     size_t size
@@ -83,31 +106,14 @@ Process* create(
     if (!elf || size == 0)
         return nullptr;
 
-    Process* proc = nullptr;
-
-    /*
-     * Find free process slot.
-     */
-    for (int i = 0; i < MAX_PROCESS; ++i)
-    {
-        if (processes[i].state == State::EMPTY)
-        {
-            proc = &processes[i];
-            break;
-        }
-    }
+    Process* proc = find_free();
 
     if (!proc)
         return nullptr;
 
-
     uint64_t entry = 0;
     uint64_t pml4 = 0;
 
-
-    /*
-     * Load ELF64.
-     */
     if (!elf_loader::load_elf64_from_mem(
             elf,
             size,
@@ -118,78 +124,94 @@ Process* create(
         return nullptr;
     }
 
+    memset(
+        &proc->context,
+        0,
+        sizeof(proc->context)
+    );
 
-    /*
-     * Process information.
-     */
     proc->pid = next_pid++;
     proc->pml4 = pml4;
     proc->entry = entry;
+    proc->stack = 0;
 
-    /*
-     * Temporary user stack address.
-     *
-     * This is only an address reservation for now.
-     * A real page allocation/mapping must be implemented
-     * before entering ring 3.
-     */
-    proc->stack = 0x00007FFFFFF00000ULL;
-
-
-    /*
-     * Initial CPU context.
-     */
     task::init_context(
         &proc->context,
-        entry
+        reinterpret_cast<uint64_t>(
+            process_stub
+        )
     );
-
 
     proc->state = State::READY;
 
-
-    /*
-     * Register the process with the current scheduler API.
-     *
-     * scheduler.hpp provides create_task(), not add_task().
-     */
-    int task_id = scheduler::create_task(
-        process_entry,
-        proc
-    );
+    int task_id =
+        scheduler::create_task(
+            process_stub,
+            proc
+        );
 
     if (task_id < 0)
     {
         proc->state = State::EMPTY;
+        proc->pid = 0;
+        proc->pml4 = 0;
+        proc->entry = 0;
+        proc->stack = 0;
         return nullptr;
     }
 
+    proc->task_id =
+        static_cast<uint64_t>(task_id);
 
     return proc;
 }
 
-
-/*
- * Terminate process.
- */
-void terminate(Process* proc)
+bool terminate(
+    Process* proc
+)
 {
     if (!proc)
-        return;
+        return false;
+
+    if (proc->state == State::EMPTY)
+        return false;
+
+    if (proc->task_id != 0)
+    {
+        scheduler::set_finished(
+            proc->task_id
+        );
+    }
 
     proc->state = State::TERMINATED;
 
     if (current_process == proc)
         current_process = nullptr;
+
+    return true;
 }
 
-
-/*
- * Return currently running process.
- */
 Process* current()
 {
     return current_process;
 }
 
-} // namespace process
+Process* get(uint64_t pid)
+{
+    return find_by_pid(pid);
+}
+
+size_t count()
+{
+    size_t result = 0;
+
+    for (size_t i = 0; i < MAX_PROCESS; ++i)
+    {
+        if (processes[i].state != State::EMPTY)
+            ++result;
+    }
+
+    return result;
+}
+
+}
