@@ -67,11 +67,7 @@ static void process_stub(void* arg)
 
     if (proc->entry != 0)
     {
-        /*
-         * Ez továbbra is egy kernel/userspace előkészítési pont.
-         * Ring3 váltás nélkül nem szabad valódi user ELF-et
-         * közvetlenül kernelből meghívni.
-         */
+
     }
 
     if (proc->state == State::RUNNING)
