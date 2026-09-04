@@ -29,8 +29,8 @@ struct TaskContext
     uint64_t flags;
 };
 
-
-namespace task {
+namespace task
+{
 
 void init_context(
     TaskContext* ctx,
