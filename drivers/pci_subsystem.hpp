@@ -2,10 +2,7 @@
 
 #include <stdint.h>
 
-static constexpr uint32_t PCI_MAX_DEVICES = 64;
-
-struct PciDevice
-{
+struct PciDevice {
     uint8_t  bus;
     uint8_t  slot;
     uint8_t  func;
@@ -13,30 +10,24 @@ struct PciDevice
     uint16_t vendor_id;
     uint16_t device_id;
 
-    uint8_t  class_id;
-    uint8_t  subclass;
-    uint8_t  prog_if;
     uint8_t  revision;
+    uint8_t  prog_if;
+    uint8_t  subclass;
+    uint8_t  class_id;
 
     uint8_t  header_type;
+    uint8_t  irq_line;
+    uint8_t  irq_pin;
 
     uint64_t bar[6];
 
-    bool     is_valid;
+    bool is_valid;
 };
 
-class PciSubsystem
-{
+class PciSubsystem {
 private:
-    PciDevice device_registry[PCI_MAX_DEVICES];
+    PciDevice device_registry[64];
     uint32_t registered_count;
-
-    uint32_t pci_config_read_dword(
-        uint8_t bus,
-        uint8_t slot,
-        uint8_t func,
-        uint8_t offset
-    );
 
     uint16_t pci_config_read_word(
         uint8_t bus,
@@ -45,12 +36,22 @@ private:
         uint8_t offset
     );
 
-    void clear_registry();
-
-    void scan_function(
+    uint32_t pci_config_read_dword(
         uint8_t bus,
         uint8_t slot,
-        uint8_t func
+        uint8_t func,
+        uint8_t offset
+    );
+
+    bool read_device(
+        uint8_t bus,
+        uint8_t slot,
+        uint8_t func,
+        PciDevice* out
+    );
+
+    void register_with_device_manager(
+        const PciDevice& device
     );
 
 public:
@@ -58,9 +59,14 @@ public:
 
     void scan_all_pci_buses();
 
-    const PciDevice* get_devices(
-        uint32_t* count
-    ) const;
+    void configure_mmio_bars();
+
+    void print_hardware_tree_to_gui(
+        uint8_t* bb,
+        uint32_t fb_w,
+        int win_x,
+        int win_y
+    );
 
     PciDevice* get_device_by_id(
         uint16_t vendor,
@@ -75,13 +81,8 @@ public:
 
     uint32_t device_count() const;
 
-    void configure_mmio_bars();
-
-    void print_hardware_tree_to_gui(
-        uint8_t* bb,
-        uint32_t fb_w,
-        int win_x,
-        int win_y
+    PciDevice* device_at(
+        uint32_t index
     );
 };
 
