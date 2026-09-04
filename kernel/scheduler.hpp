@@ -3,13 +3,11 @@
 #include <stdint.h>
 #include <stddef.h>
 
-namespace scheduler {
+namespace scheduler
+{
 
-// ============================================================
-// Task states
-// ============================================================
-
-enum class TaskState : uint8_t {
+enum class TaskState : uint8_t
+{
     Empty = 0,
     Ready,
     Running,
@@ -18,11 +16,8 @@ enum class TaskState : uint8_t {
     Finished
 };
 
-// ============================================================
-// Scheduler task
-// ============================================================
-
-struct Task {
+struct Task
+{
     uint64_t id;
 
     uint32_t priority;
@@ -37,28 +32,18 @@ struct Task {
     void* arg;
 };
 
-// ============================================================
-// Scheduler decision
-// ============================================================
-
-struct Decision {
+struct Decision
+{
     uint64_t task_id;
-
     bool run;
     bool preempt_current;
 };
 
-// ============================================================
-// Scheduler policy API
-//
-// This is BlockOS's own extensible scheduler interface.
-// ============================================================
-
-struct Policy {
+struct Policy
+{
     const char* name;
 
     bool (*init)();
-
     void (*destroy)();
 
     bool (*enqueue)(
@@ -91,15 +76,7 @@ struct Policy {
     );
 };
 
-// ============================================================
-// Initialization
-// ============================================================
-
 void scheduler_init();
-
-// ============================================================
-// Task management
-// ============================================================
 
 int create_task(
     void (*entry)(void*),
@@ -118,17 +95,9 @@ Task* current_task();
 
 size_t task_count();
 
-// ============================================================
-// Legacy cooperative API
-// ============================================================
-
 void yield();
 
 void run_scheduler_loop();
-
-// ============================================================
-// Extensible scheduler API
-// ============================================================
 
 bool register_policy(
     const Policy* policy
@@ -146,10 +115,6 @@ const Policy* current_policy();
 
 const char* current_policy_name();
 
-// ============================================================
-// Scheduler operations
-// ============================================================
-
 Task* pick_next();
 
 Decision make_decision();
@@ -157,10 +122,6 @@ Decision make_decision();
 void scheduler_tick(
     uint64_t elapsed_ns
 );
-
-// ============================================================
-// Task state changes
-// ============================================================
 
 bool set_ready(
     uint64_t task_id
@@ -182,4 +143,4 @@ bool set_finished(
     uint64_t task_id
 );
 
-} // namespace scheduler
+}
