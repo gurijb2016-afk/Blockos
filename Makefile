@@ -113,9 +113,6 @@ SRC := $(filter-out $(EXCLUDED_SRC), \
 
 SRC += kernel/cmd/cmd_ata.cpp
 SRC += kernel/cmd/cmd_forth.cpp
-SRC += kernel/compat/linux_compat_api.cpp
-SRC += drivers/net/e1000.cpp
-SRC += drivers/block/nvme.cpp
 
 # ============================================================
 # ASSEMBLY SOURCES
