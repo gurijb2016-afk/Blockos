@@ -1,383 +1,364 @@
 
-PROJECT      := $(CURDIR)
+# ============================================================
+# BlockOS GNU-EFI C++ Build System
+# x86_64 UEFI
+# ============================================================
 
-ARCH         := x86_64
-EFI_INCL     ?= /usr/include/efi
-EFI_INCL_X86 ?= /usr/include/efi/x86_64
-EFI_LIB      ?= /usr/lib
-EFI_CRT      ?= /usr/lib
-EFI_LDS      ?= /usr/lib/elf_x86_64_efi.lds
+EFI_INCL       := /usr/include/efi
+EFI_INCL_X86   := /usr/include/efi/x86_64
 
-CXX          ?= x86_64-elf-g++
-CC           ?= x86_64-elf-gcc
-AS           ?= x86_64-elf-as
-LD           ?= x86_64-elf-ld
-AR           ?= x86_64-elf-ar
-OBJCOPY      ?= x86_64-elf-objcopy
+GNU_EFI_LIBDIR := /usr/lib
+GNU_EFI_LDS    := $(GNU_EFI_LIBDIR)/elf_x86_64_efi.lds
 
-# ------------------------------------------------------------
-# BlockOS userspace libc
-# ------------------------------------------------------------
+EFI_CRT        := $(GNU_EFI_LIBDIR)/crt0-efi-x86_64.o
+EFI_LIB        := $(GNU_EFI_LIBDIR)/libefi.a
+GNU_EFI_LIB    := $(GNU_EFI_LIBDIR)/libgnuefi.a
 
-USERLIBC ?=
+CXX      := g++
+LD       := ld
+OBJCOPY  := objcopy
+PYTHON   := python3
 
-ifeq ($(strip $(USERLIBC)),)
-ifneq ($(wildcard $(PROJECT)/userspace/libc),)
-USERLIBC := $(PROJECT)/userspace/libc
-else ifneq ($(wildcard $(PROJECT)/userspace/sysroot),)
-USERLIBC := $(PROJECT)/userspace/sysroot
-else ifneq ($(wildcard $(PROJECT)/libc),)
-USERLIBC := $(PROJECT)/libc
-else ifneq ($(wildcard $(PROJECT)/sysroot),)
-USERLIBC := $(PROJECT)/sysroot
-else ifneq ($(wildcard $(PROJECT)/userspace),)
-USERLIBC := $(PROJECT)/userspace
-endif
-endif
+# ============================================================
+# C++ FLAGS
+# ============================================================
 
-# ------------------------------------------------------------
-# Compiler flags
-# ------------------------------------------------------------
-
-COMMON_CFLAGS := \
-	-ffreestanding \
-	-fno-stack-protector \
-	-fno-pic \
-	-fno-pie \
+CXXFLAGS := \
 	-fno-exceptions \
 	-fno-rtti \
+	-fshort-wchar \
+	-fPIC \
+	-DEFI_FUNCTION_WRAPPER \
+	-I. \
+	-Ikernel \
+	-I$(EFI_INCL) \
+	-I$(EFI_INCL_X86) \
+	-ffreestanding \
 	-mno-red-zone \
-	-mno-sse \
-	-mno-sse2 \
-	-mno-mmx \
-	-mno-avx \
-	-m64 \
+	-O2 \
 	-Wall \
 	-Wextra \
-	-I$(PROJECT)
+	-Iarch/86_64x \
+	-Ikernel \
+	-Idrivers \
+	-Ifs \
+	-Iexamples \
+	-Ilibc/include \
+	-Iposix/include \
+	-fvisibility=hidden \
+	-MMD \
+	-MP
 
-COMMON_CXXFLAGS := \
-	$(COMMON_CFLAGS) \
-	-std=c++20
+# ============================================================
+# ASSEMBLY FLAGS
+# ============================================================
 
-COMMON_ASFLAGS := \
-	--64
-
-KERNEL_LDFLAGS := \
-	-T $(EFI_LDS) \
-	-shared \
-	-Bsymbolic \
-	-nostdlib
-
-EFI_CPPFLAGS := \
+ASFLAGS := \
+	-I. \
 	-I$(EFI_INCL) \
-	-I$(EFI_INCL_X86)
+	-I$(EFI_INCL_X86) \
+	-ffreestanding \
+	-MMD \
+	-MP
 
-# ------------------------------------------------------------
-# Directories
-# ------------------------------------------------------------
+# ============================================================
+# LINKER FLAGS
+# ============================================================
 
-BUILD_DIR    := build
-OBJ_DIR      := $(BUILD_DIR)/obj
-EFI_DIR      := $(BUILD_DIR)/efi
-ISO_DIR      := $(BUILD_DIR)/iso
+LDFLAGS := \
+	-nostdlib \
+	-znocombreloc \
+	-T$(GNU_EFI_LDS) \
+	-shared \
+	-Bsymbolic
 
-KERNEL_DIRS  := \
-	arch \
-	kernel \
-	fs \
+# ============================================================
+# SOURCE DIRECTORIES
+# ============================================================
+
+SRC_DIRS := \
 	drivers \
-	memory \
-	device \
-	lib
+	drivers/kdriver_specific \
+	examples \
+	fs \
+	kernel \
+	libc/src
 
-# ------------------------------------------------------------
-# Source discovery
-# ------------------------------------------------------------
+S_SRC_DIRS := \
+	drivers \
+	examples \
+	fs \
+	kernel
 
-CPP_SOURCES := $(shell find arch kernel fs drivers memory device lib \
-	-type f \( -name '*.cpp' -o -name '*.cc' \) 2>/dev/null)
+# ============================================================
+# SOURCE FILES
+# ============================================================
 
-C_SOURCES := $(shell find . \
-	-path './build' -prune -o \
-	-path './ports/lua' -prune -o \
-	-path './userspace' -prune -o \
-	-type f -name '*.c' -print 2>/dev/null)
+EXCLUDED_SRC := \
+	fs/EROFS.cpp \
+	fs/tmpfs.cpp \
+	kernel/login.cpp \
+	kernel/panic.cpp
 
-ASM_SOURCES := $(shell find arch \
-	-type f \( -name '*.S' -o -name '*.s' \) 2>/dev/null)
+SRC := $(filter-out $(EXCLUDED_SRC), \
+	$(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.cpp)))
 
-# Lua embedded ELF source is intentionally included by fs/*.cpp
-# through fs/lua_elf.cpp.
+SRC += kernel/cmd/cmd_ata.cpp
+SRC += kernel/cmd/cmd_forth.cpp
+SRC += kernel/cmd/cmd_ls.cpp
+SRC += kernel/cmd/cmd_cat.cpp
+SRC += kernel/cmd/cmd_touch.cpp
+SRC += kernel/cmd/command_registry.cpp
+SRC += kernel/cmd/cmd_clear.cpp
+SRC += kernel/cmd/cmd_help.cpp
+SRC += kernel/cmd/cmd_mkdir.cpp
+SRC += kernel/cmd/cmd_cd.cpp
+SRC += kernel/cmd/cmd_uptime.cpp
+SRC += arch/86_64x/hardware_tables.cpp
+SRC += arch/86_64x/irq.cpp
 
-CPP_OBJECTS := $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(CPP_SOURCES))
-C_OBJECTS   := $(patsubst %.c,$(OBJ_DIR)/%.o,$(C_SOURCES))
-ASM_OBJECTS := $(patsubst %.S,$(OBJ_DIR)/%.o,$(filter %.S,$(ASM_SOURCES))) \
-               $(patsubst %.s,$(OBJ_DIR)/%.o,$(filter %.s,$(ASM_SOURCES)))
+# ============================================================
+# ASSEMBLY SOURCES
+# ============================================================
 
-OBJECTS := $(CPP_OBJECTS) $(C_OBJECTS) $(ASM_OBJECTS)
+S_SRC := $(foreach dir,$(S_SRC_DIRS),$(wildcard $(dir)/*.S))
 
-# ------------------------------------------------------------
-# Lua
-# ------------------------------------------------------------
+S_SRC += arch/86_64x/irq_stubs.S
 
-LUA_DIR      := ports/lua
-LUA_BUILD    := $(LUA_DIR)/build
-LUA_ELF      := $(LUA_BUILD)/lua
-LUA_SCRIPT   := $(LUA_DIR)/build-lua.sh
+# Ring3 support
+S_SRC += arch/86_64x/user_entry.S
+S_SRC += arch/86_64x/syscall_entry.S
 
-# ------------------------------------------------------------
-# EFI output
-# ------------------------------------------------------------
+# ============================================================
+# OBJECT FILES
+# ============================================================
 
-EFI_TARGET := $(EFI_DIR)/BOOTX64.EFI
+OBJ := \
+	$(SRC:.cpp=.o) \
+	$(S_SRC:.S=.o)
 
-# ------------------------------------------------------------
-# Link objects
-# ------------------------------------------------------------
+# ============================================================
+# DEPENDENCY FILES
+# ============================================================
 
-KERNEL_OBJECTS := $(OBJECTS)
+DEP := $(OBJ:.o=.d)
 
-# ------------------------------------------------------------
-# Default target
-# ------------------------------------------------------------
+# ============================================================
+# BUILD OUTPUT
+# ============================================================
 
-.PHONY: all
-all: $(EFI_TARGET)
+BUILD_DIR := build
 
-# ------------------------------------------------------------
-# Directories
-# ------------------------------------------------------------
+SO_OUT  := $(BUILD_DIR)/kernel.so
+EFI_OUT := $(BUILD_DIR)/BOOTX64.EFI
 
-$(BUILD_DIR):
-	mkdir -p $@
+# ============================================================
+# DEFAULT
+# ============================================================
 
-$(OBJ_DIR):
-	mkdir -p $@
+all: $(EFI_OUT)
 
-$(EFI_DIR):
-	mkdir -p $@
+# ============================================================
+# C++ COMPILATION
+# ============================================================
 
-$(ISO_DIR):
-	mkdir -p $@
-
-# ------------------------------------------------------------
-# Lua build
-# ------------------------------------------------------------
-
-.PHONY: lua
-
-lua: $(LUA_ELF)
-
-$(LUA_ELF): $(LUA_SCRIPT)
-	@echo "[LUA] building real Lua userspace binary"
-	@if [ -z "$(USERLIBC)" ]; then \
-		echo ""; \
-		echo "ERROR: BlockOS userspace libc sysroot was not found."; \
-		echo "Set it explicitly with:"; \
-		echo "  make USERLIBC=/path/to/blockos/libc"; \
-		echo ""; \
-		exit 2; \
-	fi
-	@if [ ! -d "$(USERLIBC)" ]; then \
-		echo "ERROR: USERLIBC does not exist: $(USERLIBC)"; \
-		exit 2; \
-	fi
-	@USERLIBC="$(USERLIBC)" \
-	CC="$(CC)" \
-	AR="$(AR)" \
-	RANLIB="$(AR) -s" \
-	$(LUA_SCRIPT)
-
-# ------------------------------------------------------------
-# Embed Lua into RAMFS
-# ------------------------------------------------------------
-
-fs/lua_elf.cpp: $(LUA_ELF)
-
-$(OBJ_DIR)/fs/lua_elf.o: $(LUA_ELF)
-
-# ------------------------------------------------------------
-# Generic C++ compilation
-# ------------------------------------------------------------
-
-$(OBJ_DIR)/%.o: %.cpp
+%.o: %.cpp
 	@mkdir -p $(dir $@)
 	@echo "[CXX] $<"
-	$(CXX) $(COMMON_CXXFLAGS) $(EFI_CPPFLAGS) -c "$<" -o "$@"
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# ------------------------------------------------------------
-# Generic C compilation
-# ------------------------------------------------------------
+# ============================================================
+# ASSEMBLY COMPILATION
+# ============================================================
 
-$(OBJ_DIR)/%.o: %.c
+%.o: %.S
 	@mkdir -p $(dir $@)
-	@echo "[CC ] $<"
-	$(CC) $(COMMON_CFLAGS) $(EFI_CPPFLAGS) -c "$<" -o "$@"
+	@echo "[ASM] $<"
+	$(CXX) $(ASFLAGS) -c $< -o $@
 
-# ------------------------------------------------------------
-# Assembly compilation
-# ------------------------------------------------------------
+# ============================================================
+# WEAKENED GNU-EFI LIB
+# ============================================================
 
-$(OBJ_DIR)/%.o: %.S
-	@mkdir -p $(dir $@)
-	@echo "[AS ] $<"
-	$(CC) $(COMMON_CFLAGS) -c "$<" -o "$@"
+EFI_LIB_WEAK := $(BUILD_DIR)/libefi-weak.a
 
-$(OBJ_DIR)/%.o: %.s
-	@mkdir -p $(dir $@)
-	@echo "[AS ] $<"
-	$(AS) $(COMMON_ASFLAGS) "$<" -o "$@"
+$(EFI_LIB_WEAK): $(EFI_LIB)
+	@mkdir -p $(BUILD_DIR)
+	@echo "[OBJCOPY] weakening memcpy/memset in $(notdir $(EFI_LIB))"
+	cp $< $@
+	$(OBJCOPY) --weaken-symbol=memcpy --weaken-symbol=memset $@
 
-# ------------------------------------------------------------
-# UEFI link
-# ------------------------------------------------------------
+# ============================================================
+# LINK KERNEL.SO
+# ============================================================
 
-$(EFI_TARGET): lua $(OBJECTS) | $(EFI_DIR)
-	@echo "[LD ] BlockOS UEFI kernel"
-	$(CXX) \
-		$(KERNEL_LDFLAGS) \
-		-o "$@" \
-		$(KERNEL_OBJECTS) \
-		-L$(EFI_LIB) \
-		-L$(EFI_CRT) \
-		-lefi \
-		-lgnuefi
+$(SO_OUT): $(OBJ) $(EFI_LIB_WEAK)
+	@mkdir -p $(BUILD_DIR)
 
-	@echo "[OK ] $(EFI_TARGET)"
+	@echo ""
+	@echo "=============================================="
+	@echo " Linking BlockOS kernel.so"
+	@echo "=============================================="
 
-# ------------------------------------------------------------
-# Copy EFI to standard location
-# ------------------------------------------------------------
+	$(LD) \
+		$(LDFLAGS) \
+		-L$(GNU_EFI_LIBDIR) \
+		$(EFI_CRT) \
+		$(OBJ) \
+		$(GNU_EFI_LIB) \
+		$(EFI_LIB_WEAK) \
+		-o $@
 
-.PHONY: efi
+	@echo ""
+	@echo "[OK] $@"
 
-efi: $(EFI_TARGET)
-	@mkdir -p EFI/BOOT
-	cp -f "$(EFI_TARGET)" EFI/BOOT/BOOTX64.EFI
-	@echo "[EFI] EFI/BOOT/BOOTX64.EFI ready"
+# ============================================================
+# CREATE BOOTX64.EFI
+# ============================================================
 
-# ------------------------------------------------------------
-# ISO
-# ------------------------------------------------------------
+$(EFI_OUT): $(SO_OUT)
+	@mkdir -p $(BUILD_DIR)
 
-ISO_IMAGE := $(BUILD_DIR)/blockos.iso
+	@echo ""
+	@echo "=============================================="
+	@echo " Creating BOOTX64.EFI"
+	@echo "=============================================="
 
-.PHONY: iso
+	$(OBJCOPY) \
+		-I elf64-x86-64 \
+		-O efi-app-x86_64 \
+		-j .text \
+		-j .plt \
+		-j .init_array \
+		-j .ramfs \
+		-j .dynstr \
+		-j .sdata \
+		-j .data \
+		-j .dynamic \
+		-j .dynsym \
+		-j .rel \
+		-j .rela \
+		-j .rel.* \
+		-j .rela.* \
+		-j .reloc \
+		$(SO_OUT) \
+		$(EFI_OUT)
 
-iso: $(EFI_TARGET)
-	@echo "[ISO] creating BlockOS ISO"
-	rm -rf "$(ISO_DIR)"
-	mkdir -p "$(ISO_DIR)/EFI/BOOT"
-	cp -f "$(EFI_TARGET)" "$(ISO_DIR)/EFI/BOOT/BOOTX64.EFI"
+	@echo ""
+	@echo "[OK] $@"
 
-	grub-mkrescue \
-		-o "$(ISO_IMAGE)" \
-		"$(ISO_DIR)"
+# ============================================================
+# CHECK GNU-EFI
+# ============================================================
 
-	@echo "[OK ] $(ISO_IMAGE)"
+check-efi:
+	@echo "Checking GNU-EFI..."
 
-# ------------------------------------------------------------
-# Ring3 test
-# ------------------------------------------------------------
+	@test -f "$(GNU_EFI_LDS)" \
+		&& echo "[OK] Linker script: $(GNU_EFI_LDS)" \
+		|| echo "[ERROR] Missing: $(GNU_EFI_LDS)"
 
-RING3_TEST := userspace/tests/ring3_test
+	@test -f "$(EFI_CRT)" \
+		&& echo "[OK] CRT: $(EFI_CRT)" \
+		|| echo "[ERROR] Missing: $(EFI_CRT)"
 
-.PHONY: ring3-test
+	@test -f "$(EFI_LIB)" \
+		&& echo "[OK] libefi: $(EFI_LIB)" \
+		|| echo "[ERROR] Missing: $(EFI_LIB)"
+
+	@test -f "$(GNU_EFI_LIB)" \
+		&& echo "[OK] libgnuefi: $(GNU_EFI_LIB)" \
+		|| echo "[ERROR] Missing: $(GNU_EFI_LIB)"
+
+# ============================================================
+# MENUCONFIG
+# ============================================================
+
+menuconfig:
+	$(PYTHON) scripts/menuconfig.py
+
+# ============================================================
+# LUA - MANUAL TARGET
+#
+# Fontos:
+# A Lua nem része az alap kernel "make" buildnek.
+# Így egy Lua-port hiba nem töri el a teljes kernel buildet.
+#
+# Használat:
+#   make lua
+# ============================================================
+
+LUA_SCRIPT := ports/lua/build-lua.sh
+LUA_OUT    := ports/lua/build/lua
+
+lua:
+	@echo ""
+	@echo "=============================================="
+	@echo " Building BlockOS Lua"
+	@echo "=============================================="
+	@if [ ! -x "$(LUA_SCRIPT)" ]; then \
+		echo "[ERROR] Missing executable: $(LUA_SCRIPT)"; \
+		exit 1; \
+	fi
+	@$(LUA_SCRIPT)
+
+# ============================================================
+# RING3 TEST
+# ============================================================
 
 ring3-test:
+	@echo ""
+	@echo "=============================================="
+	@echo " Building Ring3 test"
+	@echo "=============================================="
+
 	@if [ -x userspace/tests/build-ring3-test.sh ]; then \
-		echo "[RING3] building userspace test"; \
 		userspace/tests/build-ring3-test.sh; \
 	else \
-		echo "[WARN] userspace/tests/build-ring3-test.sh not found"; \
+		echo "[ERROR] userspace/tests/build-ring3-test.sh missing"; \
+		exit 1; \
 	fi
 
-# ------------------------------------------------------------
-# QEMU
-# ------------------------------------------------------------
-
-OVMF_CODE ?= /usr/share/OVMF/OVMF_CODE_4M.fd
-QEMU      ?= qemu-system-x86_64
-
-.PHONY: run
-
-run: iso
-	@echo "[QEMU] starting BlockOS"
-	$(QEMU) \
-		-machine q35 \
-		-m 512M \
-		-bios "$(OVMF_CODE)" \
-		-drive format=raw,file="$(ISO_IMAGE)"
-
-# ------------------------------------------------------------
-# Clean
-# ------------------------------------------------------------
-
-.PHONY: clean
+# ============================================================
+# CLEAN
+# ============================================================
 
 clean:
-	rm -rf "$(BUILD_DIR)"
-	rm -f "$(LUA_ELF)"
-	find . -type f \( -name '*.o' -o -name '*.EFI' \) -delete
+	rm -f $(OBJ)
+	rm -f $(DEP)
+	rm -rf $(BUILD_DIR)
 
-# ------------------------------------------------------------
-# Distclean
-# ------------------------------------------------------------
+# ============================================================
+# REBUILD
+# ============================================================
 
-.PHONY: distclean
+rebuild:
+	$(MAKE) clean
+	$(MAKE) all
 
-distclean: clean
-	rm -rf EFI/BOOT
-	rm -rf "$(LUA_BUILD)"
+# ============================================================
+# RUN
+# ============================================================
 
-# ------------------------------------------------------------
-# Information
-# ------------------------------------------------------------
+run: all
+	sh build_and_run.sh
 
-.PHONY: info
+# ============================================================
+# PHONY
+# ============================================================
 
-info:
-	@echo "=============================================="
-	@echo " BlockOS Build Information"
-	@echo "=============================================="
-	@echo "Project   : $(PROJECT)"
-	@echo "Compiler  : $(CXX)"
-	@echo "C compiler: $(CC)"
-	@echo "Lua       : $(LUA_ELF)"
-	@echo "USERLIBC  : $(USERLIBC)"
-	@echo "EFI INCL  : $(EFI_INCL)"
-	@echo "EFI X86   : $(EFI_INCL_X86)"
-	@echo "EFI LIB   : $(EFI_LIB)"
-	@echo "=============================================="
+.PHONY: \
+	all \
+	clean \
+	rebuild \
+	menuconfig \
+	check-efi \
+	run \
+	lua \
+	ring3-test
 
-# ------------------------------------------------------------
-# Help
-# ------------------------------------------------------------
+# ============================================================
+# HEADER DEPENDENCIES
+# ============================================================
 
-.PHONY: help
-
-help:
-	@echo ""
-	@echo "BlockOS build targets:"
-	@echo ""
-	@echo "  make              Build BlockOS UEFI binary"
-	@echo "  make lua          Build real Lua userspace binary"
-	@echo "  make efi          Copy BOOTX64.EFI to EFI/BOOT"
-	@echo "  make iso          Build blockos.iso"
-	@echo "  make run          Build ISO and start QEMU"
-	@echo "  make ring3-test   Build Ring3 test program"
-	@echo "  make info         Show build configuration"
-	@echo "  make clean        Remove build files"
-	@echo "  make distclean    Remove all generated files"
-	@echo ""
-	@echo "Manual libc path:"
-	@echo "  make USERLIBC=/path/to/blockos/libc"
-	@echo ""
-
-# ------------------------------------------------------------
-# Dependency rules
-# ------------------------------------------------------------
-
-.PHONY: FORCE
-FORCE:
+-include $(DEP)
