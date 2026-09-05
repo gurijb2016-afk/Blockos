@@ -1,30 +1,20 @@
 #include "paging.hpp"
 #include "dma.hpp"
-extern "C" {
-#include <efi.h>
-}
-extern "C" {
-#include <efilib.h>
-}
+#include <stdint.h>
+#include <stddef.h>
 #include <string.h>
 
-// Basic x86_64 4-level page table helpers. This is minimal and assumes
-// the environment maps physical memory 1:1 in the initial stage (UEFI usually does).
+static const uint64_t PTE_PRESENT  = 1ULL << 0;
+static const uint64_t PTE_WRITABLE = 1ULL << 1;
+static const uint64_t PTE_USER     = 1ULL << 2;
+static const uint64_t PTE_PWT      = 1ULL << 3;
+static const uint64_t PTE_PCD      = 1ULL << 4;
+static const uint64_t PTE_NX       = 1ULL << 63;
+static const uint64_t ADDR_MASK    = 0x000ffffffffff000ULL;
+static const uint64_t PAGE_MASK    = ~0xFFFULL;
 
-static const uint64_t PTE_PRESENT = (1ULL << 0);
-static const uint64_t PTE_WRITABLE = (1ULL << 1);
-static const uint64_t PTE_USER = (1ULL << 2);
-static const uint64_t PTE_PWT = (1ULL << 3);
-static const uint64_t PTE_PCD = (1ULL << 4);
-static const uint64_t PTE_ACCESSED = (1ULL << 5);
-static const uint64_t PTE_DIRTY = (1ULL << 6);
-static const uint64_t PTE_PSE = (1ULL << 7);
-static const uint64_t PTE_GLOBAL = (1ULL << 8);
-
-static inline uint64_t vaddr_index(uint64_t vaddr, int level) {
-    // level: 4 -> PML4, 3 -> PDPT, 2 -> PD, 1 -> PT
-    int shift = 12 + (level - 1) * 9;
-    return (vaddr >> shift) & 0x1FFu;
+static inline uint64_t idx(uint64_t v, int level) {
+    return (v >> (12 + (level - 1) * 9)) & 0x1ffULL;
 }
 
 void* paging::alloc_page() {
@@ -35,80 +25,87 @@ void* paging::alloc_page() {
 
 uint64_t paging::create_pml4() {
     void* p = paging::alloc_page();
-    if (!p) return 0;
-    return (uint64_t)(UINTN)p;
+    return (uint64_t)(uintptr_t)p;
 }
 
-bool ensure_table_entry(uint64_t table_phys, uint64_t idx, uint64_t flags, uint64_t*& out_table) {
-    // table_phys is physical address of a 4KB table, and virtual access is assumed identity-mapped
-    uint64_t* table = (uint64_t*)(UINTN)table_phys;
-    uint64_t ent = table[idx];
-    if ((ent & PTE_PRESENT) == 0) {
-        void* newp = dma::alloc(4096, 4096);
-        if (!newp) return false;
-        memset(newp, 0, 4096);
-        uint64_t newp_phys = (uint64_t)(UINTN)newp;
-        table[idx] = (newp_phys & 0x000ffffffffff000ULL) | (flags & 0xFFFULL) | PTE_PRESENT;
-        out_table = (uint64_t*)(UINTN)newp_phys;
-        return true;
-    } else {
-        uint64_t next_phys = ent & 0x000ffffffffff000ULL;
-        out_table = (uint64_t*)(UINTN)next_phys;
+uint64_t paging::clone_current_pml4() {
+    uint64_t cur = paging::read_cr3() & ADDR_MASK;
+    if (!cur) return 0;
+    uint64_t dst = paging::create_pml4();
+    if (!dst) return 0;
+    memcpy((void*)(uintptr_t)dst, (const void*)(uintptr_t)cur, 4096);
+    return dst;
+}
+
+static bool table(uint64_t phys, uint64_t i, uint64_t flags, uint64_t*& out) {
+    uint64_t* t = (uint64_t*)(uintptr_t)phys;
+    uint64_t e = t[i];
+    if (!(e & PTE_PRESENT)) {
+        void* p = dma::alloc(4096,4096);
+        if (!p) return false;
+        memset(p,0,4096);
+        uint64_t f = PTE_PRESENT | PTE_WRITABLE | (flags & PTE_USER);
+        t[i] = ((uint64_t)(uintptr_t)p & ADDR_MASK) | f;
+        out=(uint64_t*)(uintptr_t)p;
         return true;
     }
-}
-
-bool paging::map_4k(uint64_t pml4_phys, uint64_t vaddr, uint64_t paddr, uint64_t flags) {
-    if (pml4_phys == 0) return false;
-    // Walk levels 4 -> 1
-    uint64_t* pml4 = (uint64_t*)(UINTN)pml4_phys;
-    uint64_t idx4 = vaddr_index(vaddr, 4);
-    uint64_t idx3 = vaddr_index(vaddr, 3);
-    uint64_t idx2 = vaddr_index(vaddr, 2);
-    uint64_t idx1 = vaddr_index(vaddr, 1);
-
-    uint64_t* pdpt = nullptr;
-    if (!ensure_table_entry(pml4_phys, idx4, PTE_WRITABLE, pdpt)) return false;
-    uint64_t pdpt_phys = (uint64_t)(UINTN)pdpt;
-
-    uint64_t* pd = nullptr;
-    if (!ensure_table_entry(pdpt_phys, idx3, PTE_WRITABLE, pd)) return false;
-    uint64_t pd_phys = (uint64_t)(UINTN)pd;
-
-    uint64_t* pt = nullptr;
-    if (!ensure_table_entry(pd_phys, idx2, PTE_WRITABLE, pt)) return false;
-    uint64_t pt_phys = (uint64_t)(UINTN)pt;
-
-    // Finally set PT entry
-    uint64_t* pt_table = (uint64_t*)(UINTN)pt_phys;
-    pt_table[idx1] = (paddr & 0x000ffffffffff000ULL) | (flags & 0xFFFULL) | PTE_PRESENT;
+    if (flags & PTE_USER) t[i] |= PTE_USER;
+    if (flags & PTE_WRITABLE) t[i] |= PTE_WRITABLE;
+    out=(uint64_t*)(uintptr_t)(e & ADDR_MASK);
     return true;
 }
 
-uint64_t paging::read_cr3() {
-    uint64_t cr3;
-    __asm__ volatile ("mov %%cr3, %0" : "=r" (cr3));
-    return cr3;
-}
-
-void paging::switch_pml4(uint64_t pml4_phys) {
-    __asm__ volatile ("mov %0, %%cr3" : : "r" (pml4_phys));
-}
-
-bool paging::init_paging() {
-    // Create a kernel PML4 and identity-map the first 4MB for initial use.
-    uint64_t pml4 = paging::create_pml4();
-    if (!pml4) return false;
-    // Map low memory (0..4MB) identity to ensure simple accesses if needed
-    for (uint64_t addr = 0; addr < 4 * 1024 * 1024; addr += 0x1000) {
-        if (!paging::map_4k(pml4, addr, addr, PTE_WRITABLE)) {
-            Print((const CHAR16*)L"paging: map_4k failed during init\n");
-            return false;
-        }
-    }
-    CHAR16 buf[128];
-    UnicodeSPrint(buf, sizeof(buf), (const CHAR16*)L"paging: created PML4 at phys 0x%016lx\n", pml4);
-    Print(buf);
-    // Do not switch CR3 automatically; caller decides when to enable paging
+bool paging::map_4k(uint64_t pml4_phys,uint64_t vaddr,uint64_t paddr,uint64_t flags) {
+    if (!pml4_phys || (vaddr & 0xfff) || (paddr & 0xfff)) return false;
+    uint64_t* a=nullptr; uint64_t* b=nullptr; uint64_t* c=nullptr;
+    if (!table(pml4_phys,idx(vaddr,4),flags,a)) return false;
+    if (!table((uint64_t)(uintptr_t)a,idx(vaddr,3),flags,b)) return false;
+    if (!table((uint64_t)(uintptr_t)b,idx(vaddr,2),flags,c)) return false;
+    uint64_t* pt=c;
+    pt[idx(vaddr,1)] = (paddr & ADDR_MASK) | (flags & (PTE_WRITABLE|PTE_USER|PTE_PWT|PTE_PCD|PTE_NX)) | PTE_PRESENT;
     return true;
 }
+
+bool paging::unmap_4k(uint64_t pml4_phys,uint64_t vaddr) {
+    if (!pml4_phys || (vaddr & 0xfff)) return false;
+    uint64_t* pml4=(uint64_t*)(uintptr_t)pml4_phys;
+    uint64_t e=pml4[idx(vaddr,4)]; if (!(e&PTE_PRESENT)) return false;
+    uint64_t* pdpt=(uint64_t*)(uintptr_t)(e&ADDR_MASK);
+    e=pdpt[idx(vaddr,3)]; if (!(e&PTE_PRESENT)) return false;
+    uint64_t* pd=(uint64_t*)(uintptr_t)(e&ADDR_MASK);
+    e=pd[idx(vaddr,2)]; if (!(e&PTE_PRESENT)) return false;
+    uint64_t* pt=(uint64_t*)(uintptr_t)(e&ADDR_MASK);
+    pt[idx(vaddr,1)] = 0;
+    asm volatile("invlpg (%0)"::"r"((void*)(uintptr_t)vaddr):"memory");
+    return true;
+}
+
+uint64_t paging::read_cr3(){uint64_t x; asm volatile("mov %%cr3,%0":"=r"(x)); return x & ADDR_MASK;}
+void paging::switch_pml4(uint64_t pml4_phys){asm volatile("mov %0,%%cr3"::"r"(pml4_phys&ADDR_MASK):"memory");}
+
+bool paging::map_user_range(uint64_t pml4,uint64_t base,size_t len,uint64_t flags){
+    if (!len || base+len<base) return false;
+    uint64_t a=base&PAGE_MASK, end=(base+len+0xfffULL)&PAGE_MASK;
+    if (end<a) return false;
+    for(;a<end;a+=0x1000){void* p=alloc_page(); if(!p) return false; if(!map_4k(pml4,a,(uint64_t)(uintptr_t)p,flags|PTE_USER)) return false;}
+    return true;
+}
+
+static bool user_page(uint64_t v,bool write){
+    uint64_t cr3=paging::read_cr3(); if(!cr3) return false;
+    uint64_t* pml4=(uint64_t*)(uintptr_t)cr3; uint64_t e=pml4[idx(v,4)]; if(!(e&PTE_PRESENT)||!(e&PTE_USER)) return false;
+    uint64_t* pdpt=(uint64_t*)(uintptr_t)(e&ADDR_MASK); e=pdpt[idx(v,3)]; if(!(e&PTE_PRESENT)||!(e&PTE_USER)) return false;
+    uint64_t* pd=(uint64_t*)(uintptr_t)(e&ADDR_MASK); e=pd[idx(v,2)]; if(!(e&PTE_PRESENT)||!(e&PTE_USER)) return false;
+    uint64_t* pt=(uint64_t*)(uintptr_t)(e&ADDR_MASK); e=pt[idx(v,1)]; if(!(e&PTE_PRESENT)||!(e&PTE_USER)) return false;
+    return !write || (e&PTE_WRITABLE);
+}
+
+bool paging::is_user_range(uint64_t addr,size_t len,bool write){
+    if (!len || addr+len<addr) return false;
+    uint64_t end=addr+len-1;
+    if (end>0x00007fffffffffffULL) return false;
+    for(uint64_t p=addr&PAGE_MASK;;p+=0x1000){if(!user_page(p,write)) return false; if(p>end-((end)&0xfffULL)) break;}
+    return user_page(end&PAGE_MASK,write);
+}
+
+bool paging::init_paging(){ return paging::read_cr3()!=0; }

@@ -15,6 +15,7 @@
 #include "shell.hpp"
 #include "sysmem.hpp"
 #include "vfs.hpp"
+#include "process.hpp"
 #include "virtio_input.hpp"
 
 
@@ -563,6 +564,21 @@ static void run_command(const Args& args, Console& out)
         return;
     }
 
+    char path[128];
+    size_t n = 0;
+    path[n++] = '/'; path[n++] = 'b'; path[n++] = 'i'; path[n++] = 'n'; path[n++] = '/';
+    for (size_t i = 0; name[i] && n + 1 < sizeof(path); ++i) path[n++] = name[i];
+    path[n] = '\0';
+    uint32_t elf_size = 0;
+    const uint8_t* elf = vfs::read_file(path, &elf_size);
+    if (elf)
+    {
+        process::Process* p = process::create(elf, elf_size);
+        if (!p) { out.print("exec: ELF load failed"); out.newline(); return; }
+        process::run(p);
+        return;
+    }
+
     out.print("unknown command: ");
     out.print(name);
     out.newline();
@@ -1076,6 +1092,9 @@ extern "C" EFI_STATUS EFIAPI efi_main(
     blockos_stdio_set_console(stdio_sink);
 
     printf("BlockOS console\n");
+
+    vfs_init_from_ramfs();
+    process::init();
 
     // console.print("commands: ");
 

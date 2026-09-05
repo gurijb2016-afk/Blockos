@@ -154,3 +154,5 @@ bool register_audio_device(
 void initialize_devices();
 
 }
+
+void vfs_init_from_ramfs();
