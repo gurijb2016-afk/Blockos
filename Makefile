@@ -129,6 +129,17 @@ SRC += arch/86_64x/irq.cpp
 
 S_SRC := $(foreach dir,$(S_SRC_DIRS),$(wildcard $(dir)/*.S))
 S_SRC += arch/86_64x/irq_stubs.S
+S_SRC += arch/86_64x/user_entry.S
+S_SRC += arch/86_64x/syscall_entry.S
+
+
+LUA_ELF := ports/lua/build/lua
+
+$(LUA_ELF):
+	@echo "[LUA] building real Lua userspace binary"
+	@ports/lua/build-lua.sh
+
+fs/lua_elf.o: $(LUA_ELF)
 
 # ============================================================
 # OBJECT FILES
