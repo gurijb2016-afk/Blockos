@@ -9,8 +9,8 @@ struct vfs_entry
     char* name;
     uint8_t* data;
     uint32_t size;
-    NodeType type;
-    DeviceNodeInfo device_info;
+    vfs::NodeType type;
+    vfs::DeviceNodeInfo device_info;
     bool has_device_info;
     vfs_entry* next;
 };
@@ -65,7 +65,8 @@ static bool make_path(
 
     size_t p = 0;
 
-    while (prefix[p] != '\0') {
+    while (prefix[p] != '\0')
+    {
         if (p + 1 >= out_size)
             return false;
 
@@ -76,17 +77,23 @@ static bool make_path(
     char digits[16];
     size_t d = 0;
 
-    if (number == 0) {
+    if (number == 0)
+    {
         digits[d++] = '0';
-    } else {
-        while (number > 0 && d < sizeof(digits)) {
+    }
+    else
+    {
+        while (number > 0 && d < sizeof(digits))
+        {
             digits[d++] =
                 (char)('0' + (number % 10));
+
             number /= 10;
         }
     }
 
-    while (d > 0) {
+    while (d > 0)
+    {
         if (p + 1 >= out_size)
             return false;
 
@@ -100,7 +107,7 @@ static bool make_path(
 
 static bool register_device_internal(
     const char* path,
-    DeviceType type,
+    vfs::DeviceType type,
     uint64_t base,
     uint64_t size,
     uint8_t irq,
@@ -111,7 +118,7 @@ static bool register_device_internal(
     uint16_t device
 )
 {
-    DeviceNodeInfo info{};
+    vfs::DeviceNodeInfo info{};
 
     info.type = type;
     info.device_id = 0;
@@ -145,7 +152,9 @@ size_t vfs::count_files()
     return cnt;
 }
 
-const char* vfs::name_at(size_t idx)
+const char* vfs::name_at(
+    size_t idx
+)
 {
     size_t i = 0;
 
@@ -289,21 +298,36 @@ bool vfs::create_file(
     if (!n)
         return false;
 
-    memcpy(n, name, name_len);
+    memcpy(
+        n,
+        name,
+        name_len
+    );
 
     uint8_t* d = nullptr;
 
-    if (size > 0) {
+    if (size > 0)
+    {
         d =
-            (uint8_t*)allocator::alloc(size);
+            (uint8_t*)allocator::alloc(
+                size
+            );
 
         if (!d)
             return false;
 
         if (data)
-            memcpy(d, data, size);
+            memcpy(
+                d,
+                data,
+                size
+            );
         else
-            memset(d, 0, size);
+            memset(
+                d,
+                0,
+                size
+            );
     }
 
     e->name = n;
@@ -324,31 +348,45 @@ bool vfs::write_file(
     uint32_t size
 )
 {
-    vfs_entry* e = find_entry(name);
+    vfs_entry* e =
+        find_entry(name);
 
     if (!e)
+    {
         return create_file(
             name,
             data,
             size
         );
+    }
 
     if (e->type != NODE_FILE)
         return false;
 
     uint8_t* d = nullptr;
 
-    if (size > 0) {
+    if (size > 0)
+    {
         d =
-            (uint8_t*)allocator::alloc(size);
+            (uint8_t*)allocator::alloc(
+                size
+            );
 
         if (!d)
             return false;
 
         if (data)
-            memcpy(d, data, size);
+            memcpy(
+                d,
+                data,
+                size
+            );
         else
-            memset(d, 0, size);
+            memset(
+                d,
+                0,
+                size
+            );
     }
 
     e->data = d;
@@ -368,7 +406,8 @@ bool vfs::create_device_node(
     if (find_entry(path))
         return false;
 
-    size_t len = strlen(path) + 1;
+    size_t len =
+        strlen(path) + 1;
 
     vfs_entry* e =
         (vfs_entry*)allocator::alloc(
@@ -379,12 +418,18 @@ bool vfs::create_device_node(
         return false;
 
     char* name =
-        (char*)allocator::alloc(len);
+        (char*)allocator::alloc(
+            len
+        );
 
     if (!name)
         return false;
 
-    memcpy(name, path, len);
+    memcpy(
+        name,
+        path,
+        len
+    );
 
     e->name = name;
     e->data = nullptr;
@@ -409,18 +454,26 @@ bool vfs::remove_device_node(
     vfs_entry* previous = nullptr;
     vfs_entry* current = vfs_root;
 
-    while (current) {
-        if (strcmp(current->name, path) == 0) {
-
+    while (current)
+    {
+        if (strcmp(
+                current->name,
+                path
+            ) == 0)
+        {
             if (current->type != NODE_DEVICE)
                 return false;
 
             if (previous)
+            {
                 previous->next =
                     current->next;
+            }
             else
+            {
                 vfs_root =
                     current->next;
+            }
 
             return true;
         }
@@ -440,7 +493,8 @@ bool vfs::get_device_info(
     if (!path || !out)
         return false;
 
-    vfs_entry* e = find_entry(path);
+    vfs_entry* e =
+        find_entry(path);
 
     if (!e)
         return false;
@@ -493,7 +547,7 @@ const char* vfs::device_name_at(
     return nullptr;
 }
 
-const DeviceNodeInfo* vfs::device_info_at(
+const vfs::DeviceNodeInfo* vfs::device_info_at(
     uint32_t index
 )
 {
@@ -508,7 +562,9 @@ const DeviceNodeInfo* vfs::device_info_at(
 
         if (current == index &&
             e->has_device_info)
+        {
             return &e->device_info;
+        }
 
         ++current;
     }
@@ -527,7 +583,9 @@ bool vfs::register_disk(
     uint16_t device
 )
 {
-    create_directory("/devices");
+    create_directory(
+        "/devices"
+    );
 
     char path[64];
 
@@ -536,7 +594,9 @@ bool vfs::register_disk(
             sizeof(path),
             "/devices/disk",
             disk_counter))
+    {
         return false;
+    }
 
     DeviceNodeInfo info{};
 
@@ -554,7 +614,9 @@ bool vfs::register_disk(
     if (!create_device_node(
             path,
             info))
+    {
         return false;
+    }
 
     ++disk_counter;
 
@@ -572,7 +634,9 @@ bool vfs::register_network_device(
     uint16_t device
 )
 {
-    create_directory("/devices");
+    create_directory(
+        "/devices"
+    );
 
     char path[64];
 
@@ -581,7 +645,9 @@ bool vfs::register_network_device(
             sizeof(path),
             "/devices/network",
             network_counter))
+    {
         return false;
+    }
 
     if (!register_device_internal(
             path,
@@ -594,7 +660,9 @@ bool vfs::register_network_device(
             function,
             vendor,
             device))
+    {
         return false;
+    }
 
     ++network_counter;
 
@@ -612,7 +680,9 @@ bool vfs::register_usb_device(
     uint16_t device
 )
 {
-    create_directory("/devices");
+    create_directory(
+        "/devices"
+    );
 
     char path[64];
 
@@ -621,7 +691,9 @@ bool vfs::register_usb_device(
             sizeof(path),
             "/devices/usb",
             usb_counter))
+    {
         return false;
+    }
 
     if (!register_device_internal(
             path,
@@ -634,7 +706,9 @@ bool vfs::register_usb_device(
             function,
             vendor,
             device))
+    {
         return false;
+    }
 
     ++usb_counter;
 
@@ -652,7 +726,9 @@ bool vfs::register_gpu_device(
     uint16_t device
 )
 {
-    create_directory("/devices");
+    create_directory(
+        "/devices"
+    );
 
     char path[64];
 
@@ -661,7 +737,9 @@ bool vfs::register_gpu_device(
             sizeof(path),
             "/devices/gpu",
             gpu_counter))
+    {
         return false;
+    }
 
     if (!register_device_internal(
             path,
@@ -674,7 +752,9 @@ bool vfs::register_gpu_device(
             function,
             vendor,
             device))
+    {
         return false;
+    }
 
     ++gpu_counter;
 
@@ -692,7 +772,9 @@ bool vfs::register_input_device(
     uint16_t device
 )
 {
-    create_directory("/devices");
+    create_directory(
+        "/devices"
+    );
 
     char path[64];
 
@@ -701,7 +783,9 @@ bool vfs::register_input_device(
             sizeof(path),
             "/devices/input",
             input_counter))
+    {
         return false;
+    }
 
     if (!register_device_internal(
             path,
@@ -714,7 +798,9 @@ bool vfs::register_input_device(
             function,
             vendor,
             device))
+    {
         return false;
+    }
 
     ++input_counter;
 
@@ -732,7 +818,9 @@ bool vfs::register_audio_device(
     uint16_t device
 )
 {
-    create_directory("/devices");
+    create_directory(
+        "/devices"
+    );
 
     char path[64];
 
@@ -741,7 +829,9 @@ bool vfs::register_audio_device(
             sizeof(path),
             "/devices/audio",
             audio_counter))
+    {
         return false;
+    }
 
     if (!register_device_internal(
             path,
@@ -754,7 +844,9 @@ bool vfs::register_audio_device(
             function,
             vendor,
             device))
+    {
         return false;
+    }
 
     ++audio_counter;
 
@@ -763,7 +855,9 @@ bool vfs::register_audio_device(
 
 void vfs::initialize_devices()
 {
-    create_directory("/devices");
+    create_directory(
+        "/devices"
+    );
 }
 
 void vfs_init_from_ramfs()
