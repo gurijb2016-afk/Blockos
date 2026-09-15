@@ -1016,542 +1016,123 @@ extern "C" EFI_STATUS EFIAPI efi_main(
 
     /*
      * ========================================================
-     * Input
+     * Input for boot splash only
      * ========================================================
      *
-     * IMPORTANT:
-     *
-     * We intentionally do NOT instantiate VirtIO here.
-     *
-     * Your current virtio_input.hpp does not expose a type
-     * named:
-     *
-     *     VirtioInput
-     *
-     * or:
-     *
-     *     virtio_input
-     *
-     * Therefore the PS/2 devices are used for now.
+     * The kernel no longer owns a GUI/editor/shell window.
+     * The only keyboard handling here is dismissing the boot
+     * splash before entering the first userspace program.
      */
 
-    PS2Mouse mouse;
     PS2Keyboard keyboard;
-    Keymap keymap;
-
-    mouse.init();
     keyboard.init();
-
-    char char_buffer[256] = {0};
-    size_t char_length = 0;
-    size_t char_cap = sizeof(char_buffer);
-
 
     /*
      * ========================================================
-     * GUI
+     * TTY / userspace runtime
      * ========================================================
      */
 
-    Window win{
-        (int) fb.Width / 4,
-        (int) fb.Height / 4,
-        (int) fb.Width / 2,
-        (int) fb.Height / 2,
-        false,
-        0,
-        0};
-
-    Console console;
-    Shell shell;
-
-    bool splash_active = true;
-
-    shell.attach(
-        console,
-        win.x + 1,
-        win.y + win.h - 11,
-        win.w - 2,
-        10);
-
-    shell.set_handler(run_command);
-
-    console.attach(
-        win.x + 4,
-        win.y + 28,
-        win.w - 8,
-        win.h - 28 - 14);
-
-    console.set_colors(0x00000000, 0x00C0C0C0);
-    console.clear();
-
-    g_console_sink = &console;
-
     blockos_tty_init();
-    blockos_tty_set_output_callback(console_sink, nullptr);
-    blockos_stdio_set_console(stdio_sink);
-
-    printf("BlockOS console\n");
 
     vfs_init_from_ramfs();
     process::init();
 
-    // console.print("commands: ");
-
-    // for (size_t i = 0; i < blockos::proc::count(); ++i)
-    // {
-    //     if (i)
-    //         console.print(" ");
-
-    //     console.print(blockos::proc::name_at(i));
-    // }
-
-    console.newline();
-
-    g_flush_fb = &fb;
-    g_flush_backbuf = backbuf;
-
+    /*
+     * Keep block-device initialization because the filesystem/VFS
+     * layer may depend on the discovered storage devices. The
+     * Console object is only an internal output sink here; it is
+     * NOT attached to a framebuffer window anymore.
+     */
+    Console console;
     init_block_devices(console);
-
 
     /*
      * ========================================================
-     * Initial screen
+     * Planet / Saturn boot splash
      * ========================================================
      */
+
+    g_flush_fb = &fb;
+    g_flush_backbuf = backbuf;
 
     draw_splash(
         (uint8_t*) backbuf,
         fb.Width,
         fb.Height);
 
-
     bb_blit_to_fb(
         &fb,
         (const uint8_t*) backbuf);
 
-
     /*
-     * ========================================================
-     * Cursor
-     * ========================================================
+     * Wait for a key to dismiss the splash.
      */
-
-    int cursor_x =
-        (int) fb.Width / 2;
-
-    int cursor_y =
-        (int) fb.Height / 2;
-
-
-    /*
-     * ========================================================
-     * Editor
-     * ========================================================
-     */
-
-    bool in_editor = false;
-
-    char* editor_name = NULL;
-    char* editor_buf = NULL;
-
-    size_t editor_len = 0;
-    size_t editor_cap = 0;
-
-
-    /*
-     * ========================================================
-     * Mouse packet
-     * ========================================================
-     */
-
-    uint8_t packet[3];
-
-    int packet_index = 0;
-
-    bool left_pressed = false;
-
-
-    /*
-     * ========================================================
-     * Main loop
-     * ========================================================
-     */
-
     while (1)
     {
-        /*
-         * ----------------------------------------------------
-         * Keyboard
-         * ----------------------------------------------------
-         */
-
         KeyEvent key_event;
-        bool kb =
-            keyboard.poll(key_event);
 
-
-        /*
-         * ----------------------------------------------------
-         * Mouse
-         * ----------------------------------------------------
-         */
-
-        int16_t mb =
-            mouse.read_byte_nonblocking();
-
-        if (mb != -1)
-
-            // TODO? Desync recovery if bit 3 != 1
-            packet[packet_index++] =
-                (uint8_t) mb;
-
-        if (packet_index == 3)
+        if (keyboard.poll(key_event) &&
+            key_event.is_pressed)
         {
-            packet_index = 0;
-
-            uint8_t buttons =
-                packet[0];
-
-            int8_t dx =
-                (int8_t) packet[1];
-
-            int8_t dy =
-                (int8_t) packet[2];
-
-
-            /*
-                 * Cursor movement
-                 */
-            cursor_x += dx;
-            cursor_y -= dy;
-
-
-            /*
-                 * X bounds
-                 */
-            if (cursor_x < 0)
-            {
-                cursor_x = 0;
-            }
-
-            if (cursor_x >= (int) fb.Width)
-            {
-                cursor_x =
-                    (int) fb.Width - 1;
-            }
-
-
-            /*
-                 * Y bounds
-                 */
-            if (cursor_y < 0)
-            {
-                cursor_y = 0;
-            }
-
-            if (cursor_y >= (int) fb.Height)
-            {
-                cursor_y =
-                    (int) fb.Height - 1;
-            }
-
-
-            /*
-                 * Left mouse button
-                 */
-            bool new_left =
-                (buttons & 1) != 0;
-
-
-            /*
-                 * ------------------------------------------------
-                 * Mouse press
-                 * ------------------------------------------------
-                 */
-
-            if (new_left && !left_pressed)
-            {
-                if (!in_editor)
-                {
-                    int list_x =
-                        win.x + 8;
-
-                    int list_y =
-                        win.y + 32;
-
-                    int list_w =
-                        win.w - 16;
-
-                    int list_h =
-                        win.h - 36;
-
-
-                    if (
-                        cursor_x >= list_x &&
-                        cursor_x < list_x + list_w &&
-                        cursor_y >= list_y &&
-                        cursor_y < list_y + list_h)
-                    {
-                        int index =
-                            (cursor_y - list_y) / 10;
-
-
-                        if (index >= 0)
-                        {
-                            size_t count =
-                                vfs::count_files();
-
-                            if (
-                                (size_t) index <
-                                count)
-                            {
-                                const char* name =
-                                    vfs::name_at(
-                                        (size_t) index);
-
-                                if (name)
-                                {
-                                    uint32_t file_size =
-                                        0;
-
-                                    const uint8_t* data =
-                                        vfs::read_file(
-                                            name,
-                                            &file_size);
-
-                                    if (data)
-                                    {
-                                        /*
-                                             * Editor buffer
-                                             */
-                                        editor_cap =
-                                            (size_t) file_size +
-                                            4096;
-
-                                        editor_buf =
-                                            (char*)
-                                                allocator::alloc(
-                                                    editor_cap);
-
-                                        if (editor_buf)
-                                        {
-                                            memcpy(
-                                                editor_buf,
-                                                data,
-                                                file_size);
-
-                                            editor_len =
-                                                (size_t) file_size;
-
-
-                                            /*
-                                                 * Filename
-                                                 */
-                                            size_t name_len =
-                                                strlen(name);
-
-                                            editor_name =
-                                                (char*)
-                                                    allocator::alloc(
-                                                        name_len + 1);
-
-                                            if (editor_name)
-                                            {
-                                                strcpy(
-                                                    editor_name,
-                                                    name);
-
-                                                in_editor =
-                                                    true;
-
-
-                                                draw_editor(
-                                                    (uint8_t*) backbuf,
-                                                    fb.Width,
-                                                    win,
-                                                    editor_name,
-                                                    editor_buf,
-                                                    editor_len);
-
-
-                                                bb_blit_region_to_fb(
-                                                    &fb,
-                                                    (const uint8_t*) backbuf,
-                                                    win.x,
-                                                    win.y,
-                                                    win.w,
-                                                    win.h);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-
-            /*
-                 * Mouse release
-                 */
-            if (!new_left && left_pressed)
-            {
-                /* nothing */
-            }
-
-            left_pressed =
-                new_left;
+            break;
         }
-
-
-        /*
-         * ====================================================
-         * Keyboard handling
-         * ====================================================
-         */
-
-        if (kb)
-        {
-            if (splash_active)
-            {
-                if (key_event.is_pressed)
-                {
-                    splash_active = false;
-
-                    bb_clear(
-                        (uint8_t*) backbuf,
-                        fb.Width,
-                        fb.Height,
-                        0x00303030);
-
-                    draw_main_window(
-                        (uint8_t*) backbuf,
-                        fb.Width,
-                        win);
-
-                    bb_blit_to_fb(
-                        &fb,
-                        (const uint8_t*) backbuf);
-                }
-                continue;
-            }
-
-            KeyPress key = keymap.translate(key_event);
-            char ch = key.ch;
-
-            /*
-             * ------------------------------------------------
-             * Editor
-             * ------------------------------------------------
-             */
-
-            if (in_editor)
-            {
-                /*
-                 * ESC = exit editor
-                 */
-                if (key.key == NonCharacterKey::Escape)
-                {
-                    in_editor = false;
-
-                    draw_main_window(
-                        (uint8_t*) backbuf,
-                        fb.Width,
-                        win);
-
-                    bb_blit_region_to_fb(
-                        &fb,
-                        (const uint8_t*) backbuf,
-                        win.x,
-                        win.y,
-                        win.w,
-                        win.h);
-                }
-
-                /*
-                 * CTRL+S / save can be added once the keyboard
-                 * modifier API is known.
-                 */
-                else if (ch)
-                {
-                    if (editor_len + 1 <
-                        editor_cap)
-                    {
-                        editor_buf[editor_len++] = ch;
-                    }
-
-
-                    draw_editor(
-                        (uint8_t*) backbuf,
-                        fb.Width,
-                        win,
-                        editor_name,
-                        editor_buf,
-                        editor_len);
-
-
-                    bb_blit_region_to_fb(
-                        &fb,
-                        (const uint8_t*) backbuf,
-                        win.x,
-                        win.y,
-                        win.w,
-                        win.h);
-                }
-            }
-
-
-            /*
-             * ------------------------------------------------
-             * Main window
-             * ------------------------------------------------
-             */
-
-            else
-            {
-                shell.handle(key);
-            }
-        }
-
-        if (!splash_active && console.dirty())
-        {
-            console.render(
-                (uint8_t*) backbuf,
-                fb.Width);
-
-            bb_blit_region_to_fb(
-                &fb,
-                (const uint8_t*) backbuf,
-                console.x(),
-                console.y(),
-                console.w(),
-                console.h());
-        }
-
-        if (!splash_active && shell.dirty())
-        {
-            shell.render((uint8_t*) backbuf, fb.Width);
-
-            bb_blit_region_to_fb(
-                &fb,
-                (const uint8_t*) backbuf,
-                shell.x(),
-                shell.y(),
-                shell.w(),
-                shell.h());
-        }
-
-        /*
-         * ====================================================
-         * Idle
-         * ====================================================
-         */
 
         __asm__ volatile("pause");
     }
 
+    /*
+     * ========================================================
+     * First userspace program: /bin/sh
+     * ========================================================
+     */
+
+    uint32_t shell_size = 0;
+
+    const uint8_t* shell_elf =
+        vfs::read_file(
+            "/bin/sh",
+            &shell_size);
+
+    if (!shell_elf || shell_size == 0)
+    {
+        /*
+         * No kernel GUI is available anymore, so stay halted if
+         * the first userspace program cannot be loaded.
+         */
+        while (1)
+        {
+            __asm__ volatile("cli; hlt");
+        }
+    }
+
+    process::Process* shell_process =
+        process::create(
+            shell_elf,
+            (size_t) shell_size);
+
+    if (!shell_process)
+    {
+        while (1)
+        {
+            __asm__ volatile("cli; hlt");
+        }
+    }
+
+    /*
+     * Enter ring3 and run /bin/sh as the first userspace process.
+     * This call should not return during normal operation.
+     */
+    process::run(shell_process);
+
+    /*
+     * If userspace returns unexpectedly, halt instead of reviving
+     * the removed kernel GUI.
+     */
+    while (1)
+    {
+        __asm__ volatile("cli; hlt");
+    }
 
     return EFI_SUCCESS;
 }
