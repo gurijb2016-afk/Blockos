@@ -85,7 +85,10 @@ SRC_DIRS := \
 	fs \
 	kernel \
 	libc/src \
-    userspace \
+   	userspace \
+   	userspace/crt \
+   	userspace/ldso \
+   	userspace/libc \
 	net
 
 S_SRC_DIRS := \
