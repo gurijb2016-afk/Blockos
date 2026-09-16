@@ -1,241 +1,137 @@
-# BlockOS
+# BlockOS — integrált csomag: valódi többfolyamatos userspace
 
-BlockOS is an experimental operating system project built from scratch in C++.
+Ez az **egy csomag**, ami az eddigi összes lépést tartalmazza összeillesztve,
+plusz a hiányzó összekötő darabokat (boot-integráció, build script, két
+valódi teszt-processz).
 
-It is designed as a learning and research OS with its own kernel, syscall layer, VFS work, service management ideas, networking work, and GUI direction. The project is still under active development.
+---
 
-## Status
+## ELŐSZÖR EZT OLVASD EL: mi fut ettől, és mi nem
 
-**Experimental / work in progress**
+**Ami ettől ténylegesen működni fog:**
+- Két (vagy több) **valódi ring3 processz fut EGYSZERRE**, preemptíven váltva
+- Működő libc: `malloc`, `printf`, `string.h`, fájl-I/O
+- Dinamikus linkelés infrastruktúrája (ld.so) készen áll
 
-BlockOS is not a general-purpose production operating system yet. Many parts are still being built, tested, and integrated.
+**Ami ettől MÉG NEM fog futni: az fvwm3.** Ez a csomag a 7-lépéses listából
+az 1-4. pontot fedi le, plusz a valódi preemptív multitaskingot. Az fvwm3-hoz
+még hiányzik:
+- **X11 IPC-csatorna** (a kernelben nincs socket; `SYS_socket` `ENOSYS`)
+- **Per-processz fd-tábla** — jelenleg a fájlleírók GLOBÁLISAK, két processz
+  osztozik rajtuk; ez egy X szerver+kliens párosnál biztosan hibát okoz
+- **Xlib port**
+- **X szerver** (valódi Xorg, vagy saját minimál wire-protocol szerver)
 
-## Goals
+Ez nem kifogás, hanem a pontos állapot: ezek nélkül nincs mit elindítani.
+A most átadott rész viszont **önmagában tesztelhető és bizonyítható** — és
+minden további erre épül.
 
-BlockOS aims to explore and implement:
+---
 
-* a custom kernel architecture
-* process and thread management
-* ELF loading
-* a VFS layer
-* filesystem support such as ext4-related work
-* a service/init system
-* a networking stack
-* security and sandboxing ideas
-* a modern GUI direction
-* user-space programs and developer tools
+## Fájlok: mit hova
 
-## Features already under development
+| Csomagbeli fájl | Hova a repódban | Művelet |
+|---|---|---|
+| `kernel/preempt.hpp` | `kernel/preempt.hpp` | **ÚJ** |
+| `kernel/preempt.cpp` | `kernel/preempt.cpp` | **ÚJ** |
+| `kernel/elf_loader.hpp` | `kernel/elf_loader.hpp` | csere |
+| `kernel/elf_loader.cpp` | `kernel/elf_loader.cpp` | csere |
+| `kernel/process.hpp` | `kernel/process.hpp` | csere |
+| `kernel/process.cpp` | `kernel/process.cpp` | csere |
+| `kernel/user_syscall.cpp` | `kernel/user_syscall.cpp` | csere |
+| `arch/86_64x/hardware_tables.cpp` | ugyanoda | csere |
+| `kernel/boot_launch.inc` | — | **kézzel beilleszteni**, lásd alább |
+| `userspace/libc/**` | ugyanoda | ÚJ mappa |
+| `userspace/ldso/**` | ugyanoda | ÚJ mappa |
+| `userspace/tests/proc_a.c`, `proc_b.c` | ugyanoda | ÚJ |
+| `scripts/build-all.sh` | ugyanoda | ÚJ |
 
-Depending on the current branch and build state, the repository may include work on:
+**Az egyetlen kézi lépés:** a `kernel/kernel.cpp` végén lévő „First userspace
+program" blokkot (ami `/bin/sh`-t olvas, `process::create`, `process::run`)
+cseréld le a `kernel/boot_launch.inc` tartalmára. A fájl eleje pontosan
+leírja, melyik blokkot kell megtalálni.
 
-* kernel boot and early init
-* paging and memory management
-* scheduler design
-* syscall handling and emulation
-* ELF loader
-* VFS and filesystem integration
-* ext4-related filesystem code
-* VirtIO and other driver work
-* networking components
-* service/daemon management
-* GUI / window manager experiments
-* user-space utilities
+Ne felejtsd a build-rendszeredhez hozzáadni a `kernel/preempt.cpp`-t.
 
-The exact layout may change as the project evolves.
+---
 
-## Prerequisites
+## Build és futtatás
 
-BlockOS boots as a UEFI application built against gnu-efi, and runs under QEMU with
-OVMF firmware. You need a Linux development machine (WSL works) with:
-
-| Tool | Used for |
-| --- | --- |
-| `g++`, `ld`, `objcopy` | compiling and linking the kernel |
-| `make` | the build |
-| gnu-efi | UEFI headers, `libefi.a`, `libgnuefi.a`, `crt0-efi-x86_64.o`, linker script |
-| OVMF | UEFI firmware for QEMU; the default SeaBIOS is legacy-BIOS only |
-| `qemu-system-x86_64` | running the image |
-| `mtools` (`mmd`, `mcopy`) | populating the FAT boot image |
-| `dosfstools` (`mkfs.vfat`) | creating the FAT boot image |
-| `python3` | `make menuconfig` only |
-
-On Debian/Ubuntu:
-
-```bash
-sudo apt update
-sudo apt install build-essential gnu-efi ovmf qemu-system-x86 mtools dosfstools python3
+```sh
+# a repo gyökeréből:
+sh scripts/build-all.sh
 ```
 
-The Makefile expects gnu-efi in the usual Debian locations (`/usr/include/efi`,
-`/usr/lib`). To check them before building:
-
-```bash
-make check-efi
+Majd másold a rootfs image-be:
+```
+build/proc_a  ->  /bin/proc_a
+build/proc_b  ->  /bin/proc_b
+build/ld.so   ->  /system/lib/ld.so     (csak dinamikus binárishoz kell)
 ```
 
-Adjust the paths at the top of the `Makefile` if your distribution installs
-gnu-efi elsewhere.
+Fordítsd újra a kernelt, és bootolj.
 
-## Build
+### Mit KELL látnod
 
-```bash
-make
+```
+boot: spawned /bin/proc_a as pid 1
+boot: spawned /bin/proc_b as pid 2
+boot: starting scheduler with 2 process(es)
+[A] started, argc=1, pid=1
+[B] started, argc=1, pid=2
+[A] tick 0
+[B] tick 0
+[A] tick 1
+[B] tick 1
+...
 ```
 
-This compiles the sources in `drivers/`, `fs/`, `kernel/`, `examples/`, and
-`libc/src/`, links `build/kernel.so`, then converts it to `build/BOOTX64.EFI`.
+**Az ÖSSZEFÉSÜLT kimenet a bizonyíték**, hogy a preemptív váltás működik.
 
-Those directories are globbed one level deep only, so files in subdirectories are
-not picked up automatically. Anything nested has to be added to `SRC` in the
-`Makefile` by name.
+Ha ehelyett előbb az összes `[A]`, aztán az összes `[B]` jön, akkor a
+timer-preempció nem üt be — ellenőrizd, hogy a `hardware_tables.cpp` cserélve
+lett-e, és hogy a `pit_init(100)` + `sti` továbbra is lefut az
+`init()`-ben.
 
-Other targets:
+---
 
-```bash
-make clean       # remove objects, dependency files, and build/
-make rebuild     # clean, then build
-make check-efi   # verify the gnu-efi toolchain paths
-```
+## Amit ELLENŐRIZTEM (és amit nem)
 
-## Run
+Ellenőrizve:
+1. **A valódi kernel ELF-betöltő betöltötte a valódi lefordított binárist.**
+   Nem szimuláció: lefordítottam a `proc_a`-t a libc-vel, majd átadtam az
+   igazi `elf_loader.cpp`-nek egy mock lapkezelővel. Eredmény: entry
+   `0x401000`, 5 lap mappolva, és a belépési ponton a bájtok `48 31 ed 48`
+   — ami pontosan a `crt1.S` `xor %rbp,%rbp` utasítása. A betöltő tehát
+   valódi kódot másol, nem nullákat.
+2. **Az auxv-stack helyes**: `argc=1`, és az `AT_ENTRY` bájtra egyezik a
+   betöltött entry ponttal.
+3. **Scheduler: 18 funkcionális teszt** a valódi `preempt.cpp`-vel —
+   ring3 preempció, teljes regiszter-mentés/visszaállítás, round-robin,
+   exit-átadás, és hogy ring0 kernelkód SOHA nem preemptálódik.
+4. **Fordítási idejű layout-ellenőrzés** `static_assert`-ekkel: a
+   keret-struktúrák bájtra egyeznek az `irq_stubs.S` push-sorrendjével.
+5. **Teljes userspace build**: libc + `crt1.o` + mindkét teszt-program
+   ténylegesen lefordult és linkelt, undefined symbol nélkül. Az `ld.so`
+   szintén lefordult, helyes ET_DYN típussal.
 
-```bash
-make run
-```
+NEM ellenőrizve (nálad kell):
+- Tényleges futás QEMU-n/hardveren, élő laptáblákkal és valódi CR3-váltással
+- Időzítés-érzékeny viselkedés valós PIT-megszakításokkal
+- A dinamikus linkelés teljes útvonala (a teszt-programok szándékosan
+  statikusak, hogy a scheduler külön legyen tesztelhető az ld.so-tól —
+  egyszerre egy dolgot érdemes hibakeresni)
 
-This builds if needed, then runs `build_and_run.sh`, which:
+---
 
-1. Creates `disk.img`, a 16MB FAT image, and copies `BOOTX64.EFI` to
-   `EFI/BOOT/BOOTX64.EFI` on it. Anything in `persistent/` is copied to the image
-   root. This image is rebuilt from scratch on every run.
-2. Creates `data.img`, a 16MB raw image, if it is missing or the wrong size.
-   Unlike `disk.img` this one persists between runs.
-3. Boots QEMU with OVMF, attaching both images as IDE drives.
+## Ismert korlátok, amik a következő lépéseket érintik
 
-The two images land in different IDE slots:
-
-| Image | Slot | Purpose |
-| --- | --- | --- |
-| `disk.img` | primary master | EFI system partition, booted by OVMF |
-| `data.img` | primary slave | raw storage for the ATA driver |
-
-If OVMF is not found automatically, pass its path:
-
-```bash
-OVMF=/path/to/OVMF.fd make run
-```
-
-To run with experimental USB tablet/mouse devices, invoke the script directly:
-
-```bash
-sh build_and_run.sh usb
-```
-
-Note that this depends on QEMU's default i440fx machine, which provides the
-legacy IDE controller at ports 0x1F0/0x170. The `q35` machine has AHCI instead
-and the ATA driver will not find a drive there.
-
-Once booted, type `help` in the console for the available commands.
-
-## Cleaning
-
-```bash
-make clean       # remove build output
-make rebuild     # clean, then build
-```
-
-`make clean` removes three things: the object files, the `.d` dependency files,
-and the `build/` directory. Note that objects are compiled **in place**, next to
-their sources rather than under `build/`, so a clean touches the source tree and
-not just one output directory.
-
-Neither disk image is removed:
-
-* `disk.img` is rebuilt from scratch on every run, so there is nothing to clean.
-* `data.img` is left alone deliberately. It is persistent storage, and anything
-  written with `ata-write` lives there.
-
-To reset persistent storage, or if `data.img` ever ends up corrupt or the wrong
-size, just delete it:
-
-```bash
-rm data.img
-```
-
-The next run recreates it as a zeroed image of the correct size.
-
-Autotools leftovers such as `config.log`, `config.status`, and `autom4te.cache/`
-are not covered by `make clean`, and there is no `distclean` target. Remove those
-by hand if you need to.
-
-## Development workflow
-
-A good way to work on BlockOS is to focus on one subsystem at a time:
-
-1. kernel boot and early init
-2. memory management
-3. process/scheduler integration
-4. syscall interface
-5. VFS and filesystem support
-6. drivers
-7. networking
-8. security
-9. user space
-10. GUI and applications
-
-## Adding new code
-
-When contributing new modules, try to keep the code:
-
-* small and readable
-* separated by subsystem
-* documented with comments where needed
-* easy to test in QEMU
-* consistent with the existing style
-
-## Troubleshooting
-
-### QEMU boot problems
-
-Check:
-
-* bootloader configuration
-* kernel image path
-* initrd or rootfs path
-* memory size passed to QEMU
-* whether the image was rebuilt after code changes
-
-### File permission issues
-
-If scripts are not executable, fix them with: ``chmod +x *.sh``
-
-## Roadmap
-
-Possible future work includes:
-
-* stronger user and group management
-* capabilities and sandboxing
-* audit logging
-* a more complete POSIX layer
-* TCP/IP networking features
-* more device drivers
-* package management
-* service supervision
-* graphical shell and desktop components
-* better documentation for developers and testers
-
-## License
-
-BlockOS is licensed under the **GNU General Public License, version 2**. The full
-text is in [LICENSE](LICENSE).
-
-Because the GPL is a copyleft license, anything distributed as a combined work
-with BlockOS is covered by the same terms, and source must be made available to
-whoever receives a binary.
-
-## Credits
-
-BlockOS is a personal operating system project built with a lot of experimentation, debugging, and iteration.
-
-If you want to build your own OS too, study the code, experiment carefully, and keep going.
+1. **Az fd-tábla globális, nem per-processz** (`user_syscall.cpp`). Két
+   párhuzamos processz osztozik a fájlleírókon. Az X szerver+kliens
+   párosnál ezt MUSZÁJ lesz javítani.
+2. **A kernel nem preemptálható** (egyetlen közös `rsp0`). Blokkoló
+   syscall (pl. „várj üzenetre") írása előtt per-task kernel stack kell.
+3. **Nincs erőforrás-felszabadítás** kilépő processz után (pml4, lapok).
+4. **Nincs `SYS_clone`** — a `pthread_create` ezért hibát ad vissza.
+5. A teszt-programok `-no-pie -static`-ok; a betöltő boot-útvonala ET_EXEC-et
+   vár.
