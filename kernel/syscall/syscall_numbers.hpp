@@ -88,6 +88,11 @@ enum Number : std::uint64_t {
     SYS_ftruncate = 80,
     SYS_fsync = 81,
     SYS_statx = 82,
+    SYS_arch_prctl = 83,
+    SYS_socketpair = 84,
+    SYS_sendmsg = 85,
+    SYS_recvmsg = 86,
+    SYS_rseq = 87,
     SYS_unknown = 0xFFFFFFFFFFFFFFFFULL
 };
 

@@ -1,0 +1,13 @@
+[Unit]
+Description=GNOME Shell 42 X11 session
+After=x11.service
+After=dbus.service
+Requires=x11.service
+Requires=dbus.service
+
+[Service]
+ExecStart=/system/bin/gnome-shell --x11
+Type=simple
+
+[Install]
+WantedBy=multi-user.target

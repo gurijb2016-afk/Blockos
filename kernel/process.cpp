@@ -4,7 +4,7 @@
 #include "vfs.hpp"
 #include <string.h>
 
-extern "C" void blockos_user_enter(uint64_t entry, uint64_t stack, uint64_t pml4);
+extern "C" void blockos_user_enter(uint64_t entry, uint64_t stack, uint64_t pml4, uint64_t fs_base);
 extern "C" uint64_t blockos_user_saved_rsp;
 extern "C" void blockos_user_return();
 
@@ -33,7 +33,15 @@ static Process* cur = nullptr;
 
 static Process* free_slot() { for (auto& p : ps) if (p.state == State::EMPTY) return &p; return nullptr; }
 
-void init() { memset(ps, 0, sizeof(ps)); for (auto& p : ps) p.state = State::EMPTY; next_pid = 1; cur = nullptr; }
+void init() {
+    memset(ps, 0, sizeof(ps));
+    for (auto& p : ps) {
+        p.state = State::EMPTY;
+        p.fd_owner = &p;
+    }
+    next_pid = 1;
+    cur = nullptr;
+}
 
 size_t slot_count() { return MAX_PROCESS; }
 Process* slot_at(size_t i) { return i < MAX_PROCESS ? &ps[i] : nullptr; }
@@ -43,22 +51,37 @@ Process* spawn(const void* elf, size_t size, const char* path) {
     Process* p = free_slot();
     if (!p || !elf || !size) return nullptr;
 
-    uint64_t pml4 = paging::clone_current_pml4();
+    uint64_t pml4 = paging::create_user_pml4();
     if (!pml4) return nullptr;
 
     elf_loader::LoadResult main_image;
     if (!elf_loader::load_elf64_into(pml4, elf, size, 0, &main_image)) return nullptr;
 
+    memset(p, 0, sizeof(*p));
+    p->state = State::EMPTY;
     memset(&p->context, 0, sizeof(p->context));
     memset(&p->saved_frame, 0, sizeof(p->saved_frame));
     p->pid = next_pid++;
     p->pml4 = pml4;
+    p->fd_owner = p;
+    p->parent_pid = 0;
+    p->tid = p->pid;
+    p->fs_base = 0;
+    p->exit_code = 0;
+    p->is_thread = false;
     p->task_id = 0;
+    p->cwd[0] = '/'; p->cwd[1] = 0;
     p->brk_base = 0x0000000200000000ULL;
     p->brk_current = p->brk_base;
     p->mmap_next = 0x0000000100000000ULL;
     p->has_interp = main_image.has_interp;
     p->real_entry = 0;
+    p->exit_code = 0;
+    /* stdin/stdout/stderr are process-local descriptors. Their data fields
+     * are unused; the syscall dispatcher treats Tty specially. */
+    p->fds[0] = {true, RuntimeFd::Tty, 0, 0, nullptr, 0, 0};
+    p->fds[1] = {true, RuntimeFd::Tty, 0, 0, nullptr, 0, 0};
+    p->fds[2] = {true, RuntimeFd::Tty, 0, 0, nullptr, 0, 0};
 
     uint64_t start_entry, start_rsp;
 
@@ -79,9 +102,19 @@ Process* spawn(const void* elf, size_t size, const char* path) {
         if (interp_image.has_interp) return nullptr;
 
         const char* argv[1] = { path ? path : "/bin/app" };
-        const char* envp[1] = { nullptr };
+        const char* envp[] = {
+            "DISPLAY=:0",
+            "DBUS_SYSTEM_BUS_ADDRESS=unix:path=/run/dbus/system_bus_socket",
+            "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/0/bus",
+            "GDK_BACKEND=x11",
+            "XDG_SESSION_TYPE=x11",
+            "XDG_CURRENT_DESKTOP=GNOME",
+            "HOME=/root",
+            "PATH=/system/bin:/bin",
+            nullptr
+        };
         uint64_t rsp = elf_loader::build_initial_stack(
-            pml4, STACK_TOP, STACK_PAGES, argv, 1, envp, 0,
+            pml4, STACK_TOP, STACK_PAGES, argv, 1, envp, 8,
             main_image, interp_image.load_bias);
         if (!rsp) return nullptr;
 
@@ -119,7 +152,7 @@ int run(Process* p) {
      * the exit path (preempt::on_exit) switches directly into the next
      * task when there is one, and only falls back to returning into the
      * kernel when the last task has exited. */
-    blockos_user_enter(p->entry, p->stack, p->pml4);
+    blockos_user_enter(p->entry, p->stack, p->pml4, p->fs_base);
     if (p->state == State::RUNNING) p->state = State::TERMINATED;
     cur = nullptr;
     return 0;
@@ -139,7 +172,20 @@ bool terminate(Process* p) {
 }
 
 Process* current() { return cur; }
+
+RuntimeFd* fds(Process* p) {
+    if (!p) return nullptr;
+    Process* owner = p->fd_owner ? p->fd_owner : p;
+    return owner->fds;
+}
+
 Process* get(uint64_t pid) { if (!pid) return nullptr; for (auto& p : ps) if (p.state != State::EMPTY && p.pid == pid) return &p; return nullptr; }
 size_t count() { size_t n = 0; for (auto& p : ps) if (p.state != State::EMPTY) n++; return n; }
+const char* cwd(Process* p) { return p ? p->cwd : "/"; }
+bool set_cwd(Process* p, const char* path) {
+    if (!p || !path || path[0] != '/') return false;
+    size_t n = strlen(path); if (n == 0 || n >= sizeof(p->cwd)) return false;
+    memcpy(p->cwd, path, n + 1); return true;
+}
 
 }

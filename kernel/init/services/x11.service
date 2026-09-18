@@ -1,0 +1,11 @@
+[Unit]
+Description=BlockOS X11 KDrive server
+After=vfs.service
+Requires=vfs.service
+
+[Service]
+ExecStart=/system/bin/X :0
+Type=simple
+
+[Install]
+WantedBy=multi-user.target

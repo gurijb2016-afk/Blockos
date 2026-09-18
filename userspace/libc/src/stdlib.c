@@ -17,6 +17,10 @@
 struct block { size_t size; struct block* next; int free; };
 #define ALIGN 16u
 static struct block* g_head = 0;
+static volatile int g_heap_lock;
+
+static void heap_lock(void) { while (__sync_lock_test_and_set(&g_heap_lock, 1)) { __asm__ volatile("pause"); } }
+static void heap_unlock(void) { __sync_lock_release(&g_heap_lock); }
 
 static size_t align_up(size_t n) { return (n + (ALIGN - 1)) & ~(size_t)(ALIGN - 1); }
 
@@ -34,25 +38,27 @@ static struct block* extend(size_t size) {
 void* malloc(size_t size) {
     if (size == 0) return 0;
     size = align_up(size);
-
+    heap_lock();
     struct block* prev = 0;
     struct block* b = g_head;
     while (b) {
-        if (b->free && b->size >= size) { b->free = 0; return (void*)(b + 1); }
+        if (b->free && b->size >= size) { b->free = 0; heap_unlock(); return (void*)(b + 1); }
         prev = b;
         b = b->next;
     }
-
     struct block* nb = extend(size);
-    if (!nb) return 0;
+    if (!nb) { heap_unlock(); return 0; }
     if (prev) prev->next = nb; else g_head = nb;
+    heap_unlock();
     return (void*)(nb + 1);
 }
 
 void free(void* ptr) {
     if (!ptr) return;
     struct block* b = (struct block*)ptr - 1;
+    heap_lock();
     b->free = 1;
+    heap_unlock();
 }
 
 void* calloc(size_t nmemb, size_t size) {
@@ -103,7 +109,23 @@ void exit(int code) {
     _exit(code);
 }
 
+char **environ = 0;
+
 char* getenv(const char* name) {
-    (void)name;
-    return 0; /* no environment storage yet - see the note in stdlib.h */
+    if (!name || !*name || !environ) return 0;
+    size_t nl = strlen(name);
+    for (char **e = environ; *e; ++e) {
+        if (strncmp(*e, name, nl) == 0 && (*e)[nl] == '=') return *e + nl + 1;
+    }
+    return 0;
 }
+
+int setenv(const char* name, const char* value, int overwrite) {
+    (void)name; (void)value; (void)overwrite;
+    /* The initial environment is immutable for now; GNOME mainly needs getenv. */
+    return 0;
+}
+
+int unsetenv(const char* name) { (void)name; return 0; }
+
+void __blockos_set_environ(char **envp) { environ = envp; }

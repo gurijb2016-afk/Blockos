@@ -10,13 +10,12 @@
 #include "font8x8.h"
 #include "fs/fat32.hpp"
 #include "proc.hpp"
-#include "ps2keyboard.hpp"
-#include "ps2mouse.hpp"
 #include "shell.hpp"
 #include "sysmem.hpp"
 #include "vfs.hpp"
 #include "process.hpp"
 #include "virtio_input.hpp"
+#include "input_bridge.hpp"
 
 
 extern "C"
@@ -1024,8 +1023,6 @@ extern "C" EFI_STATUS EFIAPI efi_main(
      * splash before entering the first userspace program.
      */
 
-    PS2Keyboard keyboard;
-    keyboard.init();
 
     /*
      * ========================================================
@@ -1036,6 +1033,28 @@ extern "C" EFI_STATUS EFIAPI efi_main(
     blockos_tty_init();
 
     vfs_init_from_ramfs();
+    blockos::input::init();
+
+    /* Publish the framebuffer to the userspace X11 KDrive backend. */
+    struct BlockOSDisplayInfo {
+        uint32_t magic; uint32_t version; uint64_t framebuffer_phys;
+        uint64_t framebuffer_size; uint32_t width; uint32_t height;
+        uint32_t stride; uint32_t bpp; uint32_t depth;
+    };
+    BlockOSDisplayInfo dinfo{
+        0x424F5346u, 1u, (uint64_t)(uintptr_t)fb.Base,
+        (uint64_t)fb.PixelsPerScanLine * (uint64_t)fb.Height * 4ull,
+        fb.Width, fb.Height, fb.PixelsPerScanLine, 32u, 32u
+    };
+    vfs::write_file("/system/display.info", reinterpret_cast<const uint8_t*>(&dinfo), sizeof(dinfo));
+    if(!vfs::is_device("/devices/display")){
+        vfs::DeviceNodeInfo di{}; di.type=vfs::DEVICE_GPU; di.device_id=0; di.base=(uint64_t)(uintptr_t)fb.Base;
+        di.size=dinfo.framebuffer_size; vfs::create_device_node("/devices/display",di);
+    }
+    if(!vfs::is_device("/devices/x11-input")){
+        vfs::DeviceNodeInfo ii{}; ii.type=vfs::DEVICE_INPUT; ii.device_id=0; vfs::create_device_node("/devices/x11-input",ii);
+    }
+
     process::init();
 
     /*
@@ -1070,13 +1089,13 @@ extern "C" EFI_STATUS EFIAPI efi_main(
      */
     while (1)
     {
-        KeyEvent key_event;
-
-        if (keyboard.poll(key_event) &&
-            key_event.is_pressed)
-        {
-            break;
+        blockos::input::poll_hardware();
+        blockos::input::Event ev{};
+        bool dismiss = false;
+        while (blockos::input::read(&ev,1) == 1) {
+            if (ev.type == blockos::input::EVENT_KEYBOARD && ev.pressed) { dismiss = true; break; }
         }
+        if (dismiss) break;
 
         __asm__ volatile("pause");
     }

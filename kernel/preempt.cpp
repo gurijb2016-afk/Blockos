@@ -1,7 +1,9 @@
 #include "preempt.hpp"
 #include "process.hpp"
 #include "arch/86_64x/paging.hpp"
+#include "tls.hpp"
 #include <string.h>
+extern "C" uint64_t timer_uptime_ms();
 
 namespace preempt {
 
@@ -56,6 +58,15 @@ static size_t rr_cursor = 0;
  * non-blocking, so this costs very little.
  */
 
+static void wake_timed_tasks() {
+    const uint64_t now = timer_uptime_ms();
+    for (size_t i = 0; i < process::slot_count(); ++i) {
+        process::Process* p = process::slot_at(i);
+        if (!p || p->state != process::State::BLOCKED || !p->wake_deadline_ms) continue;
+        if (now >= p->wake_deadline_ms) p->state = process::State::READY;
+    }
+}
+
 static process::Process* pick_next(process::Process* skip) {
     size_t n = process::slot_count();
     for (size_t i = 0; i < n; i++) {
@@ -78,15 +89,18 @@ static void switch_to(process::Process* from, const TrapFrame* from_state,
         from->state = process::State::READY;
     }
     to->state = process::State::RUNNING;
+    to->wake_deadline_ms = 0;
     process::set_current(to);
     *out = to->saved_frame;
     paging::switch_pml4(to->pml4);
+    tls::activate_for_process(to->fs_base);
 }
 
 }
 
 bool on_timer(InterruptFrame* f) {
     if (!f) return false;
+    wake_timed_tasks();
     if ((f->cs & 3) != 3) return false;  /* kernel was running - see note above */
 
     process::Process* cur = process::current();
@@ -113,6 +127,52 @@ bool yield_from_syscall(BlockOSSyscallFrame* f) {
     return true;
 }
 
+bool block_from_syscall(BlockOSSyscallFrame* f) {
+    if (!f) return false;
+    process::Process* cur = process::current();
+    if (!cur) return false;
+    process::Process* next = pick_next(cur);
+    if (!next) return false;
+
+    TrapFrame cur_state, next_state;
+    to_trap(f, &cur_state);
+    cur->saved_frame = cur_state;
+    cur->frame_valid = true;
+    cur->state = process::State::BLOCKED;
+
+    next->state = process::State::RUNNING;
+    process::set_current(next);
+    next_state = next->saved_frame;
+    paging::switch_pml4(next->pml4);
+    tls::activate_for_process(next->fs_base);
+    from_trap(&next_state, f);
+    return true;
+}
+
+bool block_until_from_syscall(BlockOSSyscallFrame* f, uint64_t deadline_ms) {
+    if (!f) return false;
+    process::Process* cur = process::current();
+    if (!cur) return false;
+    process::Process* next = pick_next(cur);
+    if (!next) return false;
+
+    TrapFrame cur_state, next_state;
+    to_trap(f, &cur_state);
+    cur->saved_frame = cur_state;
+    cur->frame_valid = true;
+    cur->wake_deadline_ms = deadline_ms;
+    cur->state = process::State::BLOCKED;
+
+    next->state = process::State::RUNNING;
+    next->wake_deadline_ms = 0;
+    process::set_current(next);
+    next_state = next->saved_frame;
+    paging::switch_pml4(next->pml4);
+    tls::activate_for_process(next->fs_base);
+    from_trap(&next_state, f);
+    return true;
+}
+
 bool on_exit(BlockOSSyscallFrame* f) {
     if (!f) return false;
     process::Process* cur = process::current();
@@ -131,6 +191,7 @@ bool on_exit(BlockOSSyscallFrame* f) {
     process::set_current(next);
     next_state = next->saved_frame;
     paging::switch_pml4(next->pml4);
+    tls::activate_for_process(next->fs_base);
     from_trap(&next_state, f);
     return true;
 }

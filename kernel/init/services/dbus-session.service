@@ -1,0 +1,11 @@
+[Unit]
+Description=BlockOS D-Bus session bus
+After=vfs.service
+Requires=vfs.service
+
+[Service]
+Type=simple
+ExecStart=/system/bin/dbusd --session
+
+[Install]
+WantedBy=multi-user.target

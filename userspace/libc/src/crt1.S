@@ -14,6 +14,9 @@ _start:
     lea 8(%rsp), %rsi       /* argv */
     mov %rdi, %rax
     lea 16(%rsp,%rax,8), %rdx  /* envp = argv + (argc+1) */
+    push %rdx
+    call __blockos_set_environ
+    pop %rdx
     and $-16, %rsp          /* defensive re-alignment before the call */
     call main
     mov %eax, %edi

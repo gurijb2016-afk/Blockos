@@ -627,6 +627,91 @@ bool create_directory(const char* path)
         NODE_DIRECTORY) != nullptr;
 }
 
+size_t directory_entry_count(const char* directory)
+{
+    if (!directory || !is_directory(directory))
+        return 0;
+    char prefix[VFS_MAX_PATH];
+    if (!normalize_path(directory, prefix, sizeof(prefix)))
+        return 0;
+    size_t plen = string_length(prefix);
+    if (plen > 1 && prefix[plen - 1] == '/')
+        prefix[--plen] = 0;
+    size_t count = 0;
+    for (vfs_entry* e = vfs_root; e; e = e->next) {
+        if (!e->name || e->name[0] != '/') continue;
+        if (string_equal(e->name, prefix)) continue;
+        if (strncmp(e->name, prefix, plen) != 0) continue;
+        if (prefix[0] == '/' && prefix[1] == 0) {
+            if (e->name[1] == 0) continue;
+        } else if (e->name[plen] != '/') continue;
+        const char* rest = e->name + plen;
+        if (*rest == '/') ++rest;
+        if (!*rest) continue;
+        bool direct = true;
+        for (const char* q = rest; *q; ++q) if (*q == '/') { direct = false; break; }
+        if (direct) ++count;
+    }
+    return count;
+}
+
+const char* directory_entry_name(const char* directory, size_t index)
+{
+    if (!directory || !is_directory(directory)) return nullptr;
+    char prefix[VFS_MAX_PATH];
+    if (!normalize_path(directory, prefix, sizeof(prefix))) return nullptr;
+    size_t plen = string_length(prefix);
+    if (plen > 1 && prefix[plen - 1] == '/') prefix[--plen] = 0;
+    size_t cur = 0;
+    for (vfs_entry* e = vfs_root; e; e = e->next) {
+        if (!e->name || string_equal(e->name, prefix)) continue;
+        if (strncmp(e->name, prefix, plen) != 0) continue;
+        if (prefix[0] == '/' && prefix[1] == 0) {
+            if (e->name[1] == 0) continue;
+        } else if (e->name[plen] != '/') continue;
+        const char* rest = e->name + plen;
+        if (*rest == '/') ++rest;
+        if (!*rest) continue;
+        bool direct = true;
+        for (const char* q = rest; *q; ++q) if (*q == '/') { direct = false; break; }
+        if (!direct) continue;
+        if (cur++ == index) return rest;
+    }
+    return nullptr;
+}
+
+bool remove_file(const char* path)
+{
+    if (!path) return false;
+    char normalized[VFS_MAX_PATH];
+    if (!normalize_path(path, normalized, sizeof(normalized))) return false;
+    vfs_entry* cur = vfs_root;
+    vfs_entry* prev = nullptr;
+    while (cur) {
+        if (cur->name && string_equal(cur->name, normalized)) {
+            if (cur->type != NODE_FILE) return false;
+            if (prev) prev->next = cur->next; else vfs_root = cur->next;
+            free_entry(cur);
+            return true;
+        }
+        prev = cur; cur = cur->next;
+    }
+    return false;
+}
+
+bool rename_path(const char* old_path, const char* new_path)
+{
+    if (!old_path || !new_path) return false;
+    char oldn[VFS_MAX_PATH], newn[VFS_MAX_PATH];
+    if (!normalize_path(old_path, oldn, sizeof(oldn)) || !normalize_path(new_path, newn, sizeof(newn))) return false;
+    vfs_entry* e = find_entry(oldn);
+    if (!e || find_entry(newn)) return false;
+    size_t n = string_length(newn);
+    if (n >= VFS_MAX_PATH) return false;
+    memcpy(e->name, newn, n + 1);
+    return true;
+}
+
 bool create_device_node(
     const char* path,
     const DeviceNodeInfo& info)

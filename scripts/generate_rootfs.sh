@@ -71,7 +71,11 @@ mkdir -p \
     "$ROOTFS/var/log" \
     "$ROOTFS/var/cache" \
     "$ROOTFS/var/state" \
-    "$ROOTFS/data"
+    "$ROOTFS/data" \
+    "$ROOTFS/run" \
+    "$ROOTFS/run/dbus" \
+    "$ROOTFS/run/user/0" \
+    "$ROOTFS/system/gui/gnome" \
 
 # ------------------------------------------------------------
 # init
@@ -99,6 +103,9 @@ elif [[ -f "$BUILD/ld.so" ]]; then
     cp "$BUILD/ld.so" "$ROOTFS/system/lib/ld.so"
 elif [[ -f "$USERSpace/libs/build/ld.so" ]]; then
     cp "$USERSpace/libs/build/ld.so" "$ROOTFS/system/lib/ld.so"
+elif [[ -f "$ROOT_DIR/userspace/ldso/ld.so" ]]; then
+    cp "$ROOT_DIR/userspace/ldso/ld.so" "$ROOTFS/system/lib/ld.so"
+    log "Installed source-tree ld.so fallback."
 else
     log "WARNING: ld.so not found; install it before building a dynamic userspace."
 fi
@@ -134,9 +141,11 @@ install_so_files
 
 copy_tree_if_exists "$BUILD/system/bin" "$ROOTFS/system/bin"
 copy_tree_if_exists "$BUILD/bin" "$ROOTFS/bin"
+copy_tree_if_exists "$BUILD/services" "$ROOTFS/system/bin"
 
 copy_tree_if_exists "$SRC/userspace/bin" "$ROOTFS/bin"
 copy_tree_if_exists "$USERSpace/bin" "$ROOTFS/bin"
+copy_tree_if_exists "$BUILD/system/bin" "$ROOTFS/system/bin"
 
 # ------------------------------------------------------------
 # BlockOS services
@@ -257,6 +266,8 @@ echo "   /system/lib/ld.so"
 echo "   /system/lib/*.so"
 echo "   /system/bin/"
 echo "   /bin/"
+echo "   /run/dbus/system_bus_socket"
+echo "   /system/gui/gnome/"
 echo "   /devices/"
 echo "   /proc/"
 echo "   /apps/"

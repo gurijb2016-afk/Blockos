@@ -120,7 +120,7 @@ bool elf_loader::load_elf64_from_mem(
 {
     if (!entry_out || !pml4_out) return false;
 
-    uint64_t pml4 = paging::clone_current_pml4();
+    uint64_t pml4 = paging::create_user_pml4();
     if (!pml4) return false;
 
     LoadResult r;

@@ -1,9 +1,8 @@
 #pragma once
 
-/* Not thread-local: BlockOS has no real multi-threading yet (see pthread.h),
- * so a single global errno is correct for now. Revisit if/when the kernel
- * gets real thread support. */
-extern int errno;
+/* TLS-backed errno.  The BlockOS dynamic linker provides PT_TLS/FS_BASE
+ * support, so errno is independent for each pthread. */
+extern _Thread_local int errno;
 
 #define EPERM   1
 #define ENOENT  2

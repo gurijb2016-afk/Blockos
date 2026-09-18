@@ -17,3 +17,14 @@ int open(const char* path, int flags, ...) {
     if (r < 0) { errno = (int)-r; return -1; }
     return (int)r;
 }
+
+int openat(int dirfd, const char* path, int flags, ...) {
+    va_list ap;
+    va_start(ap, flags);
+    int mode = 0;
+    if (flags & O_CREAT) mode = va_arg(ap, int);
+    va_end(ap);
+    long r = __blockos_syscall(__SYS_openat, dirfd, (long)path, flags, mode, 0, 0);
+    if (r < 0) { errno = (int)-r; return -1; }
+    return (int)r;
+}

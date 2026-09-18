@@ -1,0 +1,21 @@
+[binaries]
+c = 'x86_64-elf-gcc'
+cpp = 'x86_64-elf-g++'
+ar = 'x86_64-elf-ar'
+strip = 'x86_64-elf-strip'
+pkgconfig = 'pkg-config'
+
+[host_machine]
+system = 'blockos'
+kernel = 'blockos'
+cpu_family = 'x86_64'
+cpu = 'x86_64'
+endian = 'little'
+
+[properties]
+sys_root = '/'
+needs_exe_wrapper = true
+
+[built-in options]
+c_args = ['-ffreestanding','-fPIC','-fno-stack-protector']
+cpp_args = ['-ffreestanding','-fPIC','-fno-exceptions','-fno-rtti','-fno-stack-protector']

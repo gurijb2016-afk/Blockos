@@ -1,2 +1,2 @@
 #include "errno.h"
-int errno = 0;
+_Thread_local int errno = 0;

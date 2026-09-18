@@ -69,6 +69,12 @@ bool on_exit(BlockOSSyscallFrame* f);
  */
 bool yield_from_syscall(BlockOSSyscallFrame* f);
 
+/* Block the current task at this syscall instruction and switch directly
+ * to another READY task. The blocked task is resumed later from the same
+ * saved frame with whatever return value the caller placed in rax. */
+bool block_from_syscall(BlockOSSyscallFrame* f);
+bool block_until_from_syscall(BlockOSSyscallFrame* f, uint64_t deadline_ms);
+
 void to_trap(const InterruptFrame* src, TrapFrame* dst);
 void from_trap(const TrapFrame* src, InterruptFrame* dst);
 void to_trap(const BlockOSSyscallFrame* src, TrapFrame* dst);

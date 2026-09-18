@@ -12,6 +12,7 @@ long  atol(const char* s);
 __attribute__((noreturn)) void abort(void);
 __attribute__((noreturn)) void exit(int code);
 
-/* No environment variable storage in this MVP - always returns NULL.
- * Fine for programs that treat a missing env var as "use the default". */
+extern char **environ;
 char* getenv(const char* name);
+int setenv(const char* name, const char* value, int overwrite);
+int unsetenv(const char* name);

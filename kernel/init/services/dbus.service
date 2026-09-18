@@ -1,0 +1,10 @@
+[Unit]
+Description=BlockOS D-Bus system bus
+After=network.service
+
+[Service]
+Type=simple
+ExecStart=/system/bin/dbusd
+
+[Install]
+WantedBy=services.target
