@@ -1,7 +1,7 @@
 [Unit]
 Description=BlockOS D-Bus session bus
-After=vfs.service
-Requires=vfs.service
+After=dbus.service
+Requires=dbus.service
 
 [Service]
 Type=simple

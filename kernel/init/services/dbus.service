@@ -1,6 +1,7 @@
 [Unit]
 Description=BlockOS D-Bus system bus
-After=network.service
+After=vfs.service
+Requires=vfs.service
 
 [Service]
 Type=simple
