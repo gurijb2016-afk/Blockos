@@ -1,0 +1,9 @@
+[org/gnome/desktop/interface]
+clock-show-weekday=true
+show-battery-percentage=true
+
+[org/gnome/desktop/session]
+idle-delay=uint32 0
+
+[org/gnome/shell]
+enable-hot-corners=false

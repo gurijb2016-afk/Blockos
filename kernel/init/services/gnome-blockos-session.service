@@ -1,0 +1,7 @@
+[Service]
+Name=gnome-blockos-session
+Exec=/System/bin/gnome-blockos-session
+Depends=x11
+Depends=dbus-session
+Type=session
+Restart=no

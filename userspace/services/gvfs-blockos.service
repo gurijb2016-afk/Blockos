@@ -1,0 +1,6 @@
+[Service]
+Name=gvfs-blockos
+Exec=/System/libexec/gvfsd
+Depends=dbus-session
+Type=daemon
+Restart=on-failure
