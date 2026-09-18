@@ -3,6 +3,7 @@ c = 'x86_64-elf-gcc'
 cpp = 'x86_64-elf-g++'
 ar = 'x86_64-elf-ar'
 strip = 'x86_64-elf-strip'
+ranlib = 'x86_64-elf-ranlib'
 pkgconfig = 'pkg-config'
 
 [host_machine]
@@ -17,7 +18,7 @@ sys_root = '/'
 needs_exe_wrapper = true
 
 [built-in options]
-c_args = ['-ffreestanding','-fPIC','-fno-stack-protector','-I/usr/include']
-cpp_args = ['-ffreestanding','-fPIC','-fno-exceptions','-fno-rtti','-fno-stack-protector','-I/usr/include']
+c_args = ['-ffreestanding','-fPIC','-fno-stack-protector','-fno-plt','-I/system/include']
+cpp_args = ['-ffreestanding','-fPIC','-fno-exceptions','-fno-rtti','-fno-stack-protector','-fno-plt','-I/system/include']
 
 [cmake]
