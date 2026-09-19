@@ -1,0 +1,14 @@
+*** BEGIN PATCH SPEC ***
+libffi 3.4.2 should be configured for x86_64 BlockOS using the BlockOS C
+compiler and sysroot. Keep the x86_64 ABI backend enabled. Disable tests when
+cross-building because they cannot execute on the build host.
+
+Recommended configure inputs:
+  --host=x86_64-blockos
+  --build=$(./config.guess)
+  --disable-docs
+  --disable-multi-os-directory
+
+The actual assembler/runtime ABI remains the BlockOS userspace ABI; do not
+link libffi against a host libc.
+*** END PATCH SPEC ***

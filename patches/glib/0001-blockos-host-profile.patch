@@ -1,0 +1,19 @@
+*** BEGIN PATCH SPEC ***
+This patch is intentionally expressed as a port checklist rather than a
+blind line-number patch. In the GLib 2.72.4 Meson build, set the following
+features for BlockOS:
+
+  -Dtests=false
+  -Dinstalled_tests=false
+  -Dgtk_doc=false
+  -Dman-pages=false
+  -Dsysprof=disabled
+  -Dlibmount=disabled
+  -Dselinux=disabled
+  -Dsystemtap=false
+
+Avoid enabling Linux-specific backends (inotify/eventfd/epoll/timerfd,
+procfs/sysinfo, memfd, Linux seccomp) until the corresponding BlockOS ABI is
+present. Do not replace POSIX APIs with Linux syscall names: use the BlockOS
+libc wrappers already supplied by the project.
+*** END PATCH SPEC ***

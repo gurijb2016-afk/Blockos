@@ -1,0 +1,16 @@
+*** BEGIN PATCH SPEC ***
+Cairo 1.16.0 port profile for BlockOS:
+
+Required for GNOME/X11 target:
+  - keep image backend
+  - keep xlib/xcb backend when the BlockOS X11 client ABI is available
+  - keep fontconfig/freetype integration for the later Pango stack
+
+Disable unrelated host backends (Quartz, Win32, OS2, BeOS, DirectFB, Qt,
+OpenGL/GLX unless a matching BlockOS renderer exists). Disable Cairo tests and
+documentation in the cross build.
+
+If BlockOS X11 is not yet ABI-complete, build image-only Cairo first; enabling
+xlib/xcb before the X11 client library is available will not produce a usable
+GNOME stack.
+*** END PATCH SPEC ***
