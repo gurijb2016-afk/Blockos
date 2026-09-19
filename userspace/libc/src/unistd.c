@@ -45,3 +45,20 @@ void _exit(int code) {
     __blockos_syscall(__SYS_exit_group, code, 0, 0, 0, 0, 0);
     for (;;) __asm__ volatile("hlt"); /* not reached */
 }
+
+
+int dup(int fd) {
+    long r = __blockos_syscall(__SYS_dup, fd, 0, 0, 0, 0, 0);
+    return (int)ret_or_errno(r);
+}
+
+int dup2(int oldfd, int newfd) {
+    long r = __blockos_syscall(__SYS_dup2, oldfd, newfd, 0, 0, 0, 0);
+    return (int)ret_or_errno(r);
+}
+
+int isatty(int fd) {
+    long r = __blockos_syscall(__SYS_fstat, fd, 0, 0, 0, 0, 0);
+    if (r < 0) { errno = (int)-r; return 0; }
+    return fd >= 0 && fd <= 2 ? 1 : 0;
+}

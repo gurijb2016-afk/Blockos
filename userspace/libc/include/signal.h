@@ -5,6 +5,7 @@ typedef uint64_t sigset_t;
 typedef void (*sighandler_t)(int);
 struct sigaction { uint64_t handler; uint64_t flags; uint64_t restorer; sigset_t mask; };
 
+#define SIG_ERR ((sighandler_t)-1)
 #define SIG_DFL ((sighandler_t)0)
 #define SIG_IGN ((sighandler_t)1)
 #define SIG_BLOCK 0
@@ -27,3 +28,7 @@ int sigaction(int sig, const struct sigaction* act, struct sigaction* oldact);
 int sigprocmask(int how, const sigset_t* set, sigset_t* oldset);
 int kill(int pid, int sig);
 int tgkill(int tgid, int tid, int sig);
+
+sighandler_t signal(int sig, sighandler_t handler);
+int raise(int sig);
+int pthread_sigmask(int how, const sigset_t* set, sigset_t* oldset);

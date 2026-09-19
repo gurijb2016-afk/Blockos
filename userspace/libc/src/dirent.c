@@ -14,12 +14,11 @@ DIR* opendir(const char* path){
     d->fd=(int)fd;d->pos=d->len=0;return d;
 }
 struct dirent* readdir(DIR*d){
-    static struct dirent out;
     if(!d){errno=22;return 0;}
     for(;;){
         if(d->pos>=d->len){long n=__blockos_syscall(__SYS_getdents64,d->fd,(long)d->buf,sizeof(d->buf),0,0,0);if(n<=0)return 0;d->len=(size_t)n;d->pos=0;}
         struct linux_dirent64*x=(struct linux_dirent64*)(d->buf+d->pos);if(x->reclen<20||d->pos+x->reclen>d->len){errno=5;return 0;}
-        memset(&out,0,sizeof(out));out.d_ino=x->ino;out.d_off=x->off;out.d_reclen=x->reclen;out.d_type=x->type;strncpy(out.d_name,x->name,sizeof(out.d_name)-1);d->pos+=x->reclen;return &out;
+        memset(&d->current,0,sizeof(d->current));d->current.d_ino=x->ino;d->current.d_off=x->off;d->current.d_reclen=x->reclen;d->current.d_type=x->type;strncpy(d->current.d_name,x->name,sizeof(d->current.d_name)-1);d->pos+=x->reclen;return &d->current;
     }
 }
 int closedir(DIR*d){if(!d){errno=22;return -1;}long r=__blockos_syscall(__SYS_close,d->fd,0,0,0,0,0);free(d);if(r<0){errno=(int)-r;return -1;}return 0;}

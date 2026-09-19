@@ -28,3 +28,16 @@ int openat(int dirfd, const char* path, int flags, ...) {
     if (r < 0) { errno = (int)-r; return -1; }
     return (int)r;
 }
+
+
+int fcntl(int fd, int cmd, ...) {
+    va_list ap;
+    va_start(ap, cmd);
+    int arg = 0;
+    if (cmd == F_DUPFD || cmd == F_SETFD || cmd == F_SETFL)
+        arg = va_arg(ap, int);
+    va_end(ap);
+    long r = __blockos_syscall(__SYS_fcntl, fd, cmd, arg, 0, 0, 0);
+    if (r < 0) { errno = (int)-r; return -1; }
+    return (int)r;
+}

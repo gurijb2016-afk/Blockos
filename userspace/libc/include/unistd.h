@@ -7,6 +7,8 @@ typedef long ssize_t;
 typedef long off_t;
 typedef int  pid_t;
 
+struct iovec;
+
 ssize_t read(int fd, void* buf, size_t count);
 ssize_t write(int fd, const void* buf, size_t count);
 int     close(int fd);
@@ -28,3 +30,9 @@ int nanosleep(const struct timespec*, struct timespec*);
 int unlink(const char* path);
 int rename(const char* oldpath, const char* newpath);
 int mkdir(const char* path, unsigned mode);
+
+int dup(int fd);
+int dup2(int oldfd, int newfd);
+int isatty(int fd);
+ssize_t readv(int fd, const struct iovec* iov, int iovcnt);
+ssize_t writev(int fd, const struct iovec* iov, int iovcnt);
