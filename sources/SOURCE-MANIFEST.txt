@@ -1,0 +1,11 @@
+Pango 1.50.12
+URL: https://download.gnome.org/core/42/42.9/sources/pango-1.50.12.tar.xz
+SHA256: caef96d27bbe792a6be92727c73468d832b13da57c8071ef79b9df69ee058fe3
+
+HarfBuzz 4.2.1
+URL: https://github.com/harfbuzz/harfbuzz/releases/download/4.2.1/harfbuzz-4.2.1.tar.xz
+SHA256: bd17916513829aeff961359a5ccebba6de2f4bf37a91faee3ac29c120e3d7ee1
+
+FreeType 2.12.1
+URL: https://download.savannah.gnu.org/releases/freetype/freetype-2.12.1.tar.xz
+SHA256: 4766f20157cc4cf0cd292f80bf917f92d1c439b243ac3018debf6b9140c41a7f

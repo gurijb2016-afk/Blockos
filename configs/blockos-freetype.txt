@@ -1,0 +1,8 @@
+# FreeType 2.12.1 minimal profile for BlockOS
+harfbuzz=enabled
+brotli=disabled
+bzip2=disabled
+zlib=disabled
+png=disabled
+tests=disabled
+doc=disabled

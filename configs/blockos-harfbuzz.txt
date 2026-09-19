@@ -1,0 +1,13 @@
+# HarfBuzz 4.2.1 feature profile
+# Core shaping is enabled; optional large stacks are disabled.
+glib=enabled
+gobject=disabled
+cairo=disabled
+freetype=enabled
+graphite2=disabled
+icu=disabled
+tests=disabled
+docs=disabled
+utilities=disabled
+benchmark=disabled
+introspection=disabled

@@ -1,0 +1,9 @@
+# Pango 1.50.12 feature profile for BlockOS GNOME 42 target
+introspection=disabled
+gtk_doc=false
+tests=false
+sysprof=disabled
+cairo=enabled
+fontconfig=enabled
+freetype=enabled
+harfbuzz=enabled
