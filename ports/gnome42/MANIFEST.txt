@@ -1,24 +1,22 @@
-BlockOS GNOME 42 port manifest
-
-Core source versions used by the bootstrap pipeline:
-  glib                    2.72.4
-  cairo                   1.17.6
-  pango                   1.50.6
-  gdk-pixbuf              2.42.10
-  gtk                     4.6.9
-  mutter                  42.7
-  gjs                     1.72.3
-  gsettings-desktop-schemas 42.0
-  gnome-shell             42.9
-
-Required BlockOS runtime:
-  /system/lib/ld.so
-  /system/lib/libc.so
-  /system/lib/libpthread.so
-  TLS / FS_BASE
-  mmap/munmap/mprotect/brk
-  clone/futex/pthread
-  Unix sockets/epoll/poll
-  D-Bus system bus + authentication bootstrap
-  X11 KDrive framebuffer/input backend
-  execve/getdents64/pipe2/readv/writev/stat/statx
+GLib 2.72.4
+libffi 3.4.2
+Pixman 0.40.0
+Cairo 1.16.0
+FreeType 2.12.1
+Fontconfig 2.14.0
+HarfBuzz 5.1.0
+FriBidi 1.0.12
+Pango 1.50.8
+GdkPixbuf 2.42.8
+GTK 3.24.34
+GTK 4.6.6
+D-Bus 1.14.0
+dconf 0.40.0
+GSettings Desktop Schemas 42.0
+GVfs 1.50.2
+GNOME Desktop 42.0
+GJS 1.72.2
+Mutter 42.0
+GNOME Session 42.0
+GNOME Settings Daemon 42.1
+GNOME Shell 42.0
