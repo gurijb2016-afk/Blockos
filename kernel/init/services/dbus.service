@@ -1,11 +1,5 @@
-[Unit]
-Description=BlockOS D-Bus system bus
-After=vfs.service
-Requires=vfs.service
-
 [Service]
-Type=simple
-ExecStart=/system/bin/dbusd
-
-[Install]
-WantedBy=services.target
+Name=org.freedesktop.DBus
+Exec=/System/bin/dbus-daemon
+Args=--system --config-file=/System/etc/dbus-1/system.conf
+Before=/System/bin/X

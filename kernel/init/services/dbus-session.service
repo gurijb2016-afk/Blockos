@@ -1,11 +1,5 @@
-[Unit]
-Description=BlockOS D-Bus session bus
-After=dbus.service
-Requires=dbus.service
-
 [Service]
-Type=simple
-ExecStart=/system/bin/dbusd --session
-
-[Install]
-WantedBy=multi-user.target
+Name=dbus-session
+Exec=/System/bin/dbus-daemon
+Args=--session --nofork --address=unix:path=/run/user/0/bus
+Env=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/0/bus
