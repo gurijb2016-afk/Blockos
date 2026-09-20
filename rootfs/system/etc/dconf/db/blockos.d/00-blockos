@@ -1,0 +1,7 @@
+[org/gnome/desktop/interface]
+color-scheme='prefer-dark'
+clock-show-weekday=true
+cursor-blink=true
+
+[org/gnome/desktop/session]
+idle-delay=uint32 0

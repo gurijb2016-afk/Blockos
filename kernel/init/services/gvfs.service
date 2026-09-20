@@ -1,0 +1,4 @@
+[Service]
+Name=gvfs
+ExecStart=/System/libexec/gvfsd
+Restart=always

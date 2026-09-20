@@ -1,0 +1,3 @@
+[D-BUS Service]
+Name=org.gnome.GVfsDaemon
+Exec=/System/libexec/gvfsd
