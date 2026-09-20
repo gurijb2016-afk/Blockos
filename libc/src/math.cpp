@@ -22,7 +22,6 @@ double wrap_angle(double x)
 
 }
 
-
 extern "C"
 {
 
@@ -30,7 +29,6 @@ double fabs(double x)
 {
     return x < 0.0 ? -x : x;
 }
-
 
 double sqrt(double x)
 {
@@ -50,11 +48,9 @@ double sqrt(double x)
     return guess;
 }
 
-
 double sin(double x)
 {
     x = wrap_angle(x);
-
     const double x2 = x * x;
 
     return x *
@@ -65,11 +61,9 @@ double sin(double x)
          + (x2 * x2 * x2 * x2) / 362880.0);
 }
 
-
 double cos(double x)
 {
     x = wrap_angle(x);
-
     const double x2 = x * x;
 
     return 1.0
