@@ -1,4 +1,3 @@
-
 # ============================================================
 # BlockOS GNU-EFI C++ Build System
 # x86_64 UEFI
@@ -31,7 +30,11 @@ CXXFLAGS := \
 	-fno-stack-protector \
 	-fno-stack-check \
 	-mno-red-zone \
-	-DEFI_FUNCTION_WRAPPER \
+	-DGNU_EFI_USE_MS_ABI \
+	-mgeneral-regs-only \
+	-mno-mmx \
+	-mno-sse \
+	-mno-sse2 \
 	-I. \
 	-I$(EFI_INCL) \
 	-I$(EFI_INCL_X86) \
