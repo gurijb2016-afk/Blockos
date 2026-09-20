@@ -1,0 +1,5 @@
+[GNOME Session]
+Name=GNOME on BlockOS
+RequiredComponents=org.gnome.Shell;
+DesktopName=GNOME
+IsRunnableHelper=/System/libexec/gnome-session-check-accelerated

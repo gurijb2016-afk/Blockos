@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=GNOME
+Comment=GNOME 42 on BlockOS X11
+Exec=/System/bin/gnome-session --session=gnome
+TryExec=/System/bin/gnome-session
+Type=Application
+DesktopNames=GNOME

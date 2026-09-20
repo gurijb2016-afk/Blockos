@@ -1,0 +1,4 @@
+[GNOME Session]
+Name=GNOME
+RequiredComponents=gnome-shell;
+DesktopName=GNOME
