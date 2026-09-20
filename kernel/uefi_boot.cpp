@@ -27,13 +27,14 @@ static EFI_STATUS locate_gop(
     EFI_GUID gop_guid =
         EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
 
+    EFI_BOOT_SERVICES* bs =
+        system_table->BootServices;
+
     EFI_STATUS status =
-        (EFI_STATUS) uefi_call_wrapper(
-            (void*) system_table->BootServices->LocateProtocol,
-            3,
+        bs->LocateProtocol(
             &gop_guid,
             nullptr,
-            (void**) out_gop);
+            reinterpret_cast<void**>(out_gop));
 
     if (EFI_ERROR(status))
         return status;
@@ -120,9 +121,7 @@ EFI_STATUS get_memory_map(
     UINT32 descriptor_version = 0;
 
     EFI_STATUS status =
-        (EFI_STATUS) uefi_call_wrapper(
-            (void*) bs->GetMemoryMap,
-            5,
+        bs->GetMemoryMap(
             &map_size,
             nullptr,
             &map_key,
@@ -135,37 +134,36 @@ EFI_STATUS get_memory_map(
     if (descriptor_size == 0)
         return EFI_LOAD_ERROR;
 
-    /*
-     * Allocate enough room for allocations that happen
-     * before the final GetMemoryMap().
-     */
+    /* Leave enough room for allocations performed before the final map read. */
     const UINTN extra_descriptors = 32;
 
-    map_size +=
+    if (descriptor_size > (~(UINTN)0) / extra_descriptors)
+        return EFI_OUT_OF_RESOURCES;
+
+    const UINTN extra_bytes =
         descriptor_size * extra_descriptors;
 
-    void* map = nullptr;
+    if (map_size > (~(UINTN)0) - extra_bytes)
+        return EFI_OUT_OF_RESOURCES;
+
+    map_size += extra_bytes;
+
+    EFI_MEMORY_DESCRIPTOR* map = nullptr;
 
     status =
-        (EFI_STATUS) uefi_call_wrapper(
-            (void*) bs->AllocatePool,
-            3,
+        bs->AllocatePool(
             EfiLoaderData,
             map_size,
-            &map);
+            reinterpret_cast<void**>(&map));
 
     if (EFI_ERROR(status))
         return status;
 
-    /*
-     * Get the map again using the allocated buffer.
-     */
+    /* The map key is only valid for the exact map returned below. */
     UINTN actual_size = map_size;
 
     status =
-        (EFI_STATUS) uefi_call_wrapper(
-            (void*) bs->GetMemoryMap,
-            5,
+        bs->GetMemoryMap(
             &actual_size,
             map,
             &map_key,
@@ -174,11 +172,7 @@ EFI_STATUS get_memory_map(
 
     if (EFI_ERROR(status))
     {
-        uefi_call_wrapper(
-            (void*) bs->FreePool,
-            1,
-            map);
-
+        bs->FreePool(map);
         return status;
     }
 
@@ -186,8 +180,7 @@ EFI_STATUS get_memory_map(
     info->memory_map_size = actual_size;
     info->memory_map_key = map_key;
     info->memory_descriptor_size = descriptor_size;
-    info->memory_descriptor_version =
-        descriptor_version;
+    info->memory_descriptor_version = descriptor_version;
 
     return EFI_SUCCESS;
 }
@@ -205,20 +198,16 @@ EFI_STATUS exit_boot_services(
         info->boot_services;
 
     /*
-     * ExitBootServices() may return
-     * EFI_INVALID_PARAMETER if the memory-map key
-     * became invalid because firmware changed the map.
-     *
-     * Refresh the memory map and retry.
+     * ExitBootServices() can fail with EFI_INVALID_PARAMETER when
+     * firmware changed the memory map after the previous GetMemoryMap().
+     * Refresh the map and retry with the new map key.
      */
     for (unsigned int attempt = 0;
          attempt < 8;
          ++attempt)
     {
         EFI_STATUS status =
-            (EFI_STATUS) uefi_call_wrapper(
-                (void*) bs->ExitBootServices,
-                2,
+            bs->ExitBootServices(
                 info->image_handle,
                 info->memory_map_key);
 
@@ -228,17 +217,12 @@ EFI_STATUS exit_boot_services(
         if (status != EFI_INVALID_PARAMETER)
             return status;
 
-        /*
-         * Firmware changed the memory map.
-         */
         if (info->memory_map != nullptr)
         {
-            uefi_call_wrapper(
-                (void*) bs->FreePool,
-                1,
-                info->memory_map);
-
+            bs->FreePool(info->memory_map);
             info->memory_map = nullptr;
+            info->memory_map_size = 0;
+            info->memory_map_key = 0;
         }
 
         status = get_memory_map(info);

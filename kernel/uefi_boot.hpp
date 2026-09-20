@@ -15,7 +15,7 @@ namespace uefi_boot
 
         EFI_GRAPHICS_OUTPUT_PROTOCOL* gop;
 
-        void* memory_map;
+        EFI_MEMORY_DESCRIPTOR* memory_map;
         UINTN memory_map_size;
         UINTN memory_map_key;
         UINTN memory_descriptor_size;
