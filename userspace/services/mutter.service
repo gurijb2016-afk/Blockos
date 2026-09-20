@@ -1,0 +1,8 @@
+[Service]
+Name=mutter
+ExecStart=/System/bin/mutter --x11 --replace
+Restart=on-failure
+Environment=DISPLAY=:0
+Environment=XDG_RUNTIME_DIR=/run/user/0
+Environment=GDK_BACKEND=x11
+Environment=CLUTTER_BACKEND=x11

@@ -1,0 +1,10 @@
+[Service]
+Name=gnome-shell
+ExecStart=/System/bin/gnome-shell --replace
+Restart=on-failure
+After=mutter.service dbus-session.service x11.service
+Environment=DISPLAY=:0
+Environment=XDG_RUNTIME_DIR=/run/user/0
+Environment=GDK_BACKEND=x11
+Environment=GJS_PATH=/System/share/gnome-shell/js
+Environment=GSETTINGS_SCHEMA_DIR=/System/share/glib-2.0/schemas

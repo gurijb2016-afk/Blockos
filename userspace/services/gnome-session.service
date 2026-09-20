@@ -1,0 +1,11 @@
+[Service]
+Name=gnome-session
+ExecStart=/System/bin/gnome-session --session=gnome
+Restart=on-failure
+After=dbus-session.service x11.service
+Environment=DISPLAY=:0
+Environment=XDG_RUNTIME_DIR=/run/user/0
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/0/bus
+Environment=XDG_CURRENT_DESKTOP=GNOME
+Environment=XDG_SESSION_DESKTOP=gnome
+Environment=GSETTINGS_SCHEMA_DIR=/System/share/glib-2.0/schemas
