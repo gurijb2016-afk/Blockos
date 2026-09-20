@@ -56,6 +56,25 @@ CXXFLAGS := \
 	-Iinclude
 
 # ============================================================
+# Floating-point flags for libc/src/math.cpp
+#
+# x86-64 ABI returns double values through SSE/XMM registers.
+# The normal EFI/kernel build disables SSE, so math.cpp gets
+# its own compatible floating-point compilation rule.
+# ============================================================
+
+MATH_CXXFLAGS := \
+	$(filter-out \
+		-mgeneral-regs-only \
+		-mno-mmx \
+		-mno-sse \
+		-mno-sse2, \
+		$(CXXFLAGS)) \
+	-msse \
+	-msse2 \
+	-mfpmath=sse
+
+# ============================================================
 # ASSEMBLY FLAGS
 # ============================================================
 
@@ -88,10 +107,10 @@ SRC_DIRS := \
 	fs \
 	kernel \
 	libc/src \
-   	userspace \
-   	userspace/crt \
-   	userspace/ldso \
-   	userspace/libc \
+	userspace \
+	userspace/crt \
+	userspace/ldso \
+	userspace/libc \
 	net
 
 S_SRC_DIRS := \
@@ -184,6 +203,15 @@ full-stack: host-all windowmaker install-windowmaker-rootfs rootfs-windowmaker-c
 	@mkdir -p $(dir $@)
 	@echo "[CXX] $<"
 	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# ============================================================
+# SPECIAL FLOATING-POINT BUILD
+# ============================================================
+
+libc/src/math.o: libc/src/math.cpp
+	@mkdir -p $(dir $@)
+	@echo "[CXX][FP] $<"
+	$(CXX) $(MATH_CXXFLAGS) -c $< -o $@
 
 # ============================================================
 # ASSEMBLY COMPILATION
