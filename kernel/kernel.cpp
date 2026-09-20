@@ -368,7 +368,6 @@ static void survey_memory_map(
         const EFI_MEMORY_DESCRIPTOR* d =
             (const EFI_MEMORY_DESCRIPTOR*) p;
 
-        // An EFI page is 4 KiB by definition, whatever the CPU page size is
         const uint64_t bytes =
             (uint64_t) d->NumberOfPages * 4096ull;
 
@@ -438,7 +437,6 @@ static void console_sink(const char* data, size_t length, void*)
         g_console_sink->putc(data[i]);
 }
 
-// printf and friends land straight on the console; the TTY is not in this path
 static void stdio_sink(const char* data, size_t length)
 {
     console_sink(data, length, nullptr);
@@ -565,15 +563,39 @@ static void run_command(const Args& args, Console& out)
 
     char path[128];
     size_t n = 0;
-    path[n++] = '/'; path[n++] = 'b'; path[n++] = 'i'; path[n++] = 'n'; path[n++] = '/';
-    for (size_t i = 0; name[i] && n + 1 < sizeof(path); ++i) path[n++] = name[i];
+
+    path[n++] = '/';
+    path[n++] = 'b';
+    path[n++] = 'i';
+    path[n++] = 'n';
+    path[n++] = '/';
+
+    for (size_t i = 0; name[i] && n + 1 < sizeof(path); ++i)
+        path[n++] = name[i];
+
     path[n] = '\0';
+
     uint32_t elf_size = 0;
-    const uint8_t* elf = vfs::read_file(path, &elf_size);
+
+    const uint8_t* elf =
+        vfs::read_file(
+            path,
+            &elf_size);
+
     if (elf)
     {
-        process::Process* p = process::create(elf, elf_size);
-        if (!p) { out.print("exec: ELF load failed"); out.newline(); return; }
+        process::Process* p =
+            process::create(
+                elf,
+                elf_size);
+
+        if (!p)
+        {
+            out.print("exec: ELF load failed");
+            out.newline();
+            return;
+        }
+
         process::run(p);
         return;
     }
@@ -588,6 +610,7 @@ static void run_command(const Args& args, Console& out)
  * Splash screen
  * ============================================================
  */
+
 static size_t text_length(const char* s)
 {
     size_t n = 0;
@@ -607,7 +630,8 @@ static void draw_centered(
     const char* text,
     uint32_t color)
 {
-    const int text_w = (int) (text_length(text) * 8);
+    const int text_w =
+        (int) (text_length(text) * 8);
 
     if (text_w > area_w)
         return;
@@ -651,7 +675,11 @@ static void draw_splash(
     const int w = (int) width;
     const int h = (int) height;
 
-    bb_clear(buffer, width, height, 0x00101820);
+    bb_clear(
+        buffer,
+        width,
+        height,
+        0x00101820);
 
     // clang-format off
     const char* banner[5] = {
@@ -663,7 +691,6 @@ static void draw_splash(
     };
     // clang-format on
 
-    //ASCII art of Saturn from https://asciiart.website/art/2534
     const char* saturn[36] = {
         "                                                                  ..;===+.",
         "                                                              .:=iiiiii=+=",
@@ -705,7 +732,6 @@ static void draw_splash(
 
     const int line_h = 10;
 
-    // Banner in the top-left quadrant
     const int title_x = w / 16;
     const int title_y = h / 10;
     const int title_w = 34 * 8;
@@ -713,7 +739,14 @@ static void draw_splash(
     if (title_x + title_w <= w)
     {
         draw_block_art(
-            buffer, width, title_x, title_y, banner, 5, line_h, 0x0000C0C0);
+            buffer,
+            width,
+            title_x,
+            title_y,
+            banner,
+            5,
+            line_h,
+            0x0000C0C0);
 
         bb_draw_text(
             buffer,
@@ -729,14 +762,29 @@ static void draw_splash(
     const int art_x = w - art_w - 32;
     const int art_y = (h - art_h) / 2;
 
-    if (art_x > title_x + title_w + 16 && art_y >= 0 && art_y + art_h <= h)
+    if (art_x > title_x + title_w + 16 &&
+        art_y >= 0 &&
+        art_y + art_h <= h)
     {
         draw_block_art(
-            buffer, width, art_x, art_y, saturn, 36, 8, 0x00C02828);
+            buffer,
+            width,
+            art_x,
+            art_y,
+            saturn,
+            36,
+            8,
+            0x00C02828);
     }
 
     draw_centered(
-        buffer, width, 0, w, h - 48, "press any key to continue", 0x00FFFFFF);
+        buffer,
+        width,
+        0,
+        w,
+        h - 48,
+        "press any key to continue",
+        0x00FFFFFF);
 }
 
 
@@ -745,6 +793,7 @@ static void draw_splash(
  * EFI entry point
  * ============================================================
  */
+
 extern "C" EFI_STATUS EFIAPI efi_main(
     EFI_HANDLE ImageHandle,
     EFI_SYSTEM_TABLE* SystemTable)
@@ -752,7 +801,6 @@ extern "C" EFI_STATUS EFIAPI efi_main(
     InitializeLib(
         ImageHandle,
         SystemTable);
-
 
     /*
      * ========================================================
@@ -781,7 +829,6 @@ extern "C" EFI_STATUS EFIAPI efi_main(
         return EFI_ABORTED;
     }
 
-
     /*
      * ========================================================
      * Framebuffer
@@ -805,7 +852,6 @@ extern "C" EFI_STATUS EFIAPI efi_main(
 
     fb.PixelsPerPixel = 4;
 
-
     /*
      * ========================================================
      * Backbuffer
@@ -816,7 +862,6 @@ extern "C" EFI_STATUS EFIAPI efi_main(
         (UINTN) fb.Width *
         (UINTN) fb.Height *
         4;
-
 
     /*
      * ========================================================
@@ -847,12 +892,10 @@ extern "C" EFI_STATUS EFIAPI efi_main(
         return EFI_ABORTED;
     }
 
-
     /*
      * Leave extra space.
      */
     mapSize += descSize * 20;
-
 
     /*
      * ========================================================
@@ -878,7 +921,6 @@ extern "C" EFI_STATUS EFIAPI efi_main(
         return EFI_ABORTED;
     }
 
-
     /*
      * ========================================================
      * Allocate backbuffer
@@ -902,7 +944,6 @@ extern "C" EFI_STATUS EFIAPI efi_main(
 
         return EFI_ABORTED;
     }
-
 
     /*
      * ========================================================
@@ -931,7 +972,6 @@ extern "C" EFI_STATUS EFIAPI efi_main(
         return EFI_ABORTED;
     }
 
-
     /*
      * ========================================================
      * Get memory map again
@@ -943,7 +983,7 @@ extern "C" EFI_STATUS EFIAPI efi_main(
             (void*) BS->GetMemoryMap,
             5,
             &mapSize,
-            memMap,
+            (EFI_MEMORY_DESCRIPTOR*)memMap,
             &mapKey,
             &descSize,
             &descVersion);
@@ -974,7 +1014,6 @@ extern "C" EFI_STATUS EFIAPI efi_main(
         sysmem::set_record(record);
     }
 
-
     /*
      * ========================================================
      * Allocator
@@ -984,7 +1023,6 @@ extern "C" EFI_STATUS EFIAPI efi_main(
     allocator::init(
         heapbuf,
         heap_size);
-
 
     /*
      * ========================================================
@@ -1004,12 +1042,11 @@ extern "C" EFI_STATUS EFIAPI efi_main(
         return EFI_ABORTED;
     }
 
-
     /*
-    * ========================================================
-    *   GDT/IDT
-    * ========================================================
-    */
+     * ========================================================
+     * GDT/IDT
+     * ========================================================
+     */
 
     cpu_tables.init();
 
@@ -1023,7 +1060,6 @@ extern "C" EFI_STATUS EFIAPI efi_main(
      * splash before entering the first userspace program.
      */
 
-
     /*
      * ========================================================
      * TTY / userspace runtime
@@ -1035,36 +1071,82 @@ extern "C" EFI_STATUS EFIAPI efi_main(
     vfs_init_from_ramfs();
     blockos::input::init();
 
-    /* Publish the framebuffer to the userspace X11 KDrive backend. */
-    struct BlockOSDisplayInfo {
-        uint32_t magic; uint32_t version; uint64_t framebuffer_phys;
-        uint64_t framebuffer_size; uint32_t width; uint32_t height;
-        uint32_t stride; uint32_t bpp; uint32_t depth;
+    /*
+     * Publish framebuffer to the userspace X11 KDrive backend.
+     */
+
+    struct BlockOSDisplayInfo
+    {
+        uint32_t magic;
+        uint32_t version;
+        uint64_t framebuffer_phys;
+        uint64_t framebuffer_size;
+        uint32_t width;
+        uint32_t height;
+        uint32_t stride;
+        uint32_t bpp;
+        uint32_t depth;
     };
+
     BlockOSDisplayInfo dinfo{
-        0x424F5346u, 1u, (uint64_t)(uintptr_t)fb.Base,
-        (uint64_t)fb.PixelsPerScanLine * (uint64_t)fb.Height * 4ull,
-        fb.Width, fb.Height, fb.PixelsPerScanLine, 32u, 32u
+        0x424F5346u,
+        1u,
+        (uint64_t)(uintptr_t)fb.Base,
+        (uint64_t)fb.PixelsPerScanLine *
+            (uint64_t)fb.Height *
+            4ull,
+        fb.Width,
+        fb.Height,
+        fb.PixelsPerScanLine,
+        32u,
+        32u
     };
-    vfs::write_file("/system/display.info", reinterpret_cast<const uint8_t*>(&dinfo), sizeof(dinfo));
-    if(!vfs::is_device("/devices/display")){
-        vfs::DeviceNodeInfo di{}; di.type=vfs::DEVICE_GPU; di.device_id=0; di.base=(uint64_t)(uintptr_t)fb.Base;
-        di.size=dinfo.framebuffer_size; vfs::create_device_node("/devices/display",di);
+
+    vfs::write_file(
+        "/system/display.info",
+        reinterpret_cast<const uint8_t*>(&dinfo),
+        sizeof(dinfo));
+
+    if (!vfs::is_device("/devices/display"))
+    {
+        vfs::DeviceNodeInfo di{};
+
+        di.type = vfs::DEVICE_GPU;
+        di.device_id = 0;
+        di.base = (uint64_t)(uintptr_t)fb.Base;
+        di.size = dinfo.framebuffer_size;
+
+        vfs::create_device_node(
+            "/devices/display",
+            di);
     }
-    if(!vfs::is_device("/devices/x11-input")){
-        vfs::DeviceNodeInfo ii{}; ii.type=vfs::DEVICE_INPUT; ii.device_id=0; vfs::create_device_node("/devices/x11-input",ii);
+
+    if (!vfs::is_device("/devices/x11-input"))
+    {
+        vfs::DeviceNodeInfo ii{};
+
+        ii.type = vfs::DEVICE_INPUT;
+        ii.device_id = 0;
+
+        vfs::create_device_node(
+            "/devices/x11-input",
+            ii);
     }
 
     process::init();
 
     /*
      * Keep block-device initialization because the filesystem/VFS
-     * layer may depend on the discovered storage devices. The
-     * Console object is only an internal output sink here; it is
-     * NOT attached to a framebuffer window anymore.
+     * layer may depend on the discovered storage devices.
+     *
+     * The Console object is only an internal output sink here;
+     * it is NOT attached to a framebuffer window.
      */
+
     Console console;
-    init_block_devices(console);
+
+    init_block_devices(
+        console);
 
     /*
      * ========================================================
@@ -1087,15 +1169,28 @@ extern "C" EFI_STATUS EFIAPI efi_main(
     /*
      * Wait for a key to dismiss the splash.
      */
+
     while (1)
     {
         blockos::input::poll_hardware();
+
         blockos::input::Event ev{};
+
         bool dismiss = false;
-        while (blockos::input::read(&ev,1) == 1) {
-            if (ev.type == blockos::input::EVENT_KEYBOARD && ev.pressed) { dismiss = true; break; }
+
+        while (blockos::input::read(&ev, 1) == 1)
+        {
+            if (ev.type ==
+                    blockos::input::EVENT_KEYBOARD &&
+                ev.pressed)
+            {
+                dismiss = true;
+                break;
+            }
         }
-        if (dismiss) break;
+
+        if (dismiss)
+            break;
 
         __asm__ volatile("pause");
     }
@@ -1119,6 +1214,7 @@ extern "C" EFI_STATUS EFIAPI efi_main(
          * No kernel GUI is available anymore, so stay halted if
          * the first userspace program cannot be loaded.
          */
+
         while (1)
         {
             __asm__ volatile("cli; hlt");
@@ -1142,12 +1238,15 @@ extern "C" EFI_STATUS EFIAPI efi_main(
      * Enter ring3 and run /bin/sh as the first userspace process.
      * This call should not return during normal operation.
      */
-    process::run(shell_process);
+
+    process::run(
+        shell_process);
 
     /*
      * If userspace returns unexpectedly, halt instead of reviving
      * the removed kernel GUI.
      */
+
     while (1)
     {
         __asm__ volatile("cli; hlt");
