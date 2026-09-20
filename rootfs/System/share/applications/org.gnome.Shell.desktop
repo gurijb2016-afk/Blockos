@@ -1,8 +1,0 @@
-[Desktop Entry]
-Name=GNOME Shell
-Comment=GNOME Shell on BlockOS X11
-Exec=/System/bin/gnome-shell --x11
-TryExec=/System/bin/gnome-shell
-Type=Application
-OnlyShowIn=GNOME;
-X-GNOME-Autostart-Phase=WindowManager
