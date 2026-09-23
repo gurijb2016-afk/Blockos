@@ -11,23 +11,27 @@ static KdOsFuncs blockosOsFuncs = {
     .Bell = NULL,
 };
 
-void InitCard(char *name)
+void
+InitCard(char *name)
 {
     (void) name;
     KdCardInfoAdd(&blockosFuncs, NULL);
 }
 
-void ddxInit(void)
+void
+ddxInit(void)
 {
     KdOsInit(&blockosOsFuncs);
 }
 
-void InitOutput(int argc, char **argv)
+void
+InitOutput(int argc, char **argv)
 {
     KdInitOutput(argc, argv);
 }
 
-void InitInput(int argc, char **argv)
+void
+InitInput(int argc, char **argv)
 {
     (void) argc;
     (void) argv;
@@ -37,27 +41,39 @@ void InitInput(int argc, char **argv)
     KdInitInput();
 }
 
-void CloseInput(void)
+void
+CloseInput(void)
 {
     KdCloseInput();
     blockosFiniInput();
 }
 
-void ddxGiveUp(void)
-{
-    blockosFiniInput();
-}
+/*
+ * ddxGiveUp() is already provided by KDrive.
+ * Do not define it here.
+ */
 
-void ddxUseMsg(void)
+#if INPUTTHREAD
+void
+ddxInputThreadInit(void)
+{
+    /* BlockOS input is handled by the KDrive input backend. */
+}
+#endif
+
+void
+ddxUseMsg(void)
 {
     KdUseMsg();
+
     ErrorF("\nBlockOS KDrive server usage:\n");
     ErrorF("Framebuffer: %s\n", BLOCKOS_DISPLAY_DEVICE_PATH);
     ErrorF("Display info: %s\n", BLOCKOS_DISPLAY_INFO_PATH);
     ErrorF("Input:      %s\n", BLOCKOS_INPUT_DEVICE_PATH);
 }
 
-int ddxProcessArgument(int argc, char **argv, int i)
+int
+ddxProcessArgument(int argc, char **argv, int i)
 {
     return KdProcessArgument(argc, argv, i);
 }
