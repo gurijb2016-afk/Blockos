@@ -1,2 +1,0 @@
-# Generate at install time with gdk-pixbuf-query-loaders.
-# Expected output location: /System/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
