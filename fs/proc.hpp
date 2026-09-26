@@ -1,78 +1,30 @@
 #pragma once
 
 #include <stddef.h>
-#include <stdint.h>
 
-namespace blockos
+#include "../kernel/process.hpp"
+
+namespace blockos::proc
 {
-namespace proc
-{
 
-/*
- * Read a virtual procfs node.
- *
- * Examples:
- *   "meminfo"
- *   "version"
- *   "1/status"
- *   "1/stat"
- *   "1/cmdline"
- *   "1/maps"
- *   "self/status"
- */
-size_t read(
-    const char* path,
-    char* buffer,
-    size_t max_size);
-
-/*
- * Returns true when a virtual procfs node or directory exists.
- */
-bool exists(
-    const char* path);
-
-/*
- * Root-level /proc directory entries.
- */
+/* Kernel-side proc reader used by the shell/debug commands. */
+size_t read(const char* name, char* buffer, size_t max_size);
+bool exists(const char* name);
 size_t count();
+const char* name_at(size_t index);
 
-const char* name_at(
-    size_t index);
-
-/*
- * Process directory helpers.
- */
-size_t process_count();
-
-uint64_t process_pid_at(
-    size_t index);
-
-/*
- * Returns a process-directory name into buffer:
- *
- *   "1"
- *   "2"
- *   "15"
- */
-size_t process_name_at(
-    size_t index,
-    char* buffer,
-    size_t max_size);
-
-/*
- * procfs lifecycle.
- */
+/* Materialise the Linux-compatible /proc view in the current simple VFS. */
 void init();
+bool refresh(process::Process* current = nullptr);
 
-/*
- * Small self-test.
- */
+/* Helpers used by the userspace syscall layer before VFS lookup. */
+bool is_proc_path(const char* path);
+bool is_directory_path(const char* path, process::Process* current = nullptr);
+size_t directory_entry_count(const char* path, process::Process* current = nullptr);
+const char* directory_entry_name(const char* path, size_t index, process::Process* current = nullptr);
+
 bool test();
 
-/*
- * Compatibility wrapper used by older code.
- */
-void init_proc_fs();
+} // namespace blockos::proc
 
-} // namespace proc
-} // namespace blockos
+void init_proc_fs();

@@ -1,4 +1,5 @@
 #include "proc.hpp"
+#include "../kernel/process.hpp"
 
 #include <stdint.h>
 #include <stddef.h>
@@ -76,8 +77,9 @@ static void copy_text(char* dst, size_t cap, const char* src)
 
 static bool append_char(char* out, size_t cap, size_t& pos, char c)
 {
-    if (!out || pos + 1 >= cap) return false;
-    out[pos++] = c;
+    if (!out || cap == 0 || pos >= cap - 1) return false;
+    out[pos] = c;
+    ++pos;
     out[pos] = 0;
     return true;
 }
@@ -105,15 +107,6 @@ static bool append_u64(char* out, size_t cap, size_t& pos, uint64_t value)
         if (!append_char(out, cap, pos, tmp[--n])) return false;
     }
     return true;
-}
-
-static bool append_s64(char* out, size_t cap, size_t& pos, int64_t value)
-{
-    if (value < 0) {
-        if (!append_char(out, cap, pos, '-')) return false;
-        value = -value;
-    }
-    return append_u64(out, cap, pos, static_cast<uint64_t>(value));
 }
 
 static bool append_kb(char* out, size_t cap, size_t& pos, uint64_t bytes)
@@ -195,15 +188,6 @@ static bool split_process_path(const char* path, uint64_t* pid, const char** lea
     *pid = value;
     *leaf = path + i;
     return true;
-}
-
-static process::Process* process_from_path(const char* path)
-{
-    uint64_t pid = 0;
-    const char* leaf = nullptr;
-    if (!split_process_path(path, &pid, &leaf)) return nullptr;
-    (void)leaf;
-    return process::get(pid);
 }
 
 static size_t render_meminfo(char* out, size_t cap)
