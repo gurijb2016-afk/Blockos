@@ -34,7 +34,7 @@ endif
 ifeq ($(origin STRIP),default)
   STRIP := $(if $(filter clang,$(TOOLCHAIN)),llvm-strip,strip)
 endif
-PYTHON   ?= python3
+PYTHON ?= python3
 
 # ============================================================
 # C++ FLAGS
@@ -76,10 +76,6 @@ CXXFLAGS := \
 
 # ============================================================
 # Floating-point flags for libc/src/math.cpp
-#
-# x86-64 ABI returns double values through SSE/XMM registers.
-# The normal EFI/kernel build disables SSE, so math.cpp gets
-# its own compatible floating-point compilation rule.
 # ============================================================
 
 MATH_CXXFLAGS := \
@@ -152,6 +148,9 @@ EXCLUDED_SRC := \
 	kernel/panic.cpp \
 	fs/lua_elf.cpp
 
+# InitRAMFS replaces the legacy hand-built RAMFS table.
+EXCLUDED_SRC += fs/ramfs.cpp fs/files.cpp
+
 # ============================================================
 # C++ SOURCES
 # ============================================================
@@ -173,10 +172,22 @@ SRC += kernel/cmd/cmd_forth.cpp
 # ============================================================
 
 S_SRC := $(foreach dir,$(S_SRC_DIRS),$(wildcard $(dir)/*.S))
-
 S_SRC += arch/86_64x/irq_stubs.S
 S_SRC += arch/86_64x/user_entry.S
 S_SRC += arch/86_64x/syscall_entry.S
+
+# Do not compile the stale generated table from the old RAMFS implementation.
+S_SRC := $(filter-out fs/ramfs_generated.S,$(S_SRC))
+
+# ============================================================
+# BUILD OUTPUTS AND INITRAMFS
+# ============================================================
+
+BUILD_DIR       := build
+SO_OUT          := $(BUILD_DIR)/kernel.so
+EFI_OUT         := $(BUILD_DIR)/BOOTX64.EFI
+INITRAMFS_CPIO  := $(BUILD_DIR)/initramfs.cpio
+INITRAMFS_OBJ   := $(BUILD_DIR)/initramfs.o
 
 # ============================================================
 # OBJECT FILES
@@ -184,22 +195,33 @@ S_SRC += arch/86_64x/syscall_entry.S
 
 OBJ := \
 	$(SRC:.cpp=.o) \
-	$(S_SRC:.S=.o)
-
-# ============================================================
-# DEPENDENCY FILES
-# ============================================================
+	$(S_SRC:.S=.o) \
+	$(INITRAMFS_OBJ)
 
 DEP := $(OBJ:.o=.d)
 
-# ============================================================
-# BUILD OUTPUT
-# ============================================================
+# Rebuild the archive on every make invocation, so changes anywhere under
+# rootfs/ cannot accidentally leave an outdated embedded InitRAMFS in EFI.
+.PHONY: initramfs FORCE_INITRAMFS
 
-BUILD_DIR := build
+initramfs: $(INITRAMFS_CPIO)
 
-SO_OUT  := $(BUILD_DIR)/kernel.so
-EFI_OUT := $(BUILD_DIR)/BOOTX64.EFI
+FORCE_INITRAMFS:
+
+$(INITRAMFS_CPIO): FORCE_INITRAMFS scripts/make_initramfs.py
+	@mkdir -p $(dir $@)
+	$(PYTHON) scripts/make_initramfs.py rootfs $@
+
+# Convert the CPIO archive to a relocatable x86-64 ELF object and put its
+# read-only payload in .ramfs, which is already copied into BOOTX64.EFI.
+$(INITRAMFS_OBJ): $(INITRAMFS_CPIO)
+	@mkdir -p $(dir $@)
+	$(OBJCOPY) \
+		-I binary \
+		-O elf64-x86-64 \
+		-B i386:x86-64 \
+		--rename-section .data=.ramfs,alloc,load,readonly,data,contents \
+		$< $@
 
 # ============================================================
 # LUA
@@ -213,6 +235,7 @@ LUA_ELF    := $(LUA_DIR)/build/lua
 # DEFAULT
 # ============================================================
 
+.PHONY: all
 all: $(EFI_OUT)
 
 .PHONY: toolchain-info
@@ -228,7 +251,6 @@ toolchain-info:
 # ============================================================
 
 .PHONY: full-stack
-
 full-stack: host-all windowmaker install-windowmaker-rootfs rootfs-windowmaker-check $(EFI_OUT)
 
 # ============================================================
@@ -279,12 +301,10 @@ $(EFI_LIB_WEAK): $(EFI_LIB)
 
 $(SO_OUT): $(OBJ) $(EFI_LIB_WEAK)
 	@mkdir -p $(BUILD_DIR)
-
 	@echo ""
 	@echo "=============================================="
 	@echo " Linking BlockOS kernel.so"
 	@echo "=============================================="
-
 	$(LD) \
 		$(LDFLAGS) \
 		-L$(GNU_EFI_LIBDIR) \
@@ -293,7 +313,6 @@ $(SO_OUT): $(OBJ) $(EFI_LIB_WEAK)
 		$(GNU_EFI_LIB) \
 		$(EFI_LIB_WEAK) \
 		-o $@
-
 	@echo ""
 	@echo "[OK] $@"
 
@@ -303,12 +322,10 @@ $(SO_OUT): $(OBJ) $(EFI_LIB_WEAK)
 
 $(EFI_OUT): $(SO_OUT)
 	@mkdir -p $(BUILD_DIR)
-
 	@echo ""
 	@echo "=============================================="
 	@echo " Creating BOOTX64.EFI"
 	@echo "=============================================="
-
 	$(OBJCOPY) \
 		-j .text \
 		-j .plt \
@@ -329,7 +346,6 @@ $(EFI_OUT): $(SO_OUT)
 		--target=efi-app-x86_64 \
 		$(SO_OUT) \
 		$(EFI_OUT)
-
 	@echo ""
 	@echo "[OK] $@"
 
@@ -338,7 +354,6 @@ $(EFI_OUT): $(SO_OUT)
 # ============================================================
 
 .PHONY: lua
-
 lua:
 	@set -eu; \
 	if [ -z "$$USERLIBC" ]; then \
@@ -362,32 +377,26 @@ lua:
 # ============================================================
 
 .PHONY: check-efi
-
 check-efi:
 	@echo "Checking GNU-EFI..."
-
 	@test -f "$(GNU_EFI_LDS)" \
 		&& echo "[OK] Linker script: $(GNU_EFI_LDS)" \
-		|| echo "[ERROR] Missing: $(GNU_EFI_LDS)"
-
+		|| { echo "[ERROR] Missing: $(GNU_EFI_LDS)"; exit 1; }
 	@test -f "$(EFI_CRT)" \
 		&& echo "[OK] CRT: $(EFI_CRT)" \
-		|| echo "[ERROR] Missing: $(EFI_CRT)"
-
+		|| { echo "[ERROR] Missing: $(EFI_CRT)"; exit 1; }
 	@test -f "$(EFI_LIB)" \
 		&& echo "[OK] libefi: $(EFI_LIB)" \
-		|| echo "[ERROR] Missing: $(EFI_LIB)"
-
+		|| { echo "[ERROR] Missing: $(EFI_LIB)"; exit 1; }
 	@test -f "$(GNU_EFI_LIB)" \
 		&& echo "[OK] libgnuefi: $(GNU_EFI_LIB)" \
-		|| echo "[ERROR] Missing: $(GNU_EFI_LIB)"
+		|| { echo "[ERROR] Missing: $(GNU_EFI_LIB)"; exit 1; }
 
 # ============================================================
 # MENUCONFIG
 # ============================================================
 
 .PHONY: menuconfig
-
 menuconfig:
 	$(PYTHON) scripts/menuconfig.py
 
@@ -396,7 +405,6 @@ menuconfig:
 # ============================================================
 
 .PHONY: clean
-
 clean:
 	rm -f $(OBJ)
 	rm -f $(DEP)
@@ -407,7 +415,6 @@ clean:
 # ============================================================
 
 .PHONY: rebuild
-
 rebuild:
 	$(MAKE) clean
 	$(MAKE) all
@@ -417,7 +424,6 @@ rebuild:
 # ============================================================
 
 .PHONY: run
-
 run: all
 	sh build_and_run.sh
 
@@ -517,7 +523,6 @@ browser-source-check:
 tls-backend-check:
 	test -f ports/tls/mbedtls_adapter.hpp
 	test -f ports/tls/mbedtls_adapter.cpp
-	test -f ports/tls/mbedtls_adapter.hpp
 	test -f ports/tls/README.md
 	@echo "[OK] TLS backend integration point present"
 
@@ -542,15 +547,18 @@ linux20-plus-check:
 	test -x windowmaker.sh
 	@echo "[OK] BlockOS core capability source audit passed."
 
+# Kept under its historical target name because full-stack depends on it.
+# Validate the Window Maker configuration and the new InitRAMFS boot path.
 rootfs-windowmaker-check:
 	bash -n scripts/generate_rootfs.sh
 	bash -n ports/windowmaker/scripts/windowmakerdowloader+builder.sh
 	@test -f kernel/init/services/gui.service
 	@grep -q '^ExecStart=/usr/bin/wmaker$$' kernel/init/services/gui.service
-	@grep -q '/etc/services/gui.service' fs/files.cpp
-	@grep -q 'vfs_init_from_ramfs();' kernel/kernel.cpp
-	@grep -q 'init_system.boot("/etc/services/")' kernel/kernel.cpp
-	@echo "BlockOS rootfs + Window Maker autostart integration checks passed."
+	@test -f scripts/make_initramfs.py
+	@test -f fs/initramfs.cpp
+	@grep -q 'blockos::initramfs::mount();' kernel/kernel.cpp
+	@grep -q '"/bin/sh"' kernel/kernel.cpp
+	@echo "BlockOS rootfs + InitRAMFS integration checks passed."
 
 usermode-foundation-check:
 	@test -f kernel/usermode/user_mode.hpp
