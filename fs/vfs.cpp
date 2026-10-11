@@ -1,9 +1,8 @@
-#include "initramfs.hpp"
-#include "vfs.hpp"
+
 
 #include "kernel/allocator.hpp"
 #include "libc/include/string.h"
-#include "ramfs.hpp"
+#include "fs/initramfs.hpp"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -1071,66 +1070,7 @@ void initialize_devices()
 
 void vfs_init_from_ramfs()
 {
-    vfs::initialize_devices();
-
-    const size_t count = ramfs::count();
-
-    for (size_t i = 0; i < count; ++i)
-    {
-        const char* name = ramfs::name_at(i);
-
-        if (!name)
-            continue;
-
-        uint32_t size = 0;
-
-        const uint8_t* data =
-            ramfs::get(name, &size);
-
-        if (!data && size != 0)
-            continue;
-
-        char path[VFS_MAX_PATH];
-
-        if (!normalize_path(
-                name,
-                path,
-                sizeof(path)))
-        {
-            continue;
-        }
-
-        /*
-         * Automatikusan létrehozzuk a hiányzó
-         * szülőkönyvtárakat.
-         */
-        const size_t len = string_length(path);
-
-        for (size_t i = 1; i < len; ++i)
-        {
-            if (path[i] != '/')
-                continue;
-
-            char parent[VFS_MAX_PATH];
-
-            if (i >= sizeof(parent))
-                break;
-
-            for (size_t j = 0; j < i; ++j)
-                parent[j] = path[j];
-
-            parent[i] = '\0';
-
-            if (!vfs::exists(parent))
-                vfs::create_directory(parent);
-        }
-
-        if (vfs::exists(path))
-            continue;
-
-        vfs::create_file(
-            path,
-            data,
-            size);
-    }
+    // Load the embedded CPIO initramfs into the VFS.
+    // initramfs::mount() initializes the base device directories too.
+    (void)blockos::initramfs::mount();
 }
