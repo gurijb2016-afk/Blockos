@@ -627,6 +627,27 @@ static void flush_console()
         g_console_sink->h());
 }
 
+/* Show a useful diagnostic instead of silently halting on a black screen. */
+static void boot_error_halt(Console& console, const char* reason)
+{
+    console.clear();
+    console.print("BlockOS boot error:");
+    console.newline();
+    console.print(reason);
+    console.newline();
+    flush_console();
+
+    /* Keep a second copy for QEMU's serial log/debug console. */
+    early_serial_str("BlockOS boot error: ");
+    early_serial_str(reason);
+    early_serial_out('\n');
+
+    while (1)
+    {
+        __asm__ volatile("cli; hlt");
+    }
+}
+
 __attribute__((unused)) static void trace(Console& out, const char* message)
 {
     out.print(message);
@@ -1547,15 +1568,9 @@ extern "C" EFI_STATUS efi_main(
 
     if (!shell_elf || shell_size == 0)
     {
-        /*
-         * No kernel GUI is available anymore, so stay halted if
-         * the first userspace program cannot be loaded.
-         */
-
-        while (1)
-        {
-            __asm__ volatile("cli; hlt");
-        }
+        boot_error_halt(
+            console,
+            "/bin/sh could not be loaded from the embedded RAMFS");
     }
 
     process::Process* shell_process =
@@ -1565,10 +1580,9 @@ extern "C" EFI_STATUS efi_main(
 
     if (!shell_process)
     {
-        while (1)
-        {
-            __asm__ volatile("cli; hlt");
-        }
+        boot_error_halt(
+            console,
+            "process::create failed for /bin/sh");
     }
 
     /*
@@ -1581,15 +1595,10 @@ extern "C" EFI_STATUS efi_main(
     process::run(
         shell_process);
 
-    /*
-     * If userspace returns unexpectedly, halt instead of reviving
-     * the removed kernel GUI.
-     */
-
-    while (1)
-    {
-        __asm__ volatile("cli; hlt");
-    }
+    /* Do not fail silently if the first userspace process returns. */
+    boot_error_halt(
+        console,
+        "/bin/sh returned unexpectedly");
 
     return EFI_SUCCESS;
 }
