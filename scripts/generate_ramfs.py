@@ -1,89 +1,114 @@
 #!/usr/bin/env python3
-"""Generate the embedded BlockOS RAMFS assembly.
+"""Generate a GNU assembler source file embedding a BlockOS RAMFS.
 
-Symlinks are preserved as RAMFS entries that point at their resolved target
-payload. This is important for multi-call binaries such as Toybox: hundreds
-of applet symlinks must NOT embed the same binary hundreds of times.
+Usage:
+    python3 ramfs_generate.py [rootfs-directory] [output.S]
+
+Defaults:
+    rootfs-directory = rootfs
+    output.S         = fs/ramfs_generated.S
+
+Symlinks to files inside the rootfs are preserved as separate names but share
+one embedded data payload. Symlinks pointing outside the rootfs are rejected.
 """
 from __future__ import annotations
 
 import posixpath
 import sys
 from pathlib import Path
-
-REQUIRED = ("bin/sh", "bin/toybox")
+from typing import List, Tuple
 
 
 def asm_string(value: str) -> str:
-    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
-    return f'"{escaped}"'
+    """Quote a string for GNU assembler's C-style string syntax."""
+    value = value.replace("\\", "\\\\")
+    value = value.replace('"', '\\"')
+    value = value.replace("\n", "\\n")
+    value = value.replace("\r", "\\r")
+    value = value.replace("\t", "\\t")
+    return f'"{value}"'
 
 
-def collect(root: Path):
-    root = root.resolve()
-    files = []
-    for path in sorted(root.rglob("*")):
+def collect(root: Path) -> List[Tuple[str, Path]]:
+    """Return sorted (RAMFS name, resolved regular-file path) entries."""
+    root = root.resolve(strict=True)
+    entries: List[Tuple[str, Path]] = []
+
+    for path in sorted(root.rglob("*"), key=lambda item: item.as_posix()):
         if path.is_symlink():
             try:
                 data_path = path.resolve(strict=True)
-            except FileNotFoundError:
-                print(f"[RAMFS][ERROR] broken symlink: {path}", file=sys.stderr)
+            except (FileNotFoundError, RuntimeError, OSError) as exc:
+                print(
+                    f"[RAMFS][ERROR] broken/invalid symlink: {path}: {exc}",
+                    file=sys.stderr,
+                )
                 raise SystemExit(1)
+
             if not data_path.is_file():
-                print(f"[RAMFS][ERROR] symlink target is not a file: {path} -> {data_path}", file=sys.stderr)
+                print(
+                    f"[RAMFS][ERROR] symlink target is not a regular file: "
+                    f"{path} -> {data_path}",
+                    file=sys.stderr,
+                )
                 raise SystemExit(1)
+
         elif path.is_file():
-            data_path = path
+            data_path = path.resolve()
+
         else:
             continue
 
         try:
             data_path.relative_to(root)
         except ValueError:
-            print(f"[RAMFS][ERROR] file points outside rootfs: {path} -> {data_path}", file=sys.stderr)
+            print(
+                f"[RAMFS][ERROR] file points outside rootfs: "
+                f"{path} -> {data_path}",
+                file=sys.stderr,
+            )
             raise SystemExit(1)
 
         rel = path.relative_to(root).as_posix()
-        if not rel or rel.startswith("../"):
+        rel = posixpath.normpath("/" + rel.lstrip("/"))
+
+        if rel == "/" or rel.startswith("/../"):
             continue
-        rel = "/" + posixpath.normpath(rel).lstrip("/")
-        files.append((rel, data_path.resolve()))
-    return files
+
+        if "\n" in rel or "\r" in rel:
+            print(
+                f"[RAMFS][ERROR] newline in filename is not supported: {path}",
+                file=sys.stderr,
+            )
+            raise SystemExit(1)
+
+        if data_path.stat().st_size > 0xFFFFFFFF:
+            print(
+                f"[RAMFS][ERROR] file exceeds 4 GiB RAMFS size field: {path}",
+                file=sys.stderr,
+            )
+            raise SystemExit(1)
+
+        entries.append((rel, data_path))
+
+    return entries
 
 
-def main() -> int:
-    root = Path(sys.argv[1] if len(sys.argv) > 1 else "rootfs").resolve()
-    output = Path(sys.argv[2] if len(sys.argv) > 2 else "fs/ramfs_generated.S").resolve()
-
-    if not root.is_dir():
-        print(f"[RAMFS][ERROR] rootfs directory not found: {root}", file=sys.stderr)
-        return 1
-
-    entries = collect(root)
-    if not entries:
-        print(f"[RAMFS][ERROR] rootfs is empty: {root}", file=sys.stderr)
-        return 1
-
-    names = {name for name, _ in entries}
-    missing = [p for p in REQUIRED if "/" + p not in names]
-    if missing:
-        print("[RAMFS][ERROR] required rootfs files are missing:", file=sys.stderr)
-        for item in missing:
-            print(f"  /{item}", file=sys.stderr)
-        return 1
-
-    # One payload per resolved target. Toybox symlinks therefore share one
-    # embedded data block instead of duplicating the binary for every applet.
-    unique_data = []
+def generate_assembly(
+    entries: List[Tuple[str, Path]],
+    output: Path,
+) -> None:
+    """Write valid GAS assembly with one stored copy per target path."""
+    unique_data: List[Path] = []
     data_index = {}
+
     for _, data_path in entries:
         if data_path not in data_index:
             data_index[data_path] = len(unique_data)
             unique_data.append(data_path)
 
-    output.parent.mkdir(parents=True, exist_ok=True)
     lines = [
-        "/* Auto-generated by scripts/generate_ramfs.py. */",
+        "/* Auto-generated by ramfs_generate.py; do not edit. */",
         '.section .ramfs,"a",@progbits',
         ".p2align 3",
         ".globl __blockos_ramfs_start",
@@ -92,43 +117,134 @@ def main() -> int:
         "__blockos_ramfs_start:",
     ]
 
-    for index, (name, data_path) in enumerate(entries):
-        di = data_index[data_path]
-        lines += [
+    # x86-64: pointer + pointer + uint32_t size + 4-byte padding.
+    # Each entry occupies 24 bytes.
+    for index, (_, data_path) in enumerate(entries):
+        data_id = data_index[data_path]
+
+        lines.extend([
             f"    .quad __blockos_ramfs_name_{index}",
-            f"    .quad __blockos_ramfs_data_{di}",
-            f"    .long __blockos_ramfs_size_{di}",
+            f"    .quad __blockos_ramfs_data_{data_id}",
+            f"    .long __blockos_ramfs_size_{data_id}",
             "    .long 0",
-        ]
+        ])
 
-    lines += ["__blockos_ramfs_end:", "", ".p2align 1"]
+    lines.extend([
+        "__blockos_ramfs_end:",
+        ".size __blockos_ramfs_start, "
+        "__blockos_ramfs_end-__blockos_ramfs_start",
+        "",
+        ".p2align 1",
+    ])
 
-    for di, data_path in enumerate(unique_data):
-        lines += [
-            f"__blockos_ramfs_data_{di}:",
-            f"    .incbin {asm_string(str(data_path))}",
-            f"__blockos_ramfs_data_{di}_end:",
-            f"__blockos_ramfs_size_{di} = __blockos_ramfs_data_{di}_end - __blockos_ramfs_data_{di}",
+    for data_id, data_path in enumerate(unique_data):
+        path_string = str(data_path)
+
+        if "\n" in path_string or "\r" in path_string:
+            raise ValueError(
+                f"newline in file path is not supported: {data_path}"
+            )
+
+        lines.extend([
+            f"__blockos_ramfs_data_{data_id}:",
+            f"    .incbin {asm_string(path_string)}",
+            f"__blockos_ramfs_data_{data_id}_end:",
+            f"__blockos_ramfs_size_{data_id} = "
+            f"__blockos_ramfs_data_{data_id}_end"
+            f"-__blockos_ramfs_data_{data_id}",
             "",
-        ]
+        ])
 
     for index, (name, _) in enumerate(entries):
-        lines += [
+        lines.extend([
             f"__blockos_ramfs_name_{index}:",
             f"    .asciz {asm_string(name)}",
             "",
-        ]
+        ])
 
-    output.write_text("\\n".join(lines) + "\\n", encoding="utf-8")
+    output.parent.mkdir(parents=True, exist_ok=True)
 
-    total_bytes = sum(path.stat().st_size for _, path in entries)
-    unique_bytes = sum(path.stat().st_size for path in unique_data)
+    # IMPORTANT: these are actual newline characters, not literal "\\n".
+    output.write_text(
+        "\n".join(lines) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+
+
+def main() -> int:
+    root_arg = (
+        Path(sys.argv[1])
+        if len(sys.argv) > 1
+        else Path("rootfs")
+    )
+
+    output_arg = (
+        Path(sys.argv[2])
+        if len(sys.argv) > 2
+        else Path("fs/ramfs_generated.S")
+    )
+
+    try:
+        root = root_arg.resolve(strict=True)
+    except (FileNotFoundError, OSError) as exc:
+        print(
+            f"[RAMFS][ERROR] rootfs directory not found: "
+            f"{root_arg}: {exc}",
+            file=sys.stderr,
+        )
+        return 1
+
+    if not root.is_dir():
+        print(
+            f"[RAMFS][ERROR] rootfs path is not a directory: {root}",
+            file=sys.stderr,
+        )
+        return 1
+
+    try:
+        entries = collect(root)
+    except SystemExit as exc:
+        return int(exc.code) if isinstance(exc.code, int) else 1
+    except OSError as exc:
+        print(
+            f"[RAMFS][ERROR] failed to scan rootfs: {exc}",
+            file=sys.stderr,
+        )
+        return 1
+
+    if not entries:
+        print(
+            f"[RAMFS][ERROR] no regular files found in rootfs: {root}",
+            file=sys.stderr,
+        )
+        return 1
+
+    try:
+        output = output_arg.resolve()
+        generate_assembly(entries, output)
+    except (OSError, ValueError) as exc:
+        print(
+            f"[RAMFS][ERROR] failed to generate assembly: {exc}",
+            file=sys.stderr,
+        )
+        return 1
+
+    unique_paths = {data_path for _, data_path in entries}
+    logical_bytes = sum(
+        data_path.stat().st_size for _, data_path in entries
+    )
+    stored_bytes = sum(
+        data_path.stat().st_size for data_path in unique_paths
+    )
+
     print(f"[RAMFS] files:        {len(entries)}")
-    print(f"[RAMFS] unique data:   {len(unique_data)}")
-    print(f"[RAMFS] logical bytes: {total_bytes}")
-    print(f"[RAMFS] stored bytes:  {unique_bytes}")
+    print(f"[RAMFS] unique data:   {len(unique_paths)}")
+    print(f"[RAMFS] logical bytes: {logical_bytes}")
+    print(f"[RAMFS] stored bytes:  {stored_bytes}")
     print(f"[RAMFS] rootfs:        {root}")
     print(f"[RAMFS] asm:           {output}")
+
     return 0
 
 
