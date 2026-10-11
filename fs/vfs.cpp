@@ -1,4 +1,5 @@
 #include "initramfs.hpp"
+#include "vfs.hpp"
 
 #include "kernel/allocator.hpp"
 #include "libc/include/string.h"
