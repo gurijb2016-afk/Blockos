@@ -1,3 +1,5 @@
+.DEFAULT_GOAL := all
+
 # ============================================================
 # BlockOS GNU-EFI C++ Build System
 # x86_64 UEFI
@@ -236,7 +238,7 @@ LUA_ELF    := $(LUA_DIR)/build/lua
 # ============================================================
 
 .PHONY: all
-all: $(EFI_OUT)
+all: check-efi initramfs $(EFI_OUT)
 
 .PHONY: toolchain-info
 toolchain-info:
@@ -424,7 +426,8 @@ rebuild:
 # ============================================================
 
 .PHONY: run
-run: all
+# build_and_run.sh invokes make itself. Avoid compiling twice for `make run`.
+run:
 	sh build_and_run.sh
 
 # ============================================================
