@@ -1,7 +1,6 @@
-
-
 #include "kernel/allocator.hpp"
 #include "libc/include/string.h"
+#include "fs/vfs.hpp"
 #include "fs/initramfs.hpp"
 
 #include <stddef.h>
