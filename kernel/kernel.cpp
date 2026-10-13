@@ -1334,6 +1334,30 @@ extern "C" EFI_STATUS efi_main(
      * ========================================================
      */
 
+    /* Create the framebuffer console before any fatal boot checks below.
+     * boot_error_halt() needs a live Console reference, and the VFS mount
+     * can fail before userspace or TTY initialization is complete. */
+    Console console;
+
+    if (have_gop)
+    {
+        console.attach(
+            0,
+            0,
+            static_cast<int>(fb.Width),
+            static_cast<int>(fb.Height));
+    }
+    else
+    {
+        console.attach(0, 0, 640, 480);
+    }
+
+    console.set_colors(
+        0x00FFFFFF,
+        0x00000000);
+    console.clear();
+    g_console_sink = &console;
+
     if (!vfs_init_from_ramfs()) {
         boot_error_halt(console, "initramfs mount failed; /bin/sh is unavailable");
     }
@@ -1415,27 +1439,6 @@ extern "C" EFI_STATUS efi_main(
      * The Console is the framebuffer-backed TTY output sink.
      */
 
-    Console console;
-
-    if (have_gop)
-    {
-        console.attach(
-            0,
-            0,
-            static_cast<int>(fb.Width),
-            static_cast<int>(fb.Height));
-    }
-    else
-    {
-        console.attach(0, 0, 640, 480);
-    }
-
-    console.set_colors(
-        0x00FFFFFF,
-        0x00000000);
-    console.clear();
-
-    g_console_sink = &console;
     blockos_tty_set_output_callback(
         console_sink,
         nullptr);
