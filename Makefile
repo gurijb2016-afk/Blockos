@@ -179,7 +179,7 @@ S_SRC += arch/86_64x/user_entry.S
 S_SRC += arch/86_64x/syscall_entry.S
 
 # Do not compile the stale generated table from the old RAMFS implementation.
-S_SRC := $(filter-out fs/ramfs_generated.S,$(S_SRC))
+S_SRC := $(filter-out fs/ramfs_generated.S drivers/ap_stack_switch.S,$(S_SRC))
 
 # ============================================================
 # BUILD OUTPUTS AND INITRAMFS
@@ -410,6 +410,8 @@ menuconfig:
 clean:
 	rm -f $(OBJ)
 	rm -f $(DEP)
+	# Remove stale objects from assembly files intentionally excluded from S_SRC.
+	rm -f drivers/ap_stack_switch.o drivers/ap_stack_switch.d
 	rm -rf $(BUILD_DIR)
 
 # ============================================================
