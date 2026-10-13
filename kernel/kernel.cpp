@@ -1334,7 +1334,9 @@ extern "C" EFI_STATUS efi_main(
      * ========================================================
      */
 
-    vfs_init_from_ramfs();
+    if (!vfs_init_from_ramfs()) {
+        boot_error_halt(console, "initramfs mount failed; /bin/sh is unavailable");
+    }
     blockos_tty_init();
     blockos::input::init();
 
@@ -1576,7 +1578,8 @@ extern "C" EFI_STATUS efi_main(
     process::Process* shell_process =
         process::create(
             shell_elf,
-            (size_t) shell_size);
+            (size_t) shell_size,
+            first_user);
 
     if (!shell_process)
     {

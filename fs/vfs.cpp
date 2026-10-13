@@ -1067,9 +1067,9 @@ void initialize_devices()
 
 } // namespace vfs
 
-void vfs_init_from_ramfs()
+bool vfs_init_from_ramfs()
 {
-    // Load the embedded CPIO initramfs into the VFS.
+    // Do not hide malformed archives or VFS installation failures from boot.
     // initramfs::mount() initializes the base device directories too.
-    (void)blockos::initramfs::mount();
+    return blockos::initramfs::mount();
 }

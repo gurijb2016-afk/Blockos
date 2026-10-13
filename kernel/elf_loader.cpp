@@ -37,6 +37,7 @@ bool elf_loader::load_elf64_into(
     if (e->type == ET_DYN) load_bias = fixed_base ? fixed_base : DEFAULT_DYN_BASE;
 
     bool loaded = false;
+    bool entry_is_executable = false;
     uint64_t phdr_vaddr = 0;
 
     for (uint16_t i = 0; i < e->phnum; i++) {
@@ -55,6 +56,7 @@ bool elf_loader::load_elf64_into(
 
         if (p.type != PT_LOAD) continue;
         if (p.memsz < p.filesz || (p.align && (p.align & (p.align - 1)))) return false;
+        if (p.memsz == 0) continue;
 
         uint64_t fend = 0;
         if (!add_ok(p.offset, p.filesz, &fend) || fend > size) return false;
@@ -64,6 +66,8 @@ bool elf_loader::load_elf64_into(
         uint64_t vend = 0;
         if (!add_ok(seg_vaddr, p.memsz, &vend) || vend > USER_TOP) return false;
         if (seg_vaddr < 0x1000 || vend <= seg_vaddr) return false;
+        if ((p.flags & PF_X) && e->entry >= p.vaddr && e->entry < p.vaddr + p.memsz)
+            entry_is_executable = true;
 
         // If this segment's file range covers the program header table,
         // remember where the headers ended up in the mapped address space -
@@ -98,10 +102,11 @@ bool elf_loader::load_elf64_into(
         loaded = true;
     }
 
-    if (!loaded) return false;
+    if (!loaded || !entry_is_executable) return false;
 
-    uint64_t final_entry = e->entry + load_bias;
-    if (final_entry < 0x1000 || final_entry >= USER_TOP) return false;
+    uint64_t final_entry = 0;
+    if (!add_ok(e->entry, load_bias, &final_entry) ||
+        final_entry < 0x1000 || final_entry >= USER_TOP) return false;
 
     out->entry      = final_entry;
     out->load_bias  = load_bias;

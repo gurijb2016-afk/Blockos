@@ -88,11 +88,20 @@ Process* spawn(const void* elf, size_t size, const char* path) {
     uint64_t start_entry, start_rsp;
 
     if (!main_image.has_interp) {
-        uint64_t stack_base = STACK_TOP - STACK_PAGES * PAGE;
-        if (!paging::map_user_range(pml4, stack_base, STACK_PAGES * PAGE, USER_FLAGS))
+        /* Even a static ELF must start with the SysV process stack:
+         * argc, argv[], envp[], and auxv. A blank mapped stack (or merely
+         * STACK_TOP-16) leaves crt0 reading garbage as argc/argv. */
+        const char* argv[1] = { path ? path : "/bin/sh" };
+        const char* envp[2] = {
+            "PATH=/system/bin:/bin",
+            "HOME=/root"
+        };
+        start_rsp = elf_loader::build_initial_stack(
+            pml4, STACK_TOP, STACK_PAGES, argv, 1, envp, 2,
+            main_image, 0);
+        if (!start_rsp)
             return nullptr;
         start_entry = main_image.entry;
-        start_rsp = STACK_TOP - 16;
     } else {
         uint32_t interp_size = 0;
         const uint8_t* interp_buf = vfs::read_file(main_image.interp_path, &interp_size);
