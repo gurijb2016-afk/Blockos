@@ -1,0 +1,549 @@
+number,audit,type,name,status,prototype,source_line
+0,AUE_NULL,SYSMUX,syscall,multiplexer,"{ int syscall( int number, ... ); }",122
+1,AUE_EXIT,STD|CAPENABLED|NORETURN,_exit,defined-in-master,{ void _exit( int rval ); },128
+2,AUE_FORK,STD|CAPENABLED,fork,defined-in-master,{ int fork(void); },133
+3,AUE_READ,STD|CAPENABLED,read,defined-in-master,"{ ssize_t read( int fd, _Out_writes_bytes_(nbyte) void *buf, size_t nbyte ); }",136
+4,AUE_WRITE,STD|CAPENABLED,write,defined-in-master,"{ ssize_t write( int fd, _In_reads_bytes_(nbyte) const void *buf, size_t nbyte ); }",143
+5,AUE_OPEN_RWTC,STD,open,defined-in-master,"{ int open( _In_z_ const char *path, int flags, mode_t mode ); } ; XXX should be { int open(const char *path, int flags, ...); } ; but we're not ready for varargs.",150
+6,AUE_CLOSE,STD|CAPENABLED,close,defined-in-master,{ int close( int fd ); },159
+7,AUE_WAIT4,STD|CAPENABLED,wait4,defined-in-master,"{ int wait4( int pid, _Out_opt_ int *status, int options, _Out_opt_ _Contains_long_timet_ struct rusage *rusage ); }",164
+8,AUE_CREAT,COMPAT,creat,defined-in-master,"{ int creat( _In_z_ const char *path, int mode ); }",172
+9,AUE_LINK,STD,link,defined-in-master,"{ int link( _In_z_ const char *path, _In_z_ const char *link ); }",178
+10,AUE_UNLINK,STD,unlink,defined-in-master,{ int unlink( _In_z_ const char *path ); },184
+11,AUE_NULL,OBSOL,execv,obsolete,execv,189
+12,AUE_CHDIR,STD,chdir,defined-in-master,{ int chdir( _In_z_ const char *path ); },190
+13,AUE_FCHDIR,STD,fchdir,defined-in-master,{ int fchdir( int fd ); },195
+14,AUE_MKNOD,COMPAT11,mknod,defined-in-master,"{ int mknod( _In_z_ const char *path, int mode, uint32_t dev ); }",200
+15,AUE_CHMOD,STD,chmod,defined-in-master,"{ int chmod( _In_z_ const char *path, mode_t mode ); }",207
+16,AUE_CHOWN,STD,chown,defined-in-master,"{ int chown( _In_z_ const char *path, int uid, int gid ); }",213
+17,AUE_NULL,STD|CAPENABLED,break,defined-in-master,{ void *break( _In_ char *nsize ); },220
+18,AUE_GETFSSTAT,COMPAT4,getfsstat,defined-in-master,"{ int getfsstat( _Out_writes_bytes_opt_(bufsize) _Contains_long_ struct ostatfs *buf, long bufsize, int mode ); }",225
+19,AUE_LSEEK,COMPAT|CAPENABLED,lseek,defined-in-master,"{ long lseek( int fd, long offset, int whence ); }",232
+20,AUE_GETPID,STD|CAPENABLED,getpid,defined-in-master,{ pid_t getpid(void); },239
+21,AUE_MOUNT,STD,mount,defined-in-master,"{ int mount( _In_z_ const char *type, _In_z_ const char *path, int flags, _In_opt_ void *data ); }",242
+22,AUE_UMOUNT,STD,unmount,defined-in-master,"{ int unmount( _In_z_ const char *path, int flags ); }",250
+23,AUE_SETUID,STD|CAPENABLED,setuid,defined-in-master,{ int setuid( uid_t uid ); },256
+24,AUE_GETUID,STD|CAPENABLED,getuid,defined-in-master,{ uid_t getuid(void); },261
+25,AUE_GETEUID,STD|CAPENABLED,geteuid,defined-in-master,{ uid_t geteuid(void); },264
+26,AUE_PTRACE,STD|CAPENABLED,ptrace,defined-in-master,"{ int ptrace( int req, pid_t pid, _Inout_opt_ _Contains_long_ptr_ caddr_t addr, int data ); }",267
+27,AUE_RECVMSG,STD|CAPENABLED,recvmsg,defined-in-master,"{ ssize_t recvmsg( int s, _Inout_ _Contains_ptr_ struct msghdr *msg, int flags ); }",275
+28,AUE_SENDMSG,STD|CAPENABLED,sendmsg,defined-in-master,"{ ssize_t sendmsg( int s, _In_ _Contains_ptr_ const struct msghdr *msg, int flags ); }",282
+29,AUE_RECVFROM,STD|CAPENABLED,recvfrom,defined-in-master,"{ ssize_t recvfrom( int s, _Out_writes_bytes_(len) void *buf, size_t len, int flags, _Out_writes_bytes_opt_(*fromlenaddr) struct sockaddr *from, _Inout_opt_ __socklen_t *fromlenaddr ); }",289
+30,AUE_ACCEPT,STD|CAPENABLED,accept,defined-in-master,"{ int accept( int s, _Out_writes_bytes_opt_(*anamelen) struct sockaddr *name, _Inout_opt_ __socklen_t *anamelen ); }",299
+31,AUE_GETPEERNAME,STD|CAPENABLED,getpeername,defined-in-master,"{ int getpeername( int fdes, _Out_writes_bytes_(*alen) struct sockaddr *asa, _Inout_opt_ __socklen_t *alen ); }",306
+32,AUE_GETSOCKNAME,STD|CAPENABLED,getsockname,defined-in-master,"{ int getsockname( int fdes, _Out_writes_bytes_(*alen) struct sockaddr *asa, _Inout_ __socklen_t *alen ); }",313
+33,AUE_ACCESS,STD,access,defined-in-master,"{ int access( _In_z_ const char *path, int amode ); }",320
+34,AUE_CHFLAGS,STD,chflags,defined-in-master,"{ int chflags( _In_z_ const char *path, u_long flags ); }",326
+35,AUE_FCHFLAGS,STD|CAPENABLED,fchflags,defined-in-master,"{ int fchflags( int fd, u_long flags ); }",332
+36,AUE_SYNC,STD|CAPENABLED,sync,defined-in-master,{ int sync(void); },338
+37,AUE_KILL,STD|CAPENABLED,kill,defined-in-master,"{ int kill( int pid, int signum ); }",341
+38,AUE_STAT,COMPAT,stat,defined-in-master,"{ int stat( _In_z_ const char *path, _Out_ _Contains_timet_ struct ostat *ub ); }",347
+39,AUE_GETPPID,STD|CAPENABLED,getppid,defined-in-master,{ pid_t getppid(void); },353
+40,AUE_LSTAT,COMPAT,lstat,defined-in-master,"{ int lstat( _In_z_ const char *path, _Out_ _Contains_timet_ struct ostat *ub ); }",356
+41,AUE_DUP,STD|CAPENABLED,dup,defined-in-master,{ int dup( u_int fd ); },362
+42,AUE_PIPE,COMPAT10|CAPENABLED,pipe,defined-in-master,{ int pipe(void); },367
+43,AUE_GETEGID,STD|CAPENABLED,getegid,defined-in-master,{ gid_t getegid(void); },370
+44,AUE_PROFILE,STD|CAPENABLED,profil,defined-in-master,"{ int profil( _Out_writes_bytes_(size) char *samples, size_t size, size_t offset, u_int scale ); }",373
+45,AUE_KTRACE,STD,ktrace,defined-in-master,"{ int ktrace( _In_z_ const char *fname, int ops, int facs, int pid ); }",381
+46,AUE_SIGACTION,COMPAT|CAPENABLED,sigaction,defined-in-master,"{ int sigaction( int signum, _In_opt_ _Contains_ptr_ struct osigaction *nsa, _Out_opt_ _Contains_ptr_ struct osigaction *osa ); }",389
+47,AUE_GETGID,STD|CAPENABLED,getgid,defined-in-master,{ gid_t getgid(void); },396
+48,AUE_SIGPROCMASK,COMPAT|CAPENABLED,sigprocmask,defined-in-master,"{ int sigprocmask( int how, osigset_t mask ); } ; XXX note nonstandard (bogus) calling convention - the libc stub passes ; us the mask, not a pointer to it, and we return the old mask as the ; (int) return value.",399
+49,AUE_GETLOGIN,STD|CAPENABLED,getlogin,defined-in-master,"{ int getlogin( _Out_writes_z_(namelen) char *namebuf, u_int namelen ); }",408
+50,AUE_SETLOGIN,STD,setlogin,defined-in-master,{ int setlogin( _In_z_ const char *namebuf ); },414
+51,AUE_ACCT,STD,acct,defined-in-master,{ int acct( _In_z_ const char *path ); },419
+52,AUE_SIGPENDING,COMPAT|CAPENABLED,sigpending,defined-in-master,{ int sigpending(void); },424
+53,AUE_SIGALTSTACK,STD|CAPENABLED,sigaltstack,defined-in-master,"{ int sigaltstack( _In_opt_ _Contains_long_ptr_ const struct sigaltstack *ss, _Out_opt_ _Contains_long_ptr_ struct sigaltstack *oss ); }",427
+54,AUE_IOCTL,STD|CAPENABLED,ioctl,defined-in-master,"{ int ioctl( int fd, u_long com, _Inout_opt_ _Contains_long_ptr_ char *data ); }",433
+55,AUE_REBOOT,STD,reboot,defined-in-master,{ int reboot( int opt ); },440
+56,AUE_REVOKE,STD,revoke,defined-in-master,{ int revoke( _In_z_ const char *path ); },445
+57,AUE_SYMLINK,STD,symlink,defined-in-master,"{ int symlink( _In_z_ const char *path, _In_z_ const char *link ); }",450
+58,AUE_READLINK,STD,readlink,defined-in-master,"{ ssize_t readlink( _In_z_ const char *path, _Out_writes_z_(count) char *buf, size_t count ); }",456
+59,AUE_EXECVE,STD,execve,defined-in-master,"{ int execve( _In_z_ const char *fname, _In_z_ char **argv, _In_z_ char **envv ); }",463
+60,AUE_UMASK,STD|CAPENABLED,umask,defined-in-master,{ mode_t umask( mode_t newmask ); },470
+61,AUE_CHROOT,STD,chroot,defined-in-master,{ int chroot( _In_z_ const char *path ); },475
+62,AUE_FSTAT,COMPAT|CAPENABLED,fstat,defined-in-master,"{ int fstat( int fd, _Out_ _Contains_timet_ struct ostat *sb ); }",480
+63,AUE_NULL,COMPAT,getkerninfo,defined-in-master,"{ int getkerninfo( int op, _Out_writes_bytes_opt(*size) char *where, _Inout_opt_ size_t *size, int arg ); }",486
+64,AUE_NULL,COMPAT|CAPENABLED,getpagesize,defined-in-master,{ int getpagesize(void); },494
+65,AUE_MSYNC,STD|CAPENABLED,msync,defined-in-master,"{ int msync( _In_ void *addr, size_t len, int flags ); }",497
+66,AUE_VFORK,STD|CAPENABLED,vfork,defined-in-master,{ int vfork(void); },504
+67,AUE_NULL,OBSOL,vread,obsolete,vread,507
+68,AUE_NULL,OBSOL,vwrite,obsolete,vwrite,508
+69,AUE_NULL,OBSOL,sbrk,obsolete,sbrk,509
+70,AUE_NULL,OBSOL,sstk,obsolete,sstk,510
+71,AUE_MMAP,COMPAT|CAPENABLED,mmap,defined-in-master,"{ void *mmap( _In_ void *addr, int len, int prot, int flags, int fd, long pos ); }",511
+72,AUE_O_VADVISE,COMPAT11,vadvise,defined-in-master,{ int vadvise( int anom ); },521
+73,AUE_MUNMAP,STD|CAPENABLED,munmap,defined-in-master,"{ int munmap( _In_ void *addr, size_t len ); }",526
+74,AUE_MPROTECT,STD|CAPENABLED,mprotect,defined-in-master,"{ int mprotect( _In_ void *addr, size_t len, int prot ); }",532
+75,AUE_MADVISE,STD|CAPENABLED,madvise,defined-in-master,"{ int madvise( _In_ void *addr, size_t len, int behav ); }",539
+76,AUE_NULL,OBSOL,vhangup,obsolete,vhangup,546
+77,AUE_NULL,OBSOL,vlimit,obsolete,vlimit,547
+78,AUE_MINCORE,STD|CAPENABLED,mincore,defined-in-master,"{ int mincore( _In_ const void *addr, size_t len, _Out_writes_bytes_(len/PAGE_SIZE) char *vec ); }",548
+79,AUE_GETGROUPS,COMPAT14|CAPENABLED,getgroups,defined-in-master,"{ int getgroups( int gidsetsize, _Out_writes_opt_(gidsetsize) gid_t *gidset ); }",555
+80,AUE_SETGROUPS,COMPAT14,setgroups,defined-in-master,"{ int setgroups( int gidsetsize, _In_reads_(gidsetsize) const gid_t *gidset ); }",561
+81,AUE_GETPGRP,STD|CAPENABLED,getpgrp,defined-in-master,{ int getpgrp(void); },567
+82,AUE_SETPGRP,STD,setpgid,defined-in-master,"{ int setpgid( int pid, int pgid ); }",570
+83,AUE_SETITIMER,STD|CAPENABLED,setitimer,defined-in-master,"{ int setitimer( int which, _In_ _Contains_timet_ const struct itimerval *itv, _Out_opt_ _Contains_timet_ struct itimerval *oitv ); }",576
+84,AUE_WAIT4,COMPAT,wait,defined-in-master,{ int wait(void); },583
+85,AUE_SWAPON,STD,swapon,defined-in-master,{ int swapon( _In_z_ const char *name ); },586
+86,AUE_GETITIMER,STD|CAPENABLED,getitimer,defined-in-master,"{ int getitimer( int which, _Out_ _Contains_timet_ struct itimerval *itv ); }",591
+87,AUE_SYSCTL,COMPAT|CAPENABLED,gethostname,defined-in-master,"{ int gethostname( _Out_writes_z_(len) char *hostname, u_int len ); }",597
+88,AUE_SYSCTL,COMPAT,sethostname,defined-in-master,"{ int sethostname( _In_reads_z_(len) char *hostname, u_int len ); }",603
+89,AUE_GETDTABLESIZE,STD|CAPENABLED,getdtablesize,defined-in-master,{ int getdtablesize(void); },609
+90,AUE_DUP2,STD|CAPENABLED,dup2,defined-in-master,"{ int dup2( u_int from, u_int to ); } 91 AUE_NULL RESERVED",612
+92,AUE_FCNTL,STD|CAPENABLED,fcntl,defined-in-master,"{ int fcntl( int fd, int cmd, intptr_t arg ); } ; XXX should be { int fcntl(int fd, int cmd, ...); } ; but we're not ready for varargs.",619
+93,AUE_SELECT,STD|CAPENABLED,select,defined-in-master,"{ int select( int nd, _Inout_opt_ fd_set *in, _Inout_opt_ fd_set *ou, _Inout_opt_ fd_set *ex, _In_opt_ _Contains_long_timet_ struct timeval *tv ); } 94 AUE_NULL RESERVED",628
+95,AUE_FSYNC,STD|CAPENABLED,fsync,defined-in-master,{ int fsync( int fd ); },638
+96,AUE_SETPRIORITY,STD|CAPENABLED,setpriority,defined-in-master,"{ int setpriority( int which, int who, int prio ); }",643
+97,AUE_SOCKET,STD|CAPENABLED,socket,defined-in-master,"{ int socket( int domain, int type, int protocol ); }",650
+98,AUE_CONNECT,STD,connect,defined-in-master,"{ int connect( int s, _In_reads_bytes_(namelen) const struct sockaddr *name, __socklen_t namelen ); }",657
+99,AUE_ACCEPT,COMPAT|CAPENABLED,accept,defined-in-master,"{ int accept( int s, _Out_writes_bytes_opt_(*anamelen) struct sockaddr *name, __socklen_t *anamelen ); }",664
+100,AUE_GETPRIORITY,STD|CAPENABLED,getpriority,defined-in-master,"{ int getpriority( int which, int who ); }",671
+101,AUE_SEND,COMPAT|CAPENABLED,send,defined-in-master,"{ int send( int s, _In_reads_bytes_(len) const void *buf, int len, int flags ); }",677
+102,AUE_RECV,COMPAT|CAPENABLED,recv,defined-in-master,"{ int recv( int s, _Out_writes_bytes_(len) void *buf, int len, int flags ); }",685
+103,AUE_SIGRETURN,COMPAT|CAPENABLED,sigreturn,defined-in-master,{ int sigreturn( _In_ struct osigcontext *sigcntxp ); },693
+104,AUE_BIND,STD,bind,defined-in-master,"{ int bind( int s, _In_reads_bytes_(namelen) const struct sockaddr *name, __socklen_t namelen ); }",698
+105,AUE_SETSOCKOPT,STD|CAPENABLED,setsockopt,defined-in-master,"{ int setsockopt( int s, int level, int name, _In_reads_bytes_opt_(valsize) const void *val, __socklen_t valsize ); }",705
+106,AUE_LISTEN,STD|CAPENABLED,listen,defined-in-master,"{ int listen( int s, int backlog ); }",714
+107,AUE_NULL,OBSOL,vtimes,obsolete,vtimes,720
+108,AUE_NULL,COMPAT|CAPENABLED,sigvec,defined-in-master,"{ int sigvec( int signum, _In_opt_ _Contains_ptr_ struct sigvec *nsv, _Out_opt_ _Contains_ptr_ struct sigvec *osv ); }",721
+109,AUE_NULL,COMPAT|CAPENABLED,sigblock,defined-in-master,{ int sigblock( int mask ); },728
+110,AUE_NULL,COMPAT|CAPENABLED,sigsetmask,defined-in-master,{ int sigsetmask( int mask ); },733
+111,AUE_NULL,COMPAT|CAPENABLED,sigsuspend,defined-in-master,"{ int sigsuspend( osigset_t mask ); } ; XXX note nonstandard (bogus) calling convention - the libc stub passes ; us the mask, not a pointer to it.",738
+112,AUE_NULL,COMPAT|CAPENABLED,sigstack,defined-in-master,"{ int sigstack( _In_opt_ _Contains_ptr_ struct sigstack *nss, _Out_opt_ _Contains_ptr_ struct sigstack *oss ); }",745
+113,AUE_RECVMSG,COMPAT|CAPENABLED,recvmsg,defined-in-master,"{ int recvmsg( int s, _Inout_ _Contains_ptr_ struct omsghdr *msg, int flags ); }",751
+114,AUE_SENDMSG,COMPAT|CAPENABLED,sendmsg,defined-in-master,"{ int sendmsg( int s, _In_ _Contains_ptr_ const struct omsghdr *msg, int flags ); }",758
+115,AUE_NULL,OBSOL,vtrace,obsolete,vtrace,765
+116,AUE_GETTIMEOFDAY,STD|CAPENABLED,gettimeofday,defined-in-master,"{ int gettimeofday( _Out_ _Contains_long_timet_ struct timeval *tp, _Out_opt_ struct timezone *tzp ); }",766
+117,AUE_GETRUSAGE,STD|CAPENABLED,getrusage,defined-in-master,"{ int getrusage( int who, _Out_ _Contains_long_ struct rusage *rusage ); }",772
+118,AUE_GETSOCKOPT,STD|CAPENABLED,getsockopt,defined-in-master,"{ int getsockopt( int s, int level, int name, _Out_writes_bytes_opt_(*avalsize) void *val, _Inout_ __socklen_t *avalsize ); } 119 AUE_NULL RESERVED",778
+120,AUE_READV,STD|CAPENABLED,readv,defined-in-master,"{ ssize_t readv( int fd, _In_reads_(iovcnt) _Contains_long_ptr_ const struct iovec *iovp, u_int iovcnt ); }",788
+121,AUE_WRITEV,STD|CAPENABLED,writev,defined-in-master,"{ ssize_t writev( int fd, _In_reads_(iovcnt) _Contains_long_ptr_ const struct iovec *iovp, u_int iovcnt ); }",795
+122,AUE_SETTIMEOFDAY,STD,settimeofday,defined-in-master,"{ int settimeofday( _In_ _Contains_long_timet_ const struct timeval *tv, _In_opt_ const struct timezone *tzp ); }",802
+123,AUE_FCHOWN,STD|CAPENABLED,fchown,defined-in-master,"{ int fchown( int fd, int uid, int gid ); }",808
+124,AUE_FCHMOD,STD|CAPENABLED,fchmod,defined-in-master,"{ int fchmod( int fd, mode_t mode ); }",815
+125,AUE_RECVFROM,COMPAT|CAPENABLED,recvfrom,defined-in-master,"{ int recvfrom( int s, _Out_writes_(len) void *buf, size_t len, int flags, _Out_writes_bytes_(*fromlenaddr) struct sockaddr *from, _Inout_ __socklen_t *fromlenaddr ); }",821
+126,AUE_SETREUID,STD|CAPENABLED,setreuid,defined-in-master,"{ int setreuid( int ruid, int euid ); }",831
+127,AUE_SETREGID,STD|CAPENABLED,setregid,defined-in-master,"{ int setregid( int rgid, int egid ); }",837
+128,AUE_RENAME,STD,rename,defined-in-master,"{ int rename( _In_z_ const char *from, _In_z_ const char *to ); }",843
+129,AUE_TRUNCATE,COMPAT,truncate,defined-in-master,"{ int truncate( _In_z_ const char *path, long length ); }",849
+130,AUE_FTRUNCATE,COMPAT|CAPENABLED,ftruncate,defined-in-master,"{ int ftruncate( int fd, long length ); }",855
+131,AUE_FLOCK,STD|CAPENABLED,flock,defined-in-master,"{ int flock( int fd, int how ); }",861
+132,AUE_MKFIFO,STD,mkfifo,defined-in-master,"{ int mkfifo( _In_z_ const char *path, mode_t mode ); }",867
+133,AUE_SENDTO,STD|CAPENABLED,sendto,defined-in-master,"{ ssize_t sendto( int s, _In_reads_bytes_(len) const void *buf, size_t len, int flags, _In_reads_bytes_opt_(tolen) const struct sockaddr *to, __socklen_t tolen ); }",873
+134,AUE_SHUTDOWN,STD|CAPENABLED,shutdown,defined-in-master,"{ int shutdown( int s, int how ); }",883
+135,AUE_SOCKETPAIR,STD|CAPENABLED,socketpair,defined-in-master,"{ int socketpair( int domain, int type, int protocol, _Out_writes_(2) int *rsv ); }",889
+136,AUE_MKDIR,STD,mkdir,defined-in-master,"{ int mkdir( _In_z_ const char *path, mode_t mode ); }",897
+137,AUE_RMDIR,STD,rmdir,defined-in-master,{ int rmdir( _In_z_ const char *path ); },903
+138,AUE_UTIMES,STD,utimes,defined-in-master,"{ int utimes( _In_z_ const char *path, _In_ _Contains_long_timet_ const struct timeval *tptr ); }",908
+139,AUE_NULL,OBSOL,sigreturn,obsolete,sigreturn,914
+140,AUE_ADJTIME,STD,adjtime,defined-in-master,"{ int adjtime( _In_ _Contains_long_timet_ const struct timeval *delta, _Out_opt_ _Contains_long_timet_ struct timeval *olddelta ); }",915
+141,AUE_GETPEERNAME,COMPAT|CAPENABLED,getpeername,defined-in-master,"{ int getpeername( int fdes, _Out_writes_bytes_(*alen) struct sockaddr *asa, _Inout_opt_ __socklen_t *alen ); }",921
+142,AUE_SYSCTL,COMPAT|CAPENABLED,gethostid,defined-in-master,{ long gethostid(void); },928
+143,AUE_SYSCTL,COMPAT,sethostid,defined-in-master,{ int sethostid( long hostid ); },931
+144,AUE_GETRLIMIT,COMPAT|CAPENABLED,getrlimit,defined-in-master,"{ int getrlimit( u_int which, _Out_ struct orlimit *rlp ); }",936
+145,AUE_SETRLIMIT,COMPAT|CAPENABLED,setrlimit,defined-in-master,"{ int setrlimit( u_int which, _Out_ struct orlimit *rlp ); }",942
+146,AUE_KILLPG,COMPAT,killpg,defined-in-master,"{ int killpg( int pgid, int signum ); }",948
+147,AUE_SETSID,STD|CAPENABLED,setsid,defined-in-master,{ int setsid(void); },954
+148,AUE_QUOTACTL,STD,quotactl,defined-in-master,"{ int quotactl( _In_z_ const char *path, int cmd, int uid, _In_ void *arg ); }",957
+149,AUE_O_QUOTA,COMPAT,quota,defined-in-master,{ int quota(void); },965
+150,AUE_GETSOCKNAME,COMPAT|CAPENABLED,getsockname,defined-in-master,"{ int getsockname( int fdes, _Out_writes_bytes_(*alen) struct sockaddr *asa, _Inout_ __socklen_t *alen ); } 151-153 AUE_NULL RESERVED ; 154 is initialised by the NLM code, if present.",968
+154,AUE_NULL,NOSTD,nlm_syscall,defined-in-master,"{ int nlm_syscall( int debug_level, int grace_period, int addr_count, _In_reads_(addr_count) char **addrs ); } ; 155 is initialized by the NFS code, if present.",977
+155,AUE_NFS_SVC,NOSTD,nfssvc,defined-in-master,"{ int nfssvc( int flag, _In_ void *argp ); }",986
+156,AUE_GETDIRENTRIES,COMPAT|CAPENABLED,getdirentries,defined-in-master,"{ int getdirentries( int fd, _Out_writes_bytes_(count) char *buf, u_int count, _Out_opt_ long *basep ); }",992
+157,AUE_STATFS,COMPAT4,statfs,defined-in-master,"{ int statfs( _In_z_ const char *path, _Out_ _Contains_long_ struct ostatfs *buf ); }",1000
+158,AUE_FSTATFS,COMPAT4|CAPENABLED,fstatfs,defined-in-master,"{ int fstatfs( int fd, _Out_ _Contains_long_ struct ostatfs *buf ); } 159 AUE_NULL RESERVED",1006
+160,AUE_LGETFH,STD,lgetfh,defined-in-master,"{ int lgetfh( _In_z_ const char *fname, _Out_ struct fhandle *fhp ); }",1013
+161,AUE_NFS_GETFH,STD,getfh,defined-in-master,"{ int getfh( _In_z_ const char *fname, _Out_ struct fhandle *fhp ); }",1019
+162,AUE_SYSCTL,COMPAT4|CAPENABLED,getdomainname,defined-in-master,"{ int getdomainname( _Out_writes_z_(len) char *domainname, int len ); }",1025
+163,AUE_SYSCTL,COMPAT4,setdomainname,defined-in-master,"{ int setdomainname( _In_reads_z_(len) char *domainname, int len ); }",1031
+164,AUE_NULL,COMPAT4,uname,defined-in-master,{ int uname( _Out_ struct utsname *name ); },1037
+165,AUE_SYSARCH,STD|CAPENABLED,sysarch,defined-in-master,"{ int sysarch( int op, _In_z_ char *parms ); }",1042
+166,AUE_RTPRIO,STD|CAPENABLED,rtprio,defined-in-master,"{ int rtprio( int function, pid_t pid, _Inout_ struct rtprio *rtp ); } 167-168 AUE_NULL RESERVED",1048
+169,AUE_SEMSYS,NOSTD,semsys,defined-in-master,"{ int semsys( int which, int a2, int a3, int a4, int a5 ); } ; XXX should be { int semsys(int which, ...); }",1056
+170,AUE_MSGSYS,NOSTD,msgsys,defined-in-master,"{ int msgsys( int which, int a2, int a3, int a4, int a5, int a6 ); } ; XXX should be { int msgsys(int which, ...); }",1066
+171,AUE_SHMSYS,NOSTD,shmsys,defined-in-master,"{ int shmsys( int which, int a2, int a3, int a4 ); } ; XXX should be { int shmsys(int which, ...); } 172 AUE_NULL RESERVED",1077
+173,AUE_PREAD,COMPAT6|CAPENABLED,pread,defined-in-master,"{ ssize_t pread( int fd, _Out_writes_bytes_(nbyte) void *buf, size_t nbyte, int pad, off_t offset ); }",1087
+174,AUE_PWRITE,COMPAT6|CAPENABLED,pwrite,defined-in-master,"{ ssize_t pwrite( int fd, _In_reads_bytes_(nbyte) const void *buf, size_t nbyte, int pad, off_t offset ); }",1096
+175,AUE_SETFIB,STD,setfib,defined-in-master,{ int setfib( int fibnum ); },1105
+176,AUE_NTP_ADJTIME,STD,ntp_adjtime,defined-in-master,{ int ntp_adjtime( _Inout_ _Contains_long_ struct timex *tp ); } 177-180 AUE_NULL RESERVED,1110
+181,AUE_SETGID,STD|CAPENABLED,setgid,defined-in-master,{ int setgid( gid_t gid ); },1116
+182,AUE_SETEGID,STD|CAPENABLED,setegid,defined-in-master,{ int setegid( gid_t egid ); },1121
+183,AUE_SETEUID,STD|CAPENABLED,seteuid,defined-in-master,{ int seteuid( uid_t euid ); },1126
+184,AUE_NULL,OBSOL,lfs_bmapv,obsolete,lfs_bmapv,1131
+185,AUE_NULL,OBSOL,lfs_markv,obsolete,lfs_markv,1132
+186,AUE_NULL,OBSOL,lfs_segclean,obsolete,lfs_segclean,1133
+187,AUE_NULL,OBSOL,lfs_segwait,obsolete,lfs_segwait,1134
+188,AUE_STAT,COMPAT11,stat,defined-in-master,"{ int stat( _In_z_ const char *path, _Out_ _Contains_timet_ struct freebsd11_stat *ub ); }",1135
+189,AUE_FSTAT,COMPAT11|CAPENABLED,fstat,defined-in-master,"{ int fstat( int fd, _Out_ _Contains_timet_ struct freebsd11_stat *sb ); }",1141
+190,AUE_LSTAT,COMPAT11,lstat,defined-in-master,"{ int lstat( _In_z_ const char *path, _Out_ _Contains_timet_ struct freebsd11_stat *ub ); }",1147
+191,AUE_PATHCONF,STD,pathconf,defined-in-master,"{ int pathconf( _In_z_ const char *path, int name ); }",1153
+192,AUE_FPATHCONF,STD|CAPENABLED,fpathconf,defined-in-master,"{ int fpathconf( int fd, int name ); } 193 AUE_NULL RESERVED",1159
+194,AUE_GETRLIMIT,STD|CAPENABLED,getrlimit,defined-in-master,"{ int getrlimit( u_int which, _Out_ struct rlimit *rlp ); }",1166
+195,AUE_SETRLIMIT,STD|CAPENABLED,setrlimit,defined-in-master,"{ int setrlimit( u_int which, _In_ struct rlimit *rlp ); }",1172
+196,AUE_GETDIRENTRIES,COMPAT11|CAPENABLED,getdirentries,defined-in-master,"{ int getdirentries( int fd, _Out_writes_bytes_(count) char *buf, u_int count, _Out_opt_ long *basep ); }",1178
+197,AUE_MMAP,COMPAT6|CAPENABLED,mmap,defined-in-master,"{ void *mmap( _In_ void *addr, size_t len, int prot, int flags, int fd, int pad, off_t pos ); }",1186
+198,AUE_NULL,SYSMUX,syscall,multiplexer,"{ int __syscall( int64_t number, ... ); }",1197
+199,AUE_LSEEK,COMPAT6|CAPENABLED,lseek,defined-in-master,"{ off_t lseek( int fd, int pad, off_t offset, int whence ); }",1203
+200,AUE_TRUNCATE,COMPAT6,truncate,defined-in-master,"{ int truncate( _In_z_ const char *path, int pad, off_t length ); }",1211
+201,AUE_FTRUNCATE,COMPAT6|CAPENABLED,ftruncate,defined-in-master,"{ int ftruncate( int fd, int pad, off_t length ); }",1218
+202,AUE_SYSCTL,STD|CAPENABLED,__sysctl,defined-in-master,"{ int __sysctl( _In_reads_(namelen) const int *name, u_int namelen, _Out_writes_bytes_opt_(*oldlenp) void *old, _Inout_opt_ size_t *oldlenp, _In_reads_bytes_opt_(newlen) const void *new, size_t newlen ); }",1225
+203,AUE_MLOCK,STD|CAPENABLED,mlock,defined-in-master,"{ int mlock( _In_ const void *addr, size_t len ); }",1235
+204,AUE_MUNLOCK,STD|CAPENABLED,munlock,defined-in-master,"{ int munlock( _In_ const void *addr, size_t len ); }",1241
+205,AUE_UNDELETE,STD,undelete,defined-in-master,{ int undelete( _In_z_ const char *path ); },1247
+206,AUE_FUTIMES,STD|CAPENABLED,futimes,defined-in-master,"{ int futimes( int fd, _In_reads_(2) _Contains_long_timet_ const struct timeval *tptr ); }",1252
+207,AUE_GETPGID,STD|CAPENABLED,getpgid,defined-in-master,{ int getpgid( pid_t pid ); } 208 AUE_NULL RESERVED,1258
+209,AUE_POLL,STD|CAPENABLED,poll,defined-in-master,"{ int poll( _Inout_updates_(nfds) struct pollfd *fds, u_int nfds, int timeout ); } ; ; The following are reserved for loadable syscalls ;",1264
+210,AUE_NULL,NODEF|NOTSTATIC,lkmnosys,defined-in-master,lkmnosys lkmnosys nosys_args int,1274
+211,AUE_NULL,NODEF|NOTSTATIC,lkmnosys,defined-in-master,lkmnosys lkmnosys nosys_args int,1275
+212,AUE_NULL,NODEF|NOTSTATIC,lkmnosys,defined-in-master,lkmnosys lkmnosys nosys_args int,1276
+213,AUE_NULL,NODEF|NOTSTATIC,lkmnosys,defined-in-master,lkmnosys lkmnosys nosys_args int,1277
+214,AUE_NULL,NODEF|NOTSTATIC,lkmnosys,defined-in-master,lkmnosys lkmnosys nosys_args int,1278
+215,AUE_NULL,NODEF|NOTSTATIC,lkmnosys,defined-in-master,lkmnosys lkmnosys nosys_args int,1279
+216,AUE_NULL,NODEF|NOTSTATIC,lkmnosys,defined-in-master,lkmnosys lkmnosys nosys_args int,1280
+217,AUE_NULL,NODEF|NOTSTATIC,lkmnosys,defined-in-master,lkmnosys lkmnosys nosys_args int,1281
+218,AUE_NULL,NODEF|NOTSTATIC,lkmnosys,defined-in-master,lkmnosys lkmnosys nosys_args int,1282
+219,AUE_NULL,NODEF|NOTSTATIC,lkmnosys,defined-in-master,lkmnosys lkmnosys nosys_args int,1283
+220,AUE_SEMCTL,COMPAT7|NOSTD,__semctl,defined-in-master,"{ int __semctl( int semid, int semnum, int cmd, _Contains_ptr_ union semun_old *arg ); }",1284
+221,AUE_SEMGET,NOSTD,semget,defined-in-master,"{ int semget( key_t key, int nsems, int semflg ); }",1292
+222,AUE_SEMOP,NOSTD,semop,defined-in-master,"{ int semop( int semid, _In_reads_(nsops) struct sembuf *sops, size_t nsops ); }",1299
+223,AUE_NULL,OBSOL,semconfig,obsolete,semconfig,1306
+224,AUE_MSGCTL,COMPAT7|NOSTD,msgctl,defined-in-master,"{ int msgctl( int msqid, int cmd, _Contains_long_ptr_timet_ struct msqid_ds_old *buf ); }",1307
+225,AUE_MSGGET,NOSTD,msgget,defined-in-master,"{ int msgget( key_t key, int msgflg ); }",1314
+226,AUE_MSGSND,NOSTD,msgsnd,defined-in-master,"{ int msgsnd( int msqid, _In_reads_bytes_(msgsz) _Contains_long_ const void *msgp, size_t msgsz, int msgflg ); }",1320
+227,AUE_MSGRCV,NOSTD,msgrcv,defined-in-master,"{ ssize_t msgrcv( int msqid, _Out_writes_bytes_(msgsz) _Contains_long_ void *msgp, size_t msgsz, long msgtyp, int msgflg ); }",1328
+228,AUE_SHMAT,NOSTD,shmat,defined-in-master,"{ void *shmat( int shmid, _In_ const void *shmaddr, int shmflg ); }",1337
+229,AUE_SHMCTL,COMPAT7|NOSTD,shmctl,defined-in-master,"{ int shmctl( int shmid, int cmd, _Inout_opt_ _Contains_long_ struct shmid_ds_old *buf ); }",1344
+230,AUE_SHMDT,NOSTD,shmdt,defined-in-master,{ int shmdt( _In_ const void *shmaddr ); },1351
+231,AUE_SHMGET,NOSTD,shmget,defined-in-master,"{ int shmget( key_t key, size_t size, int shmflg ); }",1356
+232,AUE_NULL,STD|CAPENABLED,clock_gettime,defined-in-master,"{ int clock_gettime( clockid_t clock_id, _Out_ _Contains_long_timet_ struct timespec *tp ); }",1363
+233,AUE_CLOCK_SETTIME,STD,clock_settime,defined-in-master,"{ int clock_settime( clockid_t clock_id, _In_ _Contains_long_timet_ const struct timespec *tp ); }",1369
+234,AUE_NULL,STD|CAPENABLED,clock_getres,defined-in-master,"{ int clock_getres( clockid_t clock_id, _Out_ _Contains_long_timet_ struct timespec *tp ); }",1375
+235,AUE_NULL,STD|CAPENABLED,ktimer_create,defined-in-master,"{ int ktimer_create( clockid_t clock_id, _In_ _Contains_long_ptr_ struct sigevent *evp, _Out_ int *timerid ); }",1381
+236,AUE_NULL,STD|CAPENABLED,ktimer_delete,defined-in-master,{ int ktimer_delete( int timerid ); },1388
+237,AUE_NULL,STD|CAPENABLED,ktimer_settime,defined-in-master,"{ int ktimer_settime( int timerid, int flags, _In_ _Contains_long_timet_ const struct itimerspec *value, _Out_opt_ _Contains_long_timet_ struct itimerspec *ovalue ); }",1393
+238,AUE_NULL,STD|CAPENABLED,ktimer_gettime,defined-in-master,"{ int ktimer_gettime( int timerid, _Out_ _Contains_long_timet_ struct itimerspec *value ); }",1401
+239,AUE_NULL,STD|CAPENABLED,ktimer_getoverrun,defined-in-master,{ int ktimer_getoverrun( int timerid ); },1407
+240,AUE_NULL,STD|CAPENABLED,nanosleep,defined-in-master,"{ int nanosleep( _In_ _Contains_long_timet_ const struct timespec *rqtp, _Out_opt_ _Contains_long_timet_ struct timespec *rmtp ); }",1412
+241,AUE_NULL,STD,ffclock_getcounter,defined-in-master,{ int ffclock_getcounter( _Out_ ffcounter *ffcount ); },1418
+242,AUE_NULL,STD,ffclock_setestimate,defined-in-master,{ int ffclock_setestimate( _In_ _Contains_timet_ struct ffclock_estimate *cest ); },1423
+243,AUE_NULL,STD,ffclock_getestimate,defined-in-master,{ int ffclock_getestimate( _Out_ _Contains_timet_ struct ffclock_estimate *cest ); },1428
+244,AUE_NULL,STD|CAPENABLED,clock_nanosleep,defined-in-master,"{ int clock_nanosleep( clockid_t clock_id, int flags, _In_ _Contains_long_timet_ const struct timespec *rqtp, _Out_opt_ _Contains_long_timet_ struct timespec *rmtp ); } 245-246 AUE_NULL RESERVED",1433
+247,AUE_NULL,STD,clock_getcpuclockid2,defined-in-master,"{ int clock_getcpuclockid2( id_t id, int which, _Out_ clockid_t *clock_id ); }",1442
+248,AUE_NULL,STD|CAPENABLED,ntp_gettime,defined-in-master,{ int ntp_gettime( _Out_ _Contains_long_timet_ struct ntptimeval *ntvp ); } 249 AUE_NULL RESERVED,1449
+250,AUE_MINHERIT,STD|CAPENABLED,minherit,defined-in-master,"{ int minherit( _In_ void *addr, size_t len, int inherit ); }",1455
+251,AUE_RFORK,STD|CAPENABLED,rfork,defined-in-master,{ int rfork( int flags ); },1462
+252,AUE_POLL,OBSOL,openbsd_poll,obsolete,openbsd_poll,1467
+253,AUE_ISSETUGID,STD|CAPENABLED,issetugid,defined-in-master,{ int issetugid(void); },1468
+254,AUE_LCHOWN,STD,lchown,defined-in-master,"{ int lchown( _In_z_ const char *path, int uid, int gid ); }",1471
+255,AUE_AIO_READ,STD|CAPENABLED,aio_read,defined-in-master,{ int aio_read( _Inout_ _Contains_long_ptr_ struct aiocb *aiocbp ); },1478
+256,AUE_AIO_WRITE,STD|CAPENABLED,aio_write,defined-in-master,{ int aio_write( _Inout_ _Contains_long_ptr_ struct aiocb *aiocbp ); },1483
+257,AUE_LIO_LISTIO,STD|CAPENABLED,lio_listio,defined-in-master,"{ int lio_listio( int mode, _Inout_updates_(nent) _Contains_long_ptr_ struct aiocb * const *acb_list, int nent, _In_opt_ _Contains_long_ptr_ struct sigevent *sig ); } 258-271 AUE_NULL RESERVED",1488
+272,AUE_O_GETDENTS,COMPAT11|CAPENABLED,getdents,defined-in-master,"{ int getdents( int fd, _Out_writes_bytes_(count) char *buf, size_t count ); } 273 AUE_NULL RESERVED",1497
+274,AUE_LCHMOD,STD,lchmod,defined-in-master,"{ int lchmod( _In_z_ const char *path, mode_t mode ); }",1505
+275,AUE_NULL,OBSOL,netbsd_lchown,obsolete,netbsd_lchown,1511
+276,AUE_LUTIMES,STD,lutimes,defined-in-master,"{ int lutimes( _In_z_ const char *path, _In_ _Contains_long_timet_ const struct timeval *tptr ); }",1512
+277,AUE_NULL,OBSOL,netbsd_msync,obsolete,netbsd_msync,1518
+278,AUE_STAT,COMPAT11,nstat,defined-in-master,"{ int nstat( _In_z_ const char *path, _Out_ _Contains_long_timet_ struct nstat *ub ); }",1519
+279,AUE_FSTAT,COMPAT11,nfstat,defined-in-master,"{ int nfstat( int fd, _Out_ _Contains_long_timet_ struct nstat *sb ); }",1525
+280,AUE_LSTAT,COMPAT11,nlstat,defined-in-master,"{ int nlstat( _In_z_ const char *path, _Out_ _Contains_long_timet_ struct nstat *ub ); } 281-288 AUE_NULL RESERVED",1531
+289,AUE_PREADV,STD|CAPENABLED,preadv,defined-in-master,"{ ssize_t preadv( int fd, _In_reads_(iovcnt) _Contains_long_ptr_ struct iovec *iovp, u_int iovcnt, off_t offset ); }",1538
+290,AUE_PWRITEV,STD|CAPENABLED,pwritev,defined-in-master,"{ ssize_t pwritev( int fd, _In_reads_(iovcnt) _Contains_long_ptr_ struct iovec *iovp, u_int iovcnt, off_t offset ); } 291-296 AUE_NULL RESERVED",1546
+297,AUE_FHSTATFS,COMPAT4,fhstatfs,defined-in-master,"{ int fhstatfs( _In_ const struct fhandle *u_fhp, _Out_ _Contains_long_ struct ostatfs *buf ); }",1555
+298,AUE_FHOPEN,STD,fhopen,defined-in-master,"{ int fhopen( _In_ const struct fhandle *u_fhp, int flags ); }",1561
+299,AUE_FHSTAT,COMPAT11,fhstat,defined-in-master,"{ int fhstat( _In_ const struct fhandle *u_fhp, _Out_ _Contains_long_timet_ struct freebsd11_stat *sb ); }",1567
+300,AUE_NULL,STD,modnext,defined-in-master,{ int modnext( int modid ); },1573
+301,AUE_NULL,STD,modstat,defined-in-master,"{ int modstat( int modid, _Out_ _Contains_long_ struct module_stat *stat ); }",1578
+302,AUE_NULL,STD,modfnext,defined-in-master,{ int modfnext( int modid ); },1584
+303,AUE_NULL,STD,modfind,defined-in-master,{ int modfind( _In_z_ const char *name ); },1589
+304,AUE_MODLOAD,STD,kldload,defined-in-master,{ int kldload( _In_z_ const char *file ); },1594
+305,AUE_MODUNLOAD,STD,kldunload,defined-in-master,{ int kldunload( int fileid ); },1599
+306,AUE_NULL,STD,kldfind,defined-in-master,{ int kldfind( _In_z_ const char *file ); },1604
+307,AUE_NULL,STD,kldnext,defined-in-master,{ int kldnext( int fileid ); },1609
+308,AUE_NULL,STD,kldstat,defined-in-master,"{ int kldstat( int fileid, _Out_ _Contains_long_ptr_ struct kld_file_stat *stat ); }",1614
+309,AUE_NULL,STD,kldfirstmod,defined-in-master,{ int kldfirstmod( int fileid ); },1620
+310,AUE_GETSID,STD|CAPENABLED,getsid,defined-in-master,{ int getsid( pid_t pid ); },1625
+311,AUE_SETRESUID,STD|CAPENABLED,setresuid,defined-in-master,"{ int setresuid( uid_t ruid, uid_t euid, uid_t suid ); }",1630
+312,AUE_SETRESGID,STD|CAPENABLED,setresgid,defined-in-master,"{ int setresgid( gid_t rgid, gid_t egid, gid_t sgid ); }",1637
+313,AUE_NULL,OBSOL,signanosleep,obsolete,signanosleep,1644
+314,AUE_AIO_RETURN,STD|CAPENABLED,aio_return,defined-in-master,{ ssize_t aio_return( _Inout_ _Contains_long_ptr_ struct aiocb *aiocbp ); },1645
+315,AUE_AIO_SUSPEND,STD|CAPENABLED,aio_suspend,defined-in-master,"{ int aio_suspend( _Inout_updates_(nent) _Contains_long_ptr_ const struct aiocb * const * aiocbp, int nent, _In_opt_ _Contains_long_timet_ const struct timespec *timeout ); }",1650
+316,AUE_AIO_CANCEL,STD|CAPENABLED,aio_cancel,defined-in-master,"{ int aio_cancel( int fd, _In_opt_ _Contains_long_ptr_ struct aiocb *aiocbp ); }",1657
+317,AUE_AIO_ERROR,STD|CAPENABLED,aio_error,defined-in-master,{ int aio_error( _In_ _Contains_long_ptr_ struct aiocb *aiocbp ); },1663
+318,AUE_AIO_READ,COMPAT6|CAPENABLED,aio_read,defined-in-master,{ int aio_read( _Inout_ _Contains_long_ptr_ struct oaiocb *aiocbp ); },1668
+319,AUE_AIO_WRITE,COMPAT6|CAPENABLED,aio_write,defined-in-master,{ int aio_write( _Inout_ _Contains_long_ptr_ struct oaiocb *aiocbp ); },1673
+320,AUE_LIO_LISTIO,COMPAT6|CAPENABLED,lio_listio,defined-in-master,"{ int lio_listio( int mode, _Inout_updates_(nent) _Contains_long_ptr_ struct oaiocb * const *acb_list, int nent, _In_opt_ _Contains_ptr_ struct osigevent *sig ); }",1678
+321,AUE_NULL,STD|CAPENABLED|NOLIB,yield,defined-in-master,{ int yield(void); },1686
+322,AUE_NULL,OBSOL,thr_sleep,obsolete,thr_sleep,1689
+323,AUE_NULL,OBSOL,thr_wakeup,obsolete,thr_wakeup,1690
+324,AUE_MLOCKALL,STD|CAPENABLED,mlockall,defined-in-master,{ int mlockall( int how ); },1691
+325,AUE_MUNLOCKALL,STD|CAPENABLED,munlockall,defined-in-master,{ int munlockall(void); },1696
+326,AUE_GETCWD,STD,__getcwd,defined-in-master,"{ int __getcwd( _Out_writes_z_(buflen) char *buf, size_t buflen ); }",1699
+327,AUE_NULL,STD|CAPENABLED,sched_setparam,defined-in-master,"{ int sched_setparam( pid_t pid, _In_ const struct sched_param *param ); }",1705
+328,AUE_NULL,STD|CAPENABLED,sched_getparam,defined-in-master,"{ int sched_getparam( pid_t pid, _Out_ struct sched_param *param ); }",1711
+329,AUE_NULL,STD|CAPENABLED,sched_setscheduler,defined-in-master,"{ int sched_setscheduler( pid_t pid, int policy, _In_ const struct sched_param *param ); }",1717
+330,AUE_NULL,STD|CAPENABLED,sched_getscheduler,defined-in-master,{ int sched_getscheduler( pid_t pid ); },1724
+331,AUE_NULL,STD|CAPENABLED,sched_yield,defined-in-master,{ int sched_yield(void); },1729
+332,AUE_NULL,STD|CAPENABLED,sched_get_priority_max,defined-in-master,{ int sched_get_priority_max( int policy ); },1732
+333,AUE_NULL,STD|CAPENABLED,sched_get_priority_min,defined-in-master,{ int sched_get_priority_min( int policy ); },1737
+334,AUE_NULL,STD|CAPENABLED,sched_rr_get_interval,defined-in-master,"{ int sched_rr_get_interval( pid_t pid, _Out_ _Contains_long_timet_ struct timespec *interval ); }",1742
+335,AUE_NULL,STD|CAPENABLED,utrace,defined-in-master,"{ int utrace( _In_reads_bytes_(len) const void *addr, size_t len ); }",1748
+336,AUE_SENDFILE,COMPAT4|CAPENABLED,sendfile,defined-in-master,"{ int sendfile( int fd, int s, off_t offset, size_t nbytes, _In_opt_ _Contains_ptr_ struct sf_hdtr *hdtr, _Out_opt_ off_t *sbytes, int flags ); }",1754
+337,AUE_NULL,STD,kldsym,defined-in-master,"{ int kldsym( int fileid, int cmd, _In_ _Contains_long_ptr_ void *data ); }",1765
+338,AUE_JAIL,STD,jail,defined-in-master,{ int jail( _In_ _Contains_ptr_ struct jail *jail ); },1772
+339,AUE_NULL,NOSTD|NOTSTATIC,nnpfs_syscall,defined-in-master,"{ int nnpfs_syscall( int operation, char *a_pathP, int a_opcode, void *a_paramsP, int a_followSymlinks ); }",1777
+340,AUE_SIGPROCMASK,STD|CAPENABLED,sigprocmask,defined-in-master,"{ int sigprocmask( int how, _In_opt_ const sigset_t *set, _Out_opt_ sigset_t *oset ); }",1786
+341,AUE_SIGSUSPEND,STD|CAPENABLED,sigsuspend,defined-in-master,{ int sigsuspend( _In_ const sigset_t *sigmask ); },1793
+342,AUE_SIGACTION,COMPAT4|CAPENABLED,sigaction,defined-in-master,"{ int sigaction( int sig, _In_opt_ _Contains_ptr_ const struct sigaction *act, _Out_opt_ _Contains_ptr_ struct sigaction *oact ); }",1798
+343,AUE_SIGPENDING,STD|CAPENABLED,sigpending,defined-in-master,{ int sigpending( _In_ sigset_t *set ); },1805
+344,AUE_SIGRETURN,COMPAT4|CAPENABLED,sigreturn,defined-in-master,{ int sigreturn( _In_ _Contains_long_ptr_ const struct freebsd4_ucontext *sigcntxp ); },1810
+345,AUE_SIGWAIT,STD|CAPENABLED,sigtimedwait,defined-in-master,"{ int sigtimedwait( _In_ const sigset_t *set, _Out_opt_ _Contains_long_ptr_ struct __siginfo *info, _In_opt_ _Contains_long_timet_ const struct timespec *timeout ); }",1815
+346,AUE_NULL,STD|CAPENABLED,sigwaitinfo,defined-in-master,"{ int sigwaitinfo( _In_ const sigset_t *set, _Out_opt_ _Contains_long_ptr_ struct __siginfo *info ); }",1822
+347,AUE_ACL_GET_FILE,STD,__acl_get_file,defined-in-master,"{ int __acl_get_file( _In_z_ const char *path, __acl_type_t type, _Out_ struct acl *aclp ); }",1828
+348,AUE_ACL_SET_FILE,STD,__acl_set_file,defined-in-master,"{ int __acl_set_file( _In_z_ const char *path, __acl_type_t type, _In_ struct acl *aclp ); }",1835
+349,AUE_ACL_GET_FD,STD|CAPENABLED,__acl_get_fd,defined-in-master,"{ int __acl_get_fd( int filedes, __acl_type_t type, _Out_ struct acl *aclp ); }",1842
+350,AUE_ACL_SET_FD,STD|CAPENABLED,__acl_set_fd,defined-in-master,"{ int __acl_set_fd( int filedes, __acl_type_t type, _In_ struct acl *aclp ); }",1849
+351,AUE_ACL_DELETE_FILE,STD,__acl_delete_file,defined-in-master,"{ int __acl_delete_file( _In_z_ const char *path, __acl_type_t type ); }",1856
+352,AUE_ACL_DELETE_FD,STD|CAPENABLED,__acl_delete_fd,defined-in-master,"{ int __acl_delete_fd( int filedes, __acl_type_t type ); }",1862
+353,AUE_ACL_CHECK_FILE,STD,__acl_aclcheck_file,defined-in-master,"{ int __acl_aclcheck_file( _In_z_ const char *path, __acl_type_t type, _In_ struct acl *aclp ); }",1868
+354,AUE_ACL_CHECK_FD,STD|CAPENABLED,__acl_aclcheck_fd,defined-in-master,"{ int __acl_aclcheck_fd( int filedes, __acl_type_t type, _In_ struct acl *aclp ); }",1875
+355,AUE_EXTATTRCTL,STD,extattrctl,defined-in-master,"{ int extattrctl( _In_z_ const char *path, int cmd, _In_z_opt_ const char *filename, int attrnamespace, _In_z_ const char *attrname ); }",1882
+356,AUE_EXTATTR_SET_FILE,STD,extattr_set_file,defined-in-master,"{ ssize_t extattr_set_file( _In_z_ const char *path, int attrnamespace, _In_z_ const char *attrname, _In_reads_bytes_(nbytes) void *data, size_t nbytes ); }",1891
+357,AUE_EXTATTR_GET_FILE,STD,extattr_get_file,defined-in-master,"{ ssize_t extattr_get_file( _In_z_ const char *path, int attrnamespace, _In_z_ const char *attrname, _Out_writes_bytes_(nbytes) void *data, size_t nbytes ); }",1900
+358,AUE_EXTATTR_DELETE_FILE,STD,extattr_delete_file,defined-in-master,"{ int extattr_delete_file( _In_z_ const char *path, int attrnamespace, _In_z_ const char *attrname ); }",1909
+359,AUE_AIO_WAITCOMPLETE,STD|CAPENABLED,aio_waitcomplete,defined-in-master,"{ ssize_t aio_waitcomplete( _Outptr_result_maybenull_ struct aiocb **aiocbp, _In_opt_ _Contains_long_timet_ struct timespec *timeout ); }",1916
+360,AUE_GETRESUID,STD|CAPENABLED,getresuid,defined-in-master,"{ int getresuid( _Out_opt_ uid_t *ruid, _Out_opt_ uid_t *euid, _Out_opt_ uid_t *suid ); }",1922
+361,AUE_GETRESGID,STD|CAPENABLED,getresgid,defined-in-master,"{ int getresgid( _Out_opt_ gid_t *rgid, _Out_opt_ gid_t *egid, _Out_opt_ gid_t *sgid ); }",1929
+362,AUE_KQUEUE,STD|CAPENABLED,kqueue,defined-in-master,{ int kqueue(void); },1936
+363,AUE_KEVENT,COMPAT11|CAPENABLED,kevent,defined-in-master,"{ int kevent( int fd, _In_reads_opt_(nchanges) _Contains_ptr_ const struct freebsd11_kevent *changelist, int nchanges, _Out_writes_opt_(nevents) _Contains_ptr_ struct freebsd11_kevent *eventlist, int nevents, _In_opt_ _Contains_long_timet_ const struct timespec *timeout ); }",1939
+364,AUE_NULL,OBSOL,__cap_get_proc,obsolete,__cap_get_proc,1949
+365,AUE_NULL,OBSOL,__cap_set_proc,obsolete,__cap_set_proc,1950
+366,AUE_NULL,OBSOL,__cap_get_fd,obsolete,__cap_get_fd,1951
+367,AUE_NULL,OBSOL,__cap_get_file,obsolete,__cap_get_file,1952
+368,AUE_NULL,OBSOL,__cap_set_fd,obsolete,__cap_set_fd,1953
+369,AUE_NULL,OBSOL,__cap_set_file,obsolete,__cap_set_file 370 AUE_NULL RESERVED,1954
+371,AUE_EXTATTR_SET_FD,STD|CAPENABLED,extattr_set_fd,defined-in-master,"{ ssize_t extattr_set_fd( int fd, int attrnamespace, _In_z_ const char *attrname, _In_reads_bytes_(nbytes) void *data, size_t nbytes ); }",1956
+372,AUE_EXTATTR_GET_FD,STD|CAPENABLED,extattr_get_fd,defined-in-master,"{ ssize_t extattr_get_fd( int fd, int attrnamespace, _In_z_ const char *attrname, _Out_writes_bytes_(nbytes) void *data, size_t nbytes ); }",1965
+373,AUE_EXTATTR_DELETE_FD,STD|CAPENABLED,extattr_delete_fd,defined-in-master,"{ int extattr_delete_fd( int fd, int attrnamespace, _In_z_ const char *attrname ); }",1974
+374,AUE_SETUGID,STD,__setugid,defined-in-master,{ int __setugid( int flag ); },1981
+375,AUE_NULL,OBSOL,nfsclnt,obsolete,nfsclnt,1986
+376,AUE_EACCESS,STD,eaccess,defined-in-master,"{ int eaccess( _In_z_ const char *path, int amode ); }",1987
+377,AUE_NULL,NOSTD|NOTSTATIC,afs3_syscall,defined-in-master,"{ int afs3_syscall( long syscall, long parm1, long parm2, long parm3, long parm4, long parm5, long parm6 ); }",1993
+378,AUE_NMOUNT,STD,nmount,defined-in-master,"{ int nmount( _In_reads_(iovcnt) _Contains_long_ptr_ struct iovec *iovp, unsigned int iovcnt, int flags ); }",2004
+379,AUE_NULL,OBSOL,kse_exit,obsolete,kse_exit,2011
+380,AUE_NULL,OBSOL,kse_wakeup,obsolete,kse_wakeup,2012
+381,AUE_NULL,OBSOL,kse_create,obsolete,kse_create,2013
+382,AUE_NULL,OBSOL,kse_thr_interrupt,obsolete,kse_thr_interrupt,2014
+383,AUE_NULL,OBSOL,kse_release,obsolete,kse_release,2015
+384,AUE_NULL,STD|CAPENABLED,__mac_get_proc,defined-in-master,{ int __mac_get_proc( _In_ _Contains_long_ptr_ struct mac *mac_p ); },2016
+385,AUE_NULL,STD|CAPENABLED,__mac_set_proc,defined-in-master,{ int __mac_set_proc( _In_ _Contains_long_ptr_ struct mac *mac_p ); },2021
+386,AUE_NULL,STD|CAPENABLED,__mac_get_fd,defined-in-master,"{ int __mac_get_fd( int fd, _In_ _Contains_long_ptr_ struct mac *mac_p ); }",2026
+387,AUE_NULL,STD,__mac_get_file,defined-in-master,"{ int __mac_get_file( _In_z_ const char *path_p, _In_ _Contains_long_ptr_ struct mac *mac_p ); }",2032
+388,AUE_NULL,STD|CAPENABLED,__mac_set_fd,defined-in-master,"{ int __mac_set_fd( int fd, _In_ _Contains_long_ptr_ struct mac *mac_p ); }",2038
+389,AUE_NULL,STD,__mac_set_file,defined-in-master,"{ int __mac_set_file( _In_z_ const char *path_p, _In_ _Contains_long_ptr_ struct mac *mac_p ); }",2044
+390,AUE_NULL,STD,kenv,defined-in-master,"{ int kenv( int what, _In_z_opt_ const char *name, _Inout_updates_opt_(len) char *value, int len ); }",2050
+391,AUE_LCHFLAGS,STD,lchflags,defined-in-master,"{ int lchflags( _In_z_ const char *path, u_long flags ); }",2058
+392,AUE_NULL,STD|CAPENABLED,uuidgen,defined-in-master,"{ int uuidgen( _Out_writes_(count) struct uuid *store, int count ); }",2064
+393,AUE_SENDFILE,STD|CAPENABLED,sendfile,defined-in-master,"{ int sendfile( int fd, int s, off_t offset, size_t nbytes, _In_opt_ _Contains_ptr_ struct sf_hdtr *hdtr, _Out_opt_ off_t *sbytes, int flags ); }",2070
+394,AUE_NULL,STD,mac_syscall,defined-in-master,"{ int mac_syscall( _In_z_ const char *policy, int call, _In_opt_ void *arg ); }",2081
+395,AUE_GETFSSTAT,COMPAT11,getfsstat,defined-in-master,"{ int getfsstat( _Out_writes_bytes_opt_(bufsize) struct freebsd11_statfs *buf, long bufsize, int mode ); }",2088
+396,AUE_STATFS,COMPAT11,statfs,defined-in-master,"{ int statfs( _In_z_ const char *path, _Out_ struct freebsd11_statfs *buf ); }",2095
+397,AUE_FSTATFS,COMPAT11|CAPENABLED,fstatfs,defined-in-master,"{ int fstatfs( int fd, _Out_ struct freebsd11_statfs *buf ); }",2101
+398,AUE_FHSTATFS,COMPAT11,fhstatfs,defined-in-master,"{ int fhstatfs( _In_ const struct fhandle *u_fhp, _Out_ struct freebsd11_statfs *buf ); } 399 AUE_NULL RESERVED",2107
+400,AUE_SEMCLOSE,NOSTD,ksem_close,defined-in-master,{ int ksem_close( semid_t id ); },2114
+401,AUE_SEMPOST,NOSTD,ksem_post,defined-in-master,{ int ksem_post( semid_t id ); },2119
+402,AUE_SEMWAIT,NOSTD,ksem_wait,defined-in-master,{ int ksem_wait( semid_t id ); },2124
+403,AUE_SEMTRYWAIT,NOSTD,ksem_trywait,defined-in-master,{ int ksem_trywait( semid_t id ); },2129
+404,AUE_SEMINIT,NOSTD,ksem_init,defined-in-master,"{ int ksem_init( _Out_ semid_t *idp, unsigned int value ); }",2134
+405,AUE_SEMOPEN,NOSTD,ksem_open,defined-in-master,"{ int ksem_open( _Out_ semid_t *idp, _In_z_ const char *name, int oflag, mode_t mode, unsigned int value ); }",2140
+406,AUE_SEMUNLINK,NOSTD,ksem_unlink,defined-in-master,{ int ksem_unlink( _In_z_ const char *name ); },2149
+407,AUE_SEMGETVALUE,NOSTD,ksem_getvalue,defined-in-master,"{ int ksem_getvalue( semid_t id, _Out_ int *val ); }",2154
+408,AUE_SEMDESTROY,NOSTD,ksem_destroy,defined-in-master,{ int ksem_destroy( semid_t id ); },2160
+409,AUE_NULL,STD,__mac_get_pid,defined-in-master,"{ int __mac_get_pid( pid_t pid, _In_ _Contains_long_ptr_ struct mac *mac_p ); }",2165
+410,AUE_NULL,STD,__mac_get_link,defined-in-master,"{ int __mac_get_link( _In_z_ const char *path_p, _In_ _Contains_long_ptr_ struct mac *mac_p ); }",2171
+411,AUE_NULL,STD,__mac_set_link,defined-in-master,"{ int __mac_set_link( _In_z_ const char *path_p, _In_ _Contains_long_ptr_ struct mac *mac_p ); }",2177
+412,AUE_EXTATTR_SET_LINK,STD,extattr_set_link,defined-in-master,"{ ssize_t extattr_set_link( _In_z_ const char *path, int attrnamespace, _In_z_ const char *attrname, _In_reads_bytes_(nbytes) void *data, size_t nbytes ); }",2183
+413,AUE_EXTATTR_GET_LINK,STD,extattr_get_link,defined-in-master,"{ ssize_t extattr_get_link( _In_z_ const char *path, int attrnamespace, _In_z_ const char *attrname, _Out_writes_bytes_(nbytes) void *data, size_t nbytes ); }",2192
+414,AUE_EXTATTR_DELETE_LINK,STD,extattr_delete_link,defined-in-master,"{ int extattr_delete_link( _In_z_ const char *path, int attrnamespace, _In_z_ const char *attrname ); }",2201
+415,AUE_NULL,STD,__mac_execve,defined-in-master,"{ int __mac_execve( _In_z_ const char *fname, _In_ char **argv, _In_ char **envv, _In_ _Contains_long_ptr_ struct mac *mac_p ); }",2208
+416,AUE_SIGACTION,STD|CAPENABLED,sigaction,defined-in-master,"{ int sigaction( int sig, _In_opt_ _Contains_ptr_ const struct sigaction *act, _Out_opt_ _Contains_ptr_ struct sigaction *oact ); }",2216
+417,AUE_SIGRETURN,STD|CAPENABLED,sigreturn,defined-in-master,{ int sigreturn( _In_ _Contains_long_ptr_ const struct __ucontext *sigcntxp ); } 418-420 AUE_NULL RESERVED,2223
+421,AUE_NULL,STD|CAPENABLED,getcontext,defined-in-master,{ int getcontext( _Out_ _Contains_long_ptr_ struct __ucontext *ucp ); },2229
+422,AUE_NULL,STD|CAPENABLED,setcontext,defined-in-master,{ int setcontext( _In_ _Contains_long_ptr_ const struct __ucontext *ucp ); },2234
+423,AUE_NULL,STD,swapcontext,defined-in-master,"{ int swapcontext( _Out_ _Contains_long_ptr_ struct __ucontext *oucp, _In_ _Contains_long_ptr_ const struct __ucontext *ucp ); }",2239
+424,AUE_SWAPOFF,COMPAT13,swapoff,defined-in-master,{ int swapoff( _In_z_ const char *name ); },2245
+425,AUE_ACL_GET_LINK,STD,__acl_get_link,defined-in-master,"{ int __acl_get_link( _In_z_ const char *path, __acl_type_t type, _Out_ struct acl *aclp ); }",2250
+426,AUE_ACL_SET_LINK,STD,__acl_set_link,defined-in-master,"{ int __acl_set_link( _In_z_ const char *path, __acl_type_t type, _In_ struct acl *aclp ); }",2257
+427,AUE_ACL_DELETE_LINK,STD,__acl_delete_link,defined-in-master,"{ int __acl_delete_link( _In_z_ const char *path, __acl_type_t type ); }",2264
+428,AUE_ACL_CHECK_LINK,STD,__acl_aclcheck_link,defined-in-master,"{ int __acl_aclcheck_link( _In_z_ const char *path, __acl_type_t type, _In_ struct acl *aclp ); }",2270
+429,AUE_SIGWAIT,STD|CAPENABLED,sigwait,defined-in-master,"{ int sigwait( _In_ const sigset_t *set, _Out_ int *sig ); }",2277
+430,AUE_THR_CREATE,STD|CAPENABLED,thr_create,defined-in-master,"{ int thr_create( _In_ _Contains_long_ptr_ ucontext_t *ctx, _Out_ long *id, int flags ); }",2283
+431,AUE_THR_EXIT,STD|CAPENABLED,thr_exit,defined-in-master,{ void thr_exit( _Out_opt_ long *state ); },2290
+432,AUE_NULL,STD|CAPENABLED,thr_self,defined-in-master,{ int thr_self( _Out_ long *id ); },2295
+433,AUE_THR_KILL,STD|CAPENABLED,thr_kill,defined-in-master,"{ int thr_kill( long id, int sig ); }",2300
+434,AUE_NULL,COMPAT10,_umtx_lock,defined-in-master,{ int _umtx_lock( _Inout_ struct umtx *umtx ); },2306
+435,AUE_NULL,COMPAT10,_umtx_unlock,defined-in-master,{ int _umtx_unlock( _Inout_ struct umtx *umtx ); },2311
+436,AUE_JAIL_ATTACH,STD,jail_attach,defined-in-master,{ int jail_attach( int jid ); },2316
+437,AUE_EXTATTR_LIST_FD,STD|CAPENABLED,extattr_list_fd,defined-in-master,"{ ssize_t extattr_list_fd( int fd, int attrnamespace, _Out_writes_bytes_opt_(nbytes) void *data, size_t nbytes ); }",2321
+438,AUE_EXTATTR_LIST_FILE,STD,extattr_list_file,defined-in-master,"{ ssize_t extattr_list_file( _In_z_ const char *path, int attrnamespace, _Out_writes_bytes_opt_(nbytes) void *data, size_t nbytes ); }",2329
+439,AUE_EXTATTR_LIST_LINK,STD,extattr_list_link,defined-in-master,"{ ssize_t extattr_list_link( _In_z_ const char *path, int attrnamespace, _Out_writes_bytes_opt_(nbytes) void *data, size_t nbytes ); }",2337
+440,AUE_NULL,OBSOL,kse_switchin,obsolete,kse_switchin,2345
+441,AUE_SEMWAIT,NOSTD,ksem_timedwait,defined-in-master,"{ int ksem_timedwait( semid_t id, _In_opt_ _Contains_long_timet_ const struct timespec *abstime ); }",2346
+442,AUE_NULL,STD|CAPENABLED,thr_suspend,defined-in-master,{ int thr_suspend( _In_opt_ _Contains_long_timet_ const struct timespec *timeout ); },2352
+443,AUE_NULL,STD|CAPENABLED,thr_wake,defined-in-master,{ int thr_wake( long id ); },2357
+444,AUE_MODUNLOAD,STD,kldunloadf,defined-in-master,"{ int kldunloadf( int fileid, int flags ); }",2362
+445,AUE_AUDIT,STD,audit,defined-in-master,"{ int audit( _In_reads_bytes_(length) const void *record, u_int length ); }",2368
+446,AUE_AUDITON,STD,auditon,defined-in-master,"{ int auditon( int cmd, _In_opt_ void *data, u_int length ); }",2374
+447,AUE_GETAUID,STD|CAPENABLED,getauid,defined-in-master,{ int getauid( _Out_ uid_t *auid ); },2381
+448,AUE_SETAUID,STD|CAPENABLED,setauid,defined-in-master,{ int setauid( _In_ uid_t *auid ); },2386
+449,AUE_GETAUDIT,STD|CAPENABLED,getaudit,defined-in-master,{ int getaudit( _Out_ struct auditinfo *auditinfo ); },2391
+450,AUE_SETAUDIT,STD|CAPENABLED,setaudit,defined-in-master,{ int setaudit( _In_ struct auditinfo *auditinfo ); },2396
+451,AUE_GETAUDIT_ADDR,STD|CAPENABLED,getaudit_addr,defined-in-master,"{ int getaudit_addr( _Out_writes_bytes_(length) struct auditinfo_addr *auditinfo_addr, u_int length ); }",2401
+452,AUE_SETAUDIT_ADDR,STD|CAPENABLED,setaudit_addr,defined-in-master,"{ int setaudit_addr( _In_reads_bytes_(length) struct auditinfo_addr *auditinfo_addr, u_int length ); }",2407
+453,AUE_AUDITCTL,STD,auditctl,defined-in-master,{ int auditctl( _In_z_ const char *path ); },2413
+454,AUE_NULL,STD|CAPENABLED,_umtx_op,defined-in-master,"{ int _umtx_op( _Inout_ void *obj, int op, u_long val, _In_ void *uaddr1, _In_ void *uaddr2 ); }",2418
+455,AUE_THR_NEW,STD|CAPENABLED,thr_new,defined-in-master,"{ int thr_new( _In_ _Contains_long_ptr_ struct thr_param *param, int param_size ); }",2427
+456,AUE_NULL,STD|CAPENABLED,sigqueue,defined-in-master,"{ int sigqueue( pid_t pid, int signum, _In_ void *value ); }",2433
+457,AUE_MQ_OPEN,NOSTD,kmq_open,defined-in-master,"{ int kmq_open( _In_z_ const char *path, int flags, mode_t mode, _In_opt_ _Contains_long_ const struct mq_attr *attr ); }",2440
+458,AUE_MQ_SETATTR,NOSTD|CAPENABLED,kmq_setattr,defined-in-master,"{ int kmq_setattr( int mqd, _In_opt_ _Contains_long_ const struct mq_attr *attr, _Out_opt_ _Contains_long_ struct mq_attr *oattr ); }",2448
+459,AUE_MQ_TIMEDRECEIVE,NOSTD|CAPENABLED,kmq_timedreceive,defined-in-master,"{ int kmq_timedreceive( int mqd, _Out_writes_bytes_(msg_len) char *msg_ptr, size_t msg_len, _Out_opt_ unsigned *msg_prio, _In_opt_ _Contains_long_timet_ const struct timespec *abs_timeout ); }",2455
+460,AUE_MQ_TIMEDSEND,NOSTD|CAPENABLED,kmq_timedsend,defined-in-master,"{ int kmq_timedsend( int mqd, _In_reads_bytes_(msg_len) const char *msg_ptr, size_t msg_len, unsigned msg_prio, _In_opt_ _Contains_long_timet_ const struct timespec *abs_timeout ); }",2464
+461,AUE_MQ_NOTIFY,NOSTD|CAPENABLED,kmq_notify,defined-in-master,"{ int kmq_notify( int mqd, _In_opt_ _Contains_long_ptr_ const struct sigevent *sigev ); }",2473
+462,AUE_MQ_UNLINK,NOSTD,kmq_unlink,defined-in-master,{ int kmq_unlink( _In_z_ const char *path ); },2479
+463,AUE_NULL,STD|CAPENABLED,abort2,defined-in-master,"{ void abort2( _In_z_ const char *why, int nargs, _In_reads_(nargs) void **args ); }",2484
+464,AUE_NULL,STD|CAPENABLED,thr_set_name,defined-in-master,"{ int thr_set_name( long id, _In_z_ const char *name ); }",2491
+465,AUE_AIO_FSYNC,STD|CAPENABLED,aio_fsync,defined-in-master,"{ int aio_fsync( int op, _In_ _Contains_long_ptr_ struct aiocb *aiocbp ); }",2497
+466,AUE_RTPRIO,STD|CAPENABLED,rtprio_thread,defined-in-master,"{ int rtprio_thread( int function, lwpid_t lwpid, _Inout_ struct rtprio *rtp ); } 467-470 AUE_NULL RESERVED",2503
+471,AUE_SCTP_PEELOFF,NOSTD|CAPENABLED,sctp_peeloff,defined-in-master,"{ int sctp_peeloff( int sd, uint32_t name ); }",2511
+472,AUE_SCTP_GENERIC_SENDMSG,NOSTD|CAPENABLED,sctp_generic_sendmsg,defined-in-master,"{ int sctp_generic_sendmsg( int sd, _In_reads_bytes_(mlen) void *msg, int mlen, _In_reads_bytes_(tolen) const struct sockaddr *to, __socklen_t tolen, _In_opt_ struct sctp_sndrcvinfo *sinfo, int flags ); }",2517
+473,AUE_SCTP_GENERIC_SENDMSG_IOV,NOSTD|CAPENABLED,sctp_generic_sendmsg_iov,defined-in-master,"{ int sctp_generic_sendmsg_iov( int sd, _In_reads_(iovlen) _Contains_long_ptr_ struct iovec *iov, int iovlen, _In_reads_bytes_(tolen) const struct sockaddr *to, __socklen_t tolen, _In_opt_ struct sctp_sndrcvinfo *sinfo, int flags ); }",2528
+474,AUE_SCTP_GENERIC_RECVMSG,NOSTD|CAPENABLED,sctp_generic_recvmsg,defined-in-master,"{ int sctp_generic_recvmsg( int sd, _In_reads_(iovlen) _Contains_long_ptr_ struct iovec *iov, int iovlen, _Out_writes_bytes_(*fromlenaddr) struct sockaddr *from, _Out_ __socklen_t *fromlenaddr, _In_opt_ struct sctp_sndrcvinfo *sinfo, _Out_opt_ int *msg_flags ); }",2539
+475,AUE_PREAD,STD|CAPENABLED,pread,defined-in-master,"{ ssize_t pread( int fd, _Out_writes_bytes_(nbyte) void *buf, size_t nbyte, off_t offset ); }",2550
+476,AUE_PWRITE,STD|CAPENABLED,pwrite,defined-in-master,"{ ssize_t pwrite( int fd, _In_reads_bytes_(nbyte) const void *buf, size_t nbyte, off_t offset ); }",2558
+477,AUE_MMAP,STD|CAPENABLED,mmap,defined-in-master,"{ void *mmap( _In_ void *addr, size_t len, int prot, int flags, int fd, off_t pos ); }",2566
+478,AUE_LSEEK,STD|CAPENABLED,lseek,defined-in-master,"{ off_t lseek( int fd, off_t offset, int whence ); }",2576
+479,AUE_TRUNCATE,STD,truncate,defined-in-master,"{ int truncate( _In_z_ const char *path, off_t length ); }",2583
+480,AUE_FTRUNCATE,STD|CAPENABLED,ftruncate,defined-in-master,"{ int ftruncate( int fd, off_t length ); }",2589
+481,AUE_THR_KILL2,STD,thr_kill2,defined-in-master,"{ int thr_kill2( pid_t pid, long id, int sig ); }",2595
+482,AUE_SHMOPEN,COMPAT12|CAPENABLED,shm_open,defined-in-master,"{ int shm_open( _In_z_ const char *path, int flags, mode_t mode ); }",2602
+483,AUE_SHMUNLINK,STD,shm_unlink,defined-in-master,{ int shm_unlink( _In_z_ const char *path ); },2609
+484,AUE_NULL,STD,cpuset,defined-in-master,{ int cpuset( _Out_ cpusetid_t *setid ); },2614
+485,AUE_NULL,STD,cpuset_setid,defined-in-master,"{ int cpuset_setid( cpuwhich_t which, id_t id, cpusetid_t setid ); }",2619
+486,AUE_NULL,STD,cpuset_getid,defined-in-master,"{ int cpuset_getid( cpulevel_t level, cpuwhich_t which, id_t id, _Out_ cpusetid_t *setid ); }",2626
+487,AUE_NULL,STD|CAPENABLED,cpuset_getaffinity,defined-in-master,"{ int cpuset_getaffinity( cpulevel_t level, cpuwhich_t which, id_t id, size_t cpusetsize, _Out_ cpuset_t *mask ); }",2634
+488,AUE_NULL,STD|CAPENABLED,cpuset_setaffinity,defined-in-master,"{ int cpuset_setaffinity( cpulevel_t level, cpuwhich_t which, id_t id, size_t cpusetsize, _Out_ const cpuset_t *mask ); }",2643
+489,AUE_FACCESSAT,STD|CAPENABLED,faccessat,defined-in-master,"{ int faccessat( int fd, _In_z_ const char *path, int amode, int flag ); }",2652
+490,AUE_FCHMODAT,STD|CAPENABLED,fchmodat,defined-in-master,"{ int fchmodat( int fd, _In_z_ const char *path, mode_t mode, int flag ); }",2660
+491,AUE_FCHOWNAT,STD|CAPENABLED,fchownat,defined-in-master,"{ int fchownat( int fd, _In_z_ const char *path, uid_t uid, gid_t gid, int flag ); }",2668
+492,AUE_FEXECVE,STD|CAPENABLED,fexecve,defined-in-master,"{ int fexecve( int fd, _In_ char **argv, _In_ char **envv ); }",2677
+493,AUE_FSTATAT,COMPAT11|CAPENABLED,fstatat,defined-in-master,"{ int fstatat( int fd, _In_z_ const char *path, _Out_ _Contains_long_timet_ struct freebsd11_stat *buf, int flag ); }",2684
+494,AUE_FUTIMESAT,STD|CAPENABLED,futimesat,defined-in-master,"{ int futimesat( int fd, _In_z_ const char *path, _In_reads_(2) _Contains_long_timet_ const struct timeval *times ); }",2692
+495,AUE_LINKAT,STD|CAPENABLED,linkat,defined-in-master,"{ int linkat( int fd1, _In_z_ const char *path1, int fd2, _In_z_ const char *path2, int flag ); }",2699
+496,AUE_MKDIRAT,STD|CAPENABLED,mkdirat,defined-in-master,"{ int mkdirat( int fd, _In_z_ const char *path, mode_t mode ); }",2708
+497,AUE_MKFIFOAT,STD|CAPENABLED,mkfifoat,defined-in-master,"{ int mkfifoat( int fd, _In_z_ const char *path, mode_t mode ); }",2715
+498,AUE_MKNODAT,COMPAT11|CAPENABLED,mknodat,defined-in-master,"{ int mknodat( int fd, _In_z_ const char *path, mode_t mode, uint32_t dev ); } ; XXX: see the comment for open",2722
+499,AUE_OPENAT_RWTC,STD|CAPENABLED,openat,defined-in-master,"{ int openat( int fd, _In_z_ const char *path, int flag, mode_t mode ); }",2731
+500,AUE_READLINKAT,STD|CAPENABLED,readlinkat,defined-in-master,"{ ssize_t readlinkat( int fd, _In_z_ const char *path, _Out_writes_bytes_(bufsize) char *buf, size_t bufsize ); }",2739
+501,AUE_RENAMEAT,STD|CAPENABLED,renameat,defined-in-master,"{ int renameat( int oldfd, _In_z_ const char *old, int newfd, _In_z_ const char *new ); }",2747
+502,AUE_SYMLINKAT,STD|CAPENABLED,symlinkat,defined-in-master,"{ int symlinkat( _In_z_ const char *path1, int fd, _In_z_ const char *path2 ); }",2755
+503,AUE_UNLINKAT,STD|CAPENABLED,unlinkat,defined-in-master,"{ int unlinkat( int fd, _In_z_ const char *path, int flag ); }",2762
+504,AUE_POSIX_OPENPT,STD,posix_openpt,defined-in-master,{ int posix_openpt( int flags ); },2769
+505,AUE_NULL,OBSOL,kgssapi,obsolete,kgssapi,2774
+506,AUE_JAIL_GET,STD,jail_get,defined-in-master,"{ int jail_get( _In_reads_(iovcnt) _Contains_long_ptr_ struct iovec *iovp, unsigned int iovcnt, int flags ); }",2775
+507,AUE_JAIL_SET,STD,jail_set,defined-in-master,"{ int jail_set( _In_reads_(iovcnt) _Contains_long_ptr_ struct iovec *iovp, unsigned int iovcnt, int flags ); }",2782
+508,AUE_JAIL_REMOVE,STD,jail_remove,defined-in-master,{ int jail_remove( int jid ); },2789
+509,AUE_CLOSEFROM,COMPAT12|CAPENABLED,closefrom,defined-in-master,{ int closefrom( int lowfd ); },2794
+510,AUE_SEMCTL,NOSTD,__semctl,defined-in-master,"{ int __semctl( int semid, int semnum, int cmd, _Inout_ _Contains_ptr_ union semun *arg ); }",2799
+511,AUE_MSGCTL,NOSTD,msgctl,defined-in-master,"{ int msgctl( int msqid, int cmd, _Inout_opt_ _Contains_long_ptr_ struct msqid_ds *buf ); }",2807
+512,AUE_SHMCTL,NOSTD,shmctl,defined-in-master,"{ int shmctl( int shmid, int cmd, _Inout_opt_ _Contains_long_ struct shmid_ds *buf ); }",2814
+513,AUE_LPATHCONF,STD,lpathconf,defined-in-master,"{ int lpathconf( _In_z_ const char *path, int name ); }",2821
+514,AUE_NULL,OBSOL,cap_new,obsolete,cap_new,2827
+515,AUE_CAP_RIGHTS_GET,STD|CAPENABLED,__cap_rights_get,defined-in-master,"{ int __cap_rights_get( int version, int fd, _Out_ cap_rights_t *rightsp ); }",2828
+516,AUE_CAP_ENTER,STD|CAPENABLED,cap_enter,defined-in-master,{ int cap_enter(void); },2835
+517,AUE_CAP_GETMODE,STD|CAPENABLED,cap_getmode,defined-in-master,{ int cap_getmode( _Out_ u_int *modep ); },2838
+518,AUE_PDFORK,STD|CAPENABLED,pdfork,defined-in-master,"{ int pdfork( _Out_ int *fdp, int flags ); }",2843
+519,AUE_PDKILL,STD|CAPENABLED,pdkill,defined-in-master,"{ int pdkill( int fd, int signum ); }",2849
+520,AUE_PDGETPID,STD|CAPENABLED,pdgetpid,defined-in-master,"{ int pdgetpid( int fd, _Out_ pid_t *pidp ); } 521 AUE_NULL RESERVED",2855
+522,AUE_SELECT,STD|CAPENABLED,pselect,defined-in-master,"{ int pselect( int nd, _Inout_opt_ fd_set *in, _Inout_opt_ fd_set *ou, _Inout_opt_ fd_set *ex, _In_opt_ _Contains_long_timet_ const struct timespec *ts, _In_opt_ const sigset_t *sm ); }",2862
+523,AUE_GETLOGINCLASS,STD|CAPENABLED,getloginclass,defined-in-master,"{ int getloginclass( _Out_writes_z_(namelen) char *namebuf, size_t namelen ); }",2872
+524,AUE_SETLOGINCLASS,STD,setloginclass,defined-in-master,{ int setloginclass( _In_z_ const char *namebuf ); },2878
+525,AUE_NULL,STD,rctl_get_racct,defined-in-master,"{ int rctl_get_racct( _In_reads_bytes_(inbuflen) const void *inbufp, size_t inbuflen, _Out_writes_bytes_(outbuflen) void *outbufp, size_t outbuflen ); }",2883
+526,AUE_NULL,STD,rctl_get_rules,defined-in-master,"{ int rctl_get_rules( _In_reads_bytes_(inbuflen) const void *inbufp, size_t inbuflen, _Out_writes_bytes_(outbuflen) void *outbufp, size_t outbuflen ); }",2891
+527,AUE_NULL,STD,rctl_get_limits,defined-in-master,"{ int rctl_get_limits( _In_reads_bytes_(inbuflen) const void *inbufp, size_t inbuflen, _Out_writes_bytes_(outbuflen) void *outbufp, size_t outbuflen ); }",2899
+528,AUE_NULL,STD,rctl_add_rule,defined-in-master,"{ int rctl_add_rule( _In_reads_bytes_(inbuflen) const void *inbufp, size_t inbuflen, _Out_writes_bytes_(outbuflen) void *outbufp, size_t outbuflen ); }",2907
+529,AUE_NULL,STD,rctl_remove_rule,defined-in-master,"{ int rctl_remove_rule( _In_reads_bytes_(inbuflen) const void *inbufp, size_t inbuflen, _Out_writes_bytes_(outbuflen) void *outbufp, size_t outbuflen ); }",2915
+530,AUE_POSIX_FALLOCATE,STD|CAPENABLED,posix_fallocate,defined-in-master,"{ int posix_fallocate( int fd, off_t offset, off_t len ); }",2923
+531,AUE_POSIX_FADVISE,STD|CAPENABLED,posix_fadvise,defined-in-master,"{ int posix_fadvise( int fd, off_t offset, off_t len, int advice ); }",2930
+532,AUE_WAIT6,STD,wait6,defined-in-master,"{ int wait6( idtype_t idtype, id_t id, _Out_opt_ int *status, int options, _Out_opt_ _Contains_long_ struct __wrusage *wrusage, _Out_opt_ _Contains_long_ptr_ struct __siginfo *info ); }",2938
+533,AUE_CAP_RIGHTS_LIMIT,STD|CAPENABLED,cap_rights_limit,defined-in-master,"{ int cap_rights_limit( int fd, _In_ cap_rights_t *rightsp ); }",2948
+534,AUE_CAP_IOCTLS_LIMIT,STD|CAPENABLED,cap_ioctls_limit,defined-in-master,"{ int cap_ioctls_limit( int fd, _In_reads_(ncmds) const u_long *cmds, size_t ncmds ); }",2954
+535,AUE_CAP_IOCTLS_GET,STD|CAPENABLED,cap_ioctls_get,defined-in-master,"{ ssize_t cap_ioctls_get( int fd, _Out_writes_(maxcmds) u_long *cmds, size_t maxcmds ); }",2961
+536,AUE_CAP_FCNTLS_LIMIT,STD|CAPENABLED,cap_fcntls_limit,defined-in-master,"{ int cap_fcntls_limit( int fd, uint32_t fcntlrights ); }",2968
+537,AUE_CAP_FCNTLS_GET,STD|CAPENABLED,cap_fcntls_get,defined-in-master,"{ int cap_fcntls_get( int fd, _Out_ uint32_t *fcntlrightsp ); }",2974
+538,AUE_BINDAT,STD|CAPENABLED,bindat,defined-in-master,"{ int bindat( int fd, int s, _In_reads_bytes_(namelen) const struct sockaddr *name, __socklen_t namelen ); }",2980
+539,AUE_CONNECTAT,STD|CAPENABLED,connectat,defined-in-master,"{ int connectat( int fd, int s, _In_reads_bytes_(namelen) const struct sockaddr *name, __socklen_t namelen ); }",2988
+540,AUE_CHFLAGSAT,STD|CAPENABLED,chflagsat,defined-in-master,"{ int chflagsat( int fd, _In_z_ const char *path, u_long flags, int atflag ); }",2996
+541,AUE_ACCEPT,STD|CAPENABLED,accept4,defined-in-master,"{ int accept4( int s, _Out_writes_bytes_opt_(*anamelen) struct sockaddr *name, _Inout_opt_ __socklen_t *anamelen, int flags ); }",3004
+542,AUE_PIPE,STD|CAPENABLED,pipe2,defined-in-master,"{ int pipe2( _Out_writes_(2) int *fildes, int flags ); }",3012
+543,AUE_AIO_MLOCK,STD,aio_mlock,defined-in-master,{ int aio_mlock( _In_ _Contains_long_ptr_ struct aiocb *aiocbp ); },3018
+544,AUE_PROCCTL,STD,procctl,defined-in-master,"{ int procctl( idtype_t idtype, id_t id, int com, _In_opt_ void *data ); }",3023
+545,AUE_POLL,STD|CAPENABLED,ppoll,defined-in-master,"{ int ppoll( _Inout_updates_(nfds) struct pollfd *fds, u_int nfds, _In_opt_ _Contains_long_timet_ const struct timespec *ts, _In_opt_ const sigset_t *set ); }",3031
+546,AUE_FUTIMES,STD|CAPENABLED,futimens,defined-in-master,"{ int futimens( int fd, _In_reads_(2) _Contains_long_timet_ const struct timespec *times ); }",3039
+547,AUE_FUTIMESAT,STD|CAPENABLED,utimensat,defined-in-master,"{ int utimensat( int fd, _In_z_ const char *path, _In_reads_(2) _Contains_long_timet_ const struct timespec *times, int flag ); }",3045
+548,AUE_NULL,OBSOL,numa_getaffinity,obsolete,numa_getaffinity,3053
+549,AUE_NULL,OBSOL,numa_setaffinity,obsolete,numa_setaffinity,3054
+550,AUE_FSYNC,STD|CAPENABLED,fdatasync,defined-in-master,{ int fdatasync( int fd ); },3055
+551,AUE_FSTAT,STD|CAPENABLED,fstat,defined-in-master,"{ int fstat( int fd, _Out_ _Contains_long_timet_ struct stat *sb ); }",3060
+552,AUE_FSTATAT,STD|CAPENABLED,fstatat,defined-in-master,"{ int fstatat( int fd, _In_z_ const char *path, _Out_ _Contains_long_timet_ struct stat *buf, int flag ); }",3066
+553,AUE_FHSTAT,STD,fhstat,defined-in-master,"{ int fhstat( _In_ const struct fhandle *u_fhp, _Out_ _Contains_long_timet_ struct stat *sb ); }",3074
+554,AUE_GETDIRENTRIES,STD|CAPENABLED,getdirentries,defined-in-master,"{ ssize_t getdirentries( int fd, _Out_writes_bytes_(count) char *buf, size_t count, _Out_opt_ off_t *basep ); }",3080
+555,AUE_STATFS,STD,statfs,defined-in-master,"{ int statfs( _In_z_ const char *path, _Out_ struct statfs *buf ); }",3088
+556,AUE_FSTATFS,STD|CAPENABLED,fstatfs,defined-in-master,"{ int fstatfs( int fd, _Out_ struct statfs *buf ); }",3094
+557,AUE_GETFSSTAT,STD,getfsstat,defined-in-master,"{ int getfsstat( _Out_writes_bytes_opt_(bufsize) struct statfs *buf, long bufsize, int mode ); }",3100
+558,AUE_FHSTATFS,STD,fhstatfs,defined-in-master,"{ int fhstatfs( _In_ const struct fhandle *u_fhp, _Out_ struct statfs *buf ); }",3107
+559,AUE_MKNODAT,STD|CAPENABLED,mknodat,defined-in-master,"{ int mknodat( int fd, _In_z_ const char *path, mode_t mode, dev_t dev ); }",3113
+560,AUE_KEVENT,STD|CAPENABLED,kevent,defined-in-master,"{ int kevent( int fd, _In_reads_opt_(nchanges) _Contains_ptr_ const struct kevent *changelist, int nchanges, _Out_writes_opt_(nevents) _Contains_ptr_ struct kevent *eventlist, int nevents, _In_opt_ _Contains_long_timet_ const struct timespec *timeout ); }",3121
+561,AUE_NULL,STD|CAPENABLED,cpuset_getdomain,defined-in-master,"{ int cpuset_getdomain( cpulevel_t level, cpuwhich_t which, id_t id, size_t domainsetsize, _Out_writes_bytes_(domainsetsize) domainset_t *mask, _Out_ int *policy ); }",3131
+562,AUE_NULL,STD|CAPENABLED,cpuset_setdomain,defined-in-master,"{ int cpuset_setdomain( cpulevel_t level, cpuwhich_t which, id_t id, size_t domainsetsize, _In_ domainset_t *mask, int policy ); }",3141
+563,AUE_NULL,STD|CAPENABLED,getrandom,defined-in-master,"{ int getrandom( _Out_writes_bytes_(buflen) void *buf, size_t buflen, unsigned int flags ); }",3151
+564,AUE_NULL,STD,getfhat,defined-in-master,"{ int getfhat( int fd, _In_z_ const char *path, _Out_ struct fhandle *fhp, int flags ); }",3158
+565,AUE_NULL,STD,fhlink,defined-in-master,"{ int fhlink( _In_ struct fhandle *fhp, _In_z_ const char *to ); }",3166
+566,AUE_NULL,STD,fhlinkat,defined-in-master,"{ int fhlinkat( _In_ struct fhandle *fhp, int tofd, _In_z_ const char *to, ); }",3172
+567,AUE_NULL,STD,fhreadlink,defined-in-master,"{ int fhreadlink( _In_ struct fhandle *fhp, _Out_writes_(bufsize) char *buf, size_t bufsize ); }",3179
+568,AUE_UNLINKAT,STD|CAPENABLED,funlinkat,defined-in-master,"{ int funlinkat( int dfd, _In_z_ const char *path, int fd, int flag ); }",3186
+569,AUE_NULL,STD|CAPENABLED,copy_file_range,defined-in-master,"{ ssize_t copy_file_range( int infd, _Inout_opt_ off_t *inoffp, int outfd, _Inout_opt_ off_t *outoffp, size_t len, unsigned int flags ); }",3194
+570,AUE_SYSCTL,STD|CAPENABLED,__sysctlbyname,defined-in-master,"{ int __sysctlbyname( _In_reads_(namelen) const char *name, size_t namelen, _Out_writes_bytes_opt_(*oldlenp) void *old, _Inout_opt_ size_t *oldlenp, _In_reads_bytes_opt_(newlen) void *new, size_t newlen ); }",3204
+571,AUE_SHMOPEN,STD|CAPENABLED,shm_open2,defined-in-master,"{ int shm_open2( _In_z_ const char *path, int flags, mode_t mode, int shmflags, _In_z_ const char *name ); }",3214
+572,AUE_SHMRENAME,STD,shm_rename,defined-in-master,"{ int shm_rename( _In_z_ const char *path_from, _In_z_ const char *path_to, int flags ); }",3223
+573,AUE_NULL,STD|CAPENABLED,sigfastblock,defined-in-master,"{ int sigfastblock( int cmd, _Inout_updates_bytes_opt_(4) void *ptr ); }",3230
+574,AUE_REALPATHAT,STD,__realpathat,defined-in-master,"{ int __realpathat( int fd, _In_z_ const char *path, _Out_writes_z_(size) char *buf, size_t size, int flags ); }",3236
+575,AUE_CLOSERANGE,STD|CAPENABLED,close_range,defined-in-master,"{ int close_range( u_int lowfd, u_int highfd, int flags ); } ; 576 is initialised by the krpc code, if present.",3245
+576,AUE_NULL,NOSTD,rpctls_syscall,defined-in-master,{ int rpctls_syscall( uint64_t socookie ); },3253
+577,AUE_SPECIALFD,STD|CAPENABLED,__specialfd,defined-in-master,"{ int __specialfd( int type, _In_reads_bytes_(len) const void *req, size_t len ); }",3258
+578,AUE_AIO_WRITEV,STD|CAPENABLED,aio_writev,defined-in-master,{ int aio_writev( _Inout_ _Contains_long_ptr_ struct aiocb *aiocbp ); },3265
+579,AUE_AIO_READV,STD|CAPENABLED,aio_readv,defined-in-master,{ int aio_readv( _Inout_ _Contains_long_ptr_ struct aiocb *aiocbp ); },3270
+580,AUE_FSPACECTL,STD|CAPENABLED,fspacectl,defined-in-master,"{ int fspacectl( int fd, int cmd, _In_ const struct spacectl_range *rqsr, int flags, _Out_opt_ struct spacectl_range *rmsr, ); }",3275
+581,AUE_NULL,STD|CAPENABLED,sched_getcpu,defined-in-master,{ int sched_getcpu(void); },3284
+582,AUE_SWAPOFF,STD,swapoff,defined-in-master,"{ int swapoff( _In_z_ const char *name, u_int flags, ); }",3287
+583,AUE_KQUEUE,STD|CAPENABLED,kqueuex,defined-in-master,{ int kqueuex( u_int flags ); },3293
+584,AUE_NULL,STD|CAPENABLED,membarrier,defined-in-master,"{ int membarrier( int cmd, unsigned flags, int cpu_id ); }",3298
+585,AUE_TIMERFD,STD|CAPENABLED,timerfd_create,defined-in-master,"{ int timerfd_create( int clockid, int flags ); }",3305
+586,AUE_TIMERFD,STD|CAPENABLED,timerfd_gettime,defined-in-master,"{ int timerfd_gettime( int fd, _Out_ _Contains_long_timet_ struct itimerspec *curr_value ); }",3311
+587,AUE_TIMERFD,STD|CAPENABLED,timerfd_settime,defined-in-master,"{ int timerfd_settime( int fd, int flags, _In_ _Contains_long_timet_ const struct itimerspec *new_value, _Out_opt_ _Contains_long_timet_ struct itimerspec *old_value ); }",3317
+588,AUE_NULL,STD,kcmp,defined-in-master,"{ int kcmp( pid_t pid1, pid_t pid2, int type, uintptr_t idx1, uintptr_t idx2 ); }",3325
+589,AUE_NULL,STD|CAPENABLED,getrlimitusage,defined-in-master,"{ int getrlimitusage( u_int which, int flags, _Out_ rlim_t *res ); }",3334
+590,AUE_NULL,STD,fchroot,defined-in-master,{ int fchroot( int fd ); },3341
+591,AUE_SETCRED,STD|CAPENABLED,setcred,defined-in-master,"{ int setcred( u_int flags, _In_reads_bytes_(size) _Contains_ptr_ const struct setcred *wcred, size_t size ); }",3346
+592,AUE_NULL,STD|CAPENABLED,exterrctl,defined-in-master,"{ int exterrctl( u_int op, u_int flags, _In_reads_bytes_(4) void *ptr ); }",3353
+593,AUE_INOTIFY,STD|CAPENABLED,inotify_add_watch_at,defined-in-master,"{ int inotify_add_watch_at( int fd, int dfd, _In_z_ const char *path, uint32_t mask ); }",3360
+594,AUE_INOTIFY,STD|CAPENABLED,inotify_rm_watch,defined-in-master,"{ int inotify_rm_watch( int fd, int wd ); }",3368
+595,AUE_GETGROUPS,STD|CAPENABLED,getgroups,defined-in-master,"{ int getgroups( int gidsetsize, _Out_writes_opt_(gidsetsize) gid_t *gidset ); }",3374
+596,AUE_SETGROUPS,STD,setgroups,defined-in-master,"{ int setgroups( int gidsetsize, _In_reads_(gidsetsize) const gid_t *gidset ); }",3380
+597,AUE_JAIL_ATTACH,STD,jail_attach_jd,defined-in-master,{ int jail_attach_jd( int fd ); },3386
+598,AUE_JAIL_REMOVE,STD,jail_remove_jd,defined-in-master,{ int jail_remove_jd( int fd ); },3391
+599,AUE_NULL,STD,kexec_load,defined-in-master,"{ int kexec_load( uint64_t entry, u_long nseg, _In_reads_(nseg) _Contains_long_ptr_ struct kexec_segment *segments, u_long flags ); }",3397
+600,AUE_PDRFORK,STD|CAPENABLED,pdrfork,defined-in-master,"{ int pdrfork( _Out_ int *fdp, int pdflags, int rfflags ); }",3406
+601,AUE_PDWAIT,STD|CAPENABLED,pdwait,defined-in-master,"{ int pdwait( int fd, _Out_opt_ int *status, int options, _Out_opt_ _Contains_long_ struct __wrusage *wrusage, _Out_opt_ _Contains_long_ptr_ struct __siginfo *info ); }",3414
+602,AUE_RENAMEAT,STD|CAPENABLED,renameat2,defined-in-master,"{ int renameat2( int oldfd, _In_z_ const char *old, int newfd, _In_z_ const char *new, int flags ); }",3423
+603,AUE_PDOPENPID,STD|CAPENABLED,pdopenpid,defined-in-master,"{ int pdopenpid( pid_t pid, int flags ); }",3432
+604,AUE_NULL,STD,pddupfd,defined-in-master,"{ int pddupfd( int pd, int fd, int flags ); }",3438
+605,AUE_PDPTRACE,STD|CAPENABLED,pdptrace,defined-in-master,"{ int pdptrace( int req, int pfd, int lwpid, _Inout_opt_ _Contains_long_ptr_ void *addr, int data ); } ; vim: syntax=off",3445
