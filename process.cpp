@@ -65,6 +65,8 @@ Process* spawn(const void* elf, size_t size, const char* path) {
     p->pml4 = pml4;
     p->fd_owner = p;
     p->parent_pid = 0;
+    p->pgid = p->pid;
+    p->sid = p->pid;
     p->tid = p->pid;
     p->fs_base = 0;
     p->exit_code = 0;
@@ -79,9 +81,9 @@ Process* spawn(const void* elf, size_t size, const char* path) {
     p->exit_code = 0;
     /* stdin/stdout/stderr are process-local descriptors. Their data fields
      * are unused; the syscall dispatcher treats Tty specially. */
-    p->fds[0] = {true, RuntimeFd::Tty, 0, 0, nullptr, 0, 0};
-    p->fds[1] = {true, RuntimeFd::Tty, 0, 0, nullptr, 0, 0};
-    p->fds[2] = {true, RuntimeFd::Tty, 0, 0, nullptr, 0, 0};
+    p->fds[0] = {true, RuntimeFd::Tty, 0, 0, nullptr, 0, 0, {}};
+    p->fds[1] = {true, RuntimeFd::Tty, 0, 0, nullptr, 0, 0, {}};
+    p->fds[2] = {true, RuntimeFd::Tty, 0, 0, nullptr, 0, 0, {}};
 
     uint64_t start_entry, start_rsp;
 
@@ -125,13 +127,6 @@ Process* spawn(const void* elf, size_t size, const char* path) {
 
     p->entry = start_entry;
     p->stack = start_rsp;
-
-    const char* proc_name = path ? path : "/bin/app";
-    size_t proc_name_len = strlen(proc_name);
-    if (proc_name_len >= sizeof(p->name))
-        proc_name_len = sizeof(p->name) - 1;
-    memcpy(p->name, proc_name, proc_name_len);
-    p->name[proc_name_len] = 0;
 
     /* Seed the frame as if the task had just been preempted at its very
      * first instruction. This is what lets the scheduler treat a brand-new
@@ -179,6 +174,54 @@ bool terminate(Process* p) {
 }
 
 Process* current() { return cur; }
+
+Process* fork_like(Process* parent, const TrapFrame& parent_frame, bool vfork_mode) {
+    if (!parent) return nullptr;
+    Process* child = free_slot();
+    if (!child) return nullptr;
+
+    /* Clang's driver follows fork/vfork with execve almost immediately.
+     * BlockOS therefore uses a vfork-like shared address space here instead
+     * of pretending that we already have a full copy-on-write VM subsystem.
+     * The parent is blocked by the syscall layer until the child execs or
+     * exits. */
+    memset(child, 0, sizeof(*child));
+    child->state = State::EMPTY;
+    child->pid = next_pid++;
+    child->pml4 = parent->pml4;
+    child->fd_owner = child;
+    child->parent_pid = parent->pid;
+    child->pgid = parent->pgid;
+    child->sid = parent->sid;
+    child->tid = child->pid;
+    child->fs_base = parent->fs_base;
+    child->brk_base = parent->brk_base;
+    child->brk_current = parent->brk_current;
+    child->mmap_next = parent->mmap_next;
+    child->has_interp = parent->has_interp;
+    child->real_entry = parent->real_entry;
+    child->wake_deadline_ms = 0;
+    child->exit_code = 0;
+    child->clear_tid = 0;
+    child->is_thread = false;
+    child->vfork_child = vfork_mode;
+    child->vfork_parent_pid = parent->pid;
+    memcpy(child->name, parent->name, sizeof(child->name));
+    memcpy(child->cwd, parent->cwd, sizeof(child->cwd));
+    memcpy(child->fds, parent->fds, sizeof(child->fds));
+    memcpy(child->signal_handlers, parent->signal_handlers, sizeof(child->signal_handlers));
+    memcpy(child->signal_flags, parent->signal_flags, sizeof(child->signal_flags));
+    child->signal_mask = parent->signal_mask;
+    child->uid = parent->uid; child->gid = parent->gid;
+    child->euid = parent->euid; child->egid = parent->egid;
+    child->supplementary_group_count = parent->supplementary_group_count;
+    memcpy(child->supplementary_groups, parent->supplementary_groups, sizeof(child->supplementary_groups));
+    child->saved_frame = parent_frame;
+    child->saved_frame.rax = 0;
+    child->frame_valid = true;
+    child->state = State::READY;
+    return child;
+}
 
 RuntimeFd* fds(Process* p) {
     if (!p) return nullptr;
