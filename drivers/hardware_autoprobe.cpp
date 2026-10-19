@@ -8,6 +8,7 @@
 #include "usb_xhci.hpp"
 #include "audio.hpp"
 #include "net/network_hw.hpp"
+#include "hardware_inventory.hpp"
 
 #include <string.h>
 
@@ -23,8 +24,7 @@ static void reset_report()
 
 static void scan_pci()
 {
-    /* The scanner itself is side-effect-light and also populates the generic
-       device registry used by VFS/device_manager. */
+    // Populate the generic PCI registry before attempting device-specific drivers.
     pci_bus_manager.scan_all_pci_buses();
     pci_bus_manager.configure_mmio_bars();
     g_report.pci_devices = pci_bus_manager.device_count();
@@ -32,8 +32,6 @@ static void scan_pci()
 
 static void probe_storage()
 {
-    /* Prefer modern controllers.  ATA remains available as the legacy
-       fallback through init_block_devices() in kernel.cpp. */
     g_report.virtio_block = virtio_blk::init();
     g_report.nvme = nvme::init();
     g_report.ahci = ahci::init();
@@ -41,9 +39,6 @@ static void probe_storage()
 
 static void probe_network()
 {
-    /* VirtIO is the preferred QEMU/server backend.  If it is absent, the
-       native PCI backends handle common physical NICs such as Intel E1000
-       and Realtek RTL8139. */
     g_report.virtio_net = virtio_net::init();
     g_report.native_net = network_hw::init();
 }
@@ -55,7 +50,6 @@ static void probe_usb_audio()
         if (usb::xhci::reset(&xhci) && usb::xhci::run(&xhci))
             g_report.xhci = true;
     }
-
     g_report.hda = audio::init();
 }
 } // namespace
@@ -63,12 +57,15 @@ static void probe_usb_audio()
 void pre_exit_bootstrap(Report* out_report)
 {
     reset_report();
-
     scan_pci();
     probe_storage();
     probe_network();
     probe_usb_audio();
 
+    // The inventory is read-only. It reports what was discovered and what
+    // driver families exist, without assuming a device is initialized merely
+    // because its PCI ID or class is recognized.
+    hardware_inventory::print_report();
     if (out_report)
         *out_report = g_report;
 }
