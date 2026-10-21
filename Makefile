@@ -204,6 +204,8 @@ DEP := $(OBJ:.o=.d)
 
 # Rebuild the archive on every make invocation, so changes anywhere under
 # rootfs/ cannot accidentally leave an outdated embedded InitRAMFS in EFI.
+# /bin/sh is optional at image-build time; the archive builder packages the
+# files that exist and does not require a userspace shell to be installed.
 .PHONY: initramfs FORCE_INITRAMFS
 
 initramfs: $(INITRAMFS_CPIO)

@@ -123,12 +123,9 @@ def collect_entries(root: Path) -> list[Entry]:
     # Parent directories appear before their children; stable path order makes
     # the output reproducible apart from source file timestamps.
     entries.sort(key=lambda e: (e.name.count("/"), e.name))
-    by_name = {entry.name: entry for entry in entries}
-    shell = by_name.get("bin/sh")
-    if shell is None or not stat.S_ISREG(shell.mode) or not shell.data:
-        fail("rootfs/bin/sh is missing or empty; refusing to build a bootable initramfs")
-    if len(shell.data) < 5 or shell.data[:4] != b"\x7fELF" or shell.data[4] != 2:
-        fail("rootfs/bin/sh is not an ELF64 executable")
+    # The initramfs is a filesystem image, not a shell builder. Do not require
+    # /bin/sh here: images used for kernel, driver, and userspace development
+    # must still be buildable when no shell binary has been installed yet.
     return entries
 
 
@@ -168,7 +165,6 @@ def main(argv: list[str]) -> int:
     print(f"[initramfs] format:     newc CPIO (070701)")
     print(f"[initramfs] entries:    {len(entries)} ({dirs} directories, {files} files)")
     print(f"[initramfs] archive:    {output} ({len(archive)} bytes)")
-    print(f"[initramfs] shell:      /bin/sh ({len(next(e.data for e in entries if e.name == 'bin/sh'))} bytes)")
     return 0
 
 
