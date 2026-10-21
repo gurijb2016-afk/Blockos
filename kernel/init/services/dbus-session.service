@@ -1,5 +1,0 @@
-[Service]
-Name=dbus-session
-Exec=/System/bin/dbus-daemon
-Args=--session --nofork --address=unix:path=/run/user/0/bus
-Env=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/0/bus
