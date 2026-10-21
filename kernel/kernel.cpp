@@ -1358,9 +1358,12 @@ extern "C" EFI_STATUS efi_main(
     console.clear();
     g_console_sink = &console;
 
-    if (!vfs_init_from_ramfs()) {
-        boot_error_halt(console, "initramfs mount failed; /bin/sh is unavailable");
-    }
+    /*
+     * The project-level vfs.hpp declares vfs_init_from_ramfs() as void.
+     * Initialize the VFS using that API; do not treat its return value as a
+     * status code or make the boot path depend on /bin/sh being present.
+     */
+    vfs_init_from_ramfs();
     blockos_tty_init();
     blockos::input::init();
 
