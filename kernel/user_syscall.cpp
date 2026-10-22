@@ -11,6 +11,7 @@
 #include <stdio.h>
 
 extern "C" int64_t blockos_tty_read(void*,size_t);
+extern "C" int64_t blockos_tty_ioctl(uint64_t,void*);
 extern "C" int64_t blockos_tty_write(const void*,size_t);
 extern "C" uint64_t timer_uptime_ms();
 extern "C" void blockos_user_return();
@@ -268,9 +269,12 @@ static bool prepare_execve(BlockOSSyscallFrame* f) {
 }
 }
 
+extern "C" void blockos_kernel_poll_input();
 extern "C" void blockos_syscall_dispatch_frame(BlockOSSyscallFrame* f){
     if(!f)return;
-    blockos::input::poll_hardware();
+    /* Poll hardware AND route the events to the tty; poll_hardware() alone
+     * leaves keystrokes in the input queue where read(0) never sees them. */
+    blockos_kernel_poll_input();
     int64_t r=ENOSYS; auto* p=process::current(); auto* fs=fdtable();
     switch(f->rax){
     case blockos::syscall::SYS_write:{
@@ -396,7 +400,17 @@ extern "C" void blockos_syscall_dispatch_frame(BlockOSSyscallFrame* f){
         struct IOV{void* base;size_t len;}; if(!paging::is_user_range(f->rsi,(size_t)f->rdx*sizeof(IOV),false)){r=EFAULT;break;} int64_t total=0; const IOV* v=(const IOV*)(uintptr_t)f->rsi; for(size_t i=0;i<(size_t)f->rdx;i++){if(!v[i].base||!paging::is_user_range((uint64_t)(uintptr_t)v[i].base,v[i].len,true)){r=EFAULT;break;} int64_t n=blockos_tty_read(v[i].base,v[i].len); if(n<0)break; total+=n;if((size_t)n<v[i].len)break;} if(r==ENOSYS)r=total; break; }
     case blockos::syscall::SYS_writev:{
         struct IOV{const void* base;size_t len;}; if(!paging::is_user_range(f->rsi,(size_t)f->rdx*sizeof(IOV),false)){r=EFAULT;break;} int64_t total=0; const IOV* v=(const IOV*)(uintptr_t)f->rsi; for(size_t i=0;i<(size_t)f->rdx;i++){if(!v[i].base||!paging::is_user_range((uint64_t)(uintptr_t)v[i].base,v[i].len,false)){r=EFAULT;break;} int64_t n=blockos_tty_write(v[i].base,v[i].len); if(n<0)break; total+=n;} if(r==ENOSYS)r=total; break; }
-    case blockos::syscall::SYS_ioctl:r=0;break;
+    case blockos::syscall::SYS_ioctl:{
+        /* Only tty termios GET/SET are implemented; other requests stay no-ops. */
+        if(f->rdi>=process::MAX_RUNTIME_FDS||!fs||!fs[f->rdi].used){r=EBADF;break;}
+        if(fs[f->rdi].kind==process::RuntimeFd::Tty && (f->rsi==0x424F5303ULL||f->rsi==0x424F5304ULL)){
+            const bool get = (f->rsi==0x424F5303ULL);
+            if(!paging::is_user_range(f->rdx,36,get)){r=EFAULT;break;}
+            r=blockos_tty_ioctl(f->rsi,(void*)(uintptr_t)f->rdx);
+            break;
+        }
+        r=0;break;
+    }
     case blockos::syscall::SYS_rt_sigaction:{
         if(!p || f->rdi==0 || f->rdi>64 || f->r10!=8){r=EINVAL;break;}
         const uint64_t idx=f->rdi-1;

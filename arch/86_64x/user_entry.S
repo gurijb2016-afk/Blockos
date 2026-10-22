@@ -6,6 +6,14 @@
 .type blockos_user_enter,@function
 blockos_user_enter:
     /* rdi=entry, rsi=stack, rdx=pml4, rcx=FS base */
+    /* Preserve the kernel's callee-saved registers: user code clobbers them,
+     * and the kernel caller (process::run) relies on them after the return. */
+    push %rbx
+    push %rbp
+    push %r12
+    push %r13
+    push %r14
+    push %r15
     mov %rsp, blockos_user_saved_rsp(%rip)
     mov %cr3, %rax
     mov %rax, blockos_user_saved_cr3(%rip)
@@ -40,6 +48,12 @@ blockos_user_return:
     xor %edx,%edx
     mov $0xC0000100,%ecx
     wrmsr
+    pop %r15
+    pop %r14
+    pop %r13
+    pop %r12
+    pop %rbp
+    pop %rbx
     ret
 .size blockos_user_return,.-blockos_user_return
 

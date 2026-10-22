@@ -47,6 +47,20 @@ uint64_t paging::clone_current_pml4() {
 static bool table(uint64_t phys, uint64_t i, uint64_t flags, uint64_t*& out) {
     uint64_t* t = (uint64_t*)(uintptr_t)phys;
     uint64_t e = t[i];
+    /* Firmware identity maps use 2MB pages. Those entries have PS=1 and their
+     * address is a physical page, not a page-table pointer. Split them into
+     * 512 x 4KB PTEs with identical permissions before descending. */
+    if ((e & PTE_PRESENT) && (e & (1ULL << 7))) {
+        void* np = dma::alloc(4096, 4096);
+        if (!np) return false;
+        memset(np, 0, 4096);
+        uint64_t* pt = (uint64_t*)np;
+        uint64_t base = e & 0x000fffffffe00000ULL;
+        uint64_t keep = e & (PTE_WRITABLE | PTE_USER | PTE_PWT | PTE_PCD | PTE_NX);
+        for (uint64_t j = 0; j < 512; j++) pt[j] = (base + (j << 12)) | keep | PTE_PRESENT;
+        t[i] = ((uint64_t)(uintptr_t)np & ADDR_MASK) | PTE_PRESENT | PTE_WRITABLE | (e & PTE_USER);
+        e = t[i];
+    }
     if (!(e & PTE_PRESENT)) {
         void* p = dma::alloc(4096,4096);
         if (!p) return false;
@@ -170,8 +184,53 @@ bool paging::is_user_range(uint64_t addr,size_t len,bool write){
     if (!len || addr+len<addr) return false;
     uint64_t end=addr+len-1;
     if (end>0x00007fffffffffffULL) return false;
-    for(uint64_t p=addr&PAGE_MASK;;p+=0x1000){if(!user_page(p,write)) return false; if(p>end-((end)&0xfffULL)) break;}
-    return user_page(end&PAGE_MASK,write);
+    /* Check exactly the pages [addr, end]. The old loop also probed the page
+     * after `end`, so a buffer ending on the last mapped page (e.g. a local at
+     * the top of the user stack) wrongly failed with EFAULT. */
+    for(uint64_t p=addr&PAGE_MASK; p<=(end&PAGE_MASK); p+=0x1000){ if(!user_page(p,write)) return false; }
+    return true;
 }
 
 bool paging::init_paging(){ return paging::read_cr3()!=0; }
+
+/*
+ * Build the kernel's own identity map and switch to it.
+ *
+ * The firmware's page tables are not ours: some of their pages are mapped
+ * read-only, so writing a page-table entry faults. This builds a fresh table
+ * tree from the allocator heap (plain RW memory we own):
+ *   PML4[0] -> PDPT -> one PD per GB -> 512 x 2 MB entries
+ * covering physical 0 .. max_phys. The 32-bit MMIO hole (>= 3 GB) is mapped
+ * uncacheable so device registers behave. User mappings later split these
+ * 2 MB pages on demand (see table()).
+ */
+bool paging::install_kernel_identity_map(uint64_t max_phys) {
+    const uint64_t GB = 1ULL << 30;
+    const uint64_t MB2 = 1ULL << 21;
+    const uint64_t MMIO_START = 0xC0000000ULL;
+
+    uint64_t gigs = (max_phys + GB - 1) / GB;
+    if (gigs == 0) gigs = 1;
+    if (gigs > 64) return false;   /* 64 GB is far beyond this kernel's targets */
+
+    uint64_t* pml4 = (uint64_t*)alloc_page();
+    uint64_t* pdpt = (uint64_t*)alloc_page();
+    if (!pml4 || !pdpt) return false;
+
+    pml4[0] = ((uint64_t)(uintptr_t)pdpt & ADDR_MASK) | PTE_PRESENT | PTE_WRITABLE;
+
+    for (uint64_t g = 0; g < gigs; ++g) {
+        uint64_t* pd = (uint64_t*)alloc_page();
+        if (!pd) return false;
+        pdpt[g] = ((uint64_t)(uintptr_t)pd & ADDR_MASK) | PTE_PRESENT | PTE_WRITABLE;
+        for (uint64_t i = 0; i < 512; ++i) {
+            uint64_t phys = g * GB + i * MB2;
+            uint64_t f = PTE_PRESENT | PTE_WRITABLE | (1ULL << 7); /* PS = 2 MB */
+            if (phys >= MMIO_START) f |= PTE_PWT | PTE_PCD;
+            pd[i] = phys | f;
+        }
+    }
+
+    switch_pml4((uint64_t)(uintptr_t)pml4);
+    return true;
+}

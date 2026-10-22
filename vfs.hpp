@@ -162,4 +162,4 @@ void initialize_devices();
 
 }
 
-void vfs_init_from_ramfs();
+bool vfs_init_from_ramfs();

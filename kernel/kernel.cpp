@@ -16,6 +16,7 @@
 #include "shell.hpp"
 #include "sysmem.hpp"
 #include "vfs.hpp"
+#include "paging.hpp"
 #include "process.hpp"
 #include "virtio_input.hpp"
 #include "input_bridge.hpp"
@@ -33,6 +34,10 @@ extern "C"
 #include <efi.h>
 }
 
+extern "C" volatile uint64_t blockos_fault_vector;
+extern "C" volatile uint64_t blockos_fault_error;
+extern "C" volatile uint64_t blockos_fault_rip;
+extern "C" volatile uint64_t blockos_fault_cr2;
 extern "C" bool blockos_space_init(EFI_SYSTEM_TABLE*);
 extern "C" bool blockos_storage_init();
 extern "C" bool blockos_space_recovery_requested();
@@ -625,6 +630,11 @@ static void flush_console()
         g_console_sink->y(),
         g_console_sink->w(),
         g_console_sink->h());
+}
+
+extern "C" void blockos_panic_flush(void)
+{
+    flush_console();
 }
 
 /* Show a useful diagnostic instead of silently halting on a black screen. */
@@ -1294,6 +1304,45 @@ extern "C" EFI_STATUS efi_main(
      * ========================================================
      */
 
+    /* Highest physical byte the kernel must be able to reach. Taken from the
+     * memory map before ExitBootServices (the map is invalid afterwards). */
+    uint64_t kernel_max_phys = 0x100000000ULL;
+    {
+        const uint8_t* mm = (const uint8_t*) memMap;
+        for (UINTN off = 0; off + descSize <= mapSize; off += descSize)
+        {
+            const EFI_MEMORY_DESCRIPTOR* md =
+                (const EFI_MEMORY_DESCRIPTOR*) (mm + off);
+            /* MMIO windows can sit very high; they are not RAM and must not
+             * inflate the identity map. Device MMIO below 4 GB is mapped
+             * regardless (see the 4 GB floor above). */
+            /* Only memory the kernel can use or reach as RAM. Reserved,
+             * unusable, MMIO and persistent ranges can end very high and
+             * would make the identity map absurdly large. */
+            switch (md->Type)
+            {
+            case EfiLoaderCode:
+            case EfiLoaderData:
+            case EfiBootServicesCode:
+            case EfiBootServicesData:
+            case EfiRuntimeServicesCode:
+            case EfiRuntimeServicesData:
+            case EfiConventionalMemory:
+            case EfiACPIReclaimMemory:
+            case EfiACPIMemoryNVS:
+                break;
+            default:
+                continue;
+            }
+            uint64_t end = md->PhysicalStart + md->NumberOfPages * 4096ULL;
+            if (end > kernel_max_phys)
+                kernel_max_phys = end;
+        }
+    }
+
+    if (kernel_max_phys > (64ULL << 30))
+        kernel_max_phys = 64ULL << 30;
+
     status =
         (EFI_STATUS) uefi_call_wrapper(
             (void*) BS->ExitBootServices,
@@ -1304,6 +1353,12 @@ extern "C" EFI_STATUS efi_main(
     if (EFI_ERROR(status))
     {
         return EFI_ABORTED;
+    }
+
+    /* Firmware page tables are read-only in places; switch to our own. */
+    if (!paging::install_kernel_identity_map(kernel_max_phys))
+    {
+        for (;;) { __asm__ volatile("cli; hlt"); }
     }
 
     /*
@@ -1358,12 +1413,9 @@ extern "C" EFI_STATUS efi_main(
     console.clear();
     g_console_sink = &console;
 
-    /*
-     * The project-level vfs.hpp declares vfs_init_from_ramfs() as void.
-     * Initialize the VFS using that API; do not treat its return value as a
-     * status code or make the boot path depend on /bin/sh being present.
-     */
-    vfs_init_from_ramfs();
+    if (!vfs_init_from_ramfs()) {
+        boot_error_halt(console, "initramfs mount failed; /bin/sh is unavailable");
+    }
     blockos_tty_init();
     blockos::input::init();
 
@@ -1604,10 +1656,47 @@ extern "C" EFI_STATUS efi_main(
     process::run(
         shell_process);
 
-    /* Do not fail silently if the first userspace process returns. */
-    boot_error_halt(
-        console,
-        "/bin/sh returned unexpectedly");
+    /* Do not fail silently if the first userspace process returns. If it
+     * ended on a CPU exception, say what happened. */
+    {
+        static char fault_msg[160];
+        if (blockos_fault_vector != 0)
+        {
+            static const char hex[] = "0123456789abcdef";
+            auto put = [&](size_t& pos, const char* text) {
+                while (*text && pos + 1 < sizeof(fault_msg)) fault_msg[pos++] = *text++;
+            };
+            auto put_hex = [&](size_t& pos, uint64_t v) {
+                put(pos, "0x");
+                bool started = false;
+                for (int i = 60; i >= 0; i -= 4)
+                {
+                    unsigned d = (unsigned)((v >> i) & 0xF);
+                    if (d == 0 && !started && i != 0) continue;   /* no leading zeros */
+                    started = true;
+                    if (pos + 1 < sizeof(fault_msg)) fault_msg[pos++] = hex[d];
+                }
+            };
+            size_t pos = 0;
+            put(pos, "process fault: vector=");
+            put_hex(pos, blockos_fault_vector);
+            put(pos, " error=");
+            put_hex(pos, blockos_fault_error);
+            put(pos, " rip=");
+            put_hex(pos, blockos_fault_rip);
+            if (blockos_fault_vector == 14)
+            {
+                put(pos, " cr2=");
+                put_hex(pos, blockos_fault_cr2);
+            }
+            fault_msg[pos] = 0;
+            boot_error_halt(console, fault_msg);
+        }
+
+        boot_error_halt(
+            console,
+            "/bin/sh returned unexpectedly");
+    }
 
     return EFI_SUCCESS;
 }
