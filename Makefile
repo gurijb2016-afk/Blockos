@@ -330,7 +330,8 @@ $(EFI_OUT): $(SO_OUT)
 	@echo "=============================================="
 	@echo " Creating BOOTX64.EFI"
 	@echo "=============================================="
-	$(OBJCOPY) \
+		$(OBJCOPY) \
+		-I elf64-x86-64 \
 		-j .text \
 		-j .plt \
 		-j .init_array \
@@ -343,11 +344,11 @@ $(EFI_OUT): $(SO_OUT)
 		-j .dynsym \
 		-j .rel \
 		-j .rela \
-		-j .rel.* \
-		-j .rela.* \
+		-j '.rel.*' \
+		-j '.rela.*' \
 		-j .reloc \
 		--subsystem=10 \
-		--target=efi-app-x86_64 \
+		-O efi-app-x86_64 \
 		$(SO_OUT) \
 		$(EFI_OUT)
 	@echo ""
