@@ -23,7 +23,7 @@ struct RuntimeFd {
 constexpr size_t MAX_RUNTIME_FDS = 128;
 
 struct Process {
-    uint64_t pid, pml4, entry, stack, task_id, brk_base, brk_current, mmap_next;
+    uint64_t pid, pml4, entry, stack, task_id, brk_base, brk_current, brk_mapped, mmap_next;
     State state;
     TaskContext context;
     bool has_interp;

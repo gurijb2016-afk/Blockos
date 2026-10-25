@@ -1,0 +1,8 @@
+#!/bin/sh
+# BlockOS userland compiler wrapper: host gcc, freestanding, BlockOS libc headers only.
+# Usage: BLOCKOS_ROOT=<repo root> ports/x11/cross/blockos-cc -c foo.c -o foo.o
+ROOT=${BLOCKOS_ROOT:-$(CDPATH= cd -- "$(dirname "$0")/../../.." && pwd)}
+exec gcc -m64 -std=gnu11 -ffreestanding -nostdinc -D__BLOCKOS__ \
+    -isystem "$ROOT/userspace/libc/include" \
+    -isystem "$(gcc -print-file-name=include)" \
+    -fno-stack-protector -fno-pic -fno-pie -mno-red-zone "$@"

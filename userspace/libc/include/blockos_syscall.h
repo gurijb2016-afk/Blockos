@@ -35,5 +35,7 @@ enum {
     __SYS_access = 21, __SYS_getcwd = 20, __SYS_chdir = 19, __SYS_execve = 48,
     __SYS_getdents64 = 62, __SYS_pipe2 = 68, __SYS_mkdir = 71, __SYS_unlink = 70,
     __SYS_rename = 69, __SYS_getrandom = 50, __SYS_readv = 59, __SYS_writev = 60,
-    __SYS_getuid = 13, __SYS_getgid = 14, __SYS_geteuid = 15, __SYS_getegid = 16
+    __SYS_getuid = 13, __SYS_getgid = 14, __SYS_geteuid = 15, __SYS_getegid = 16, __SYS_getsockname = 101, __SYS_getpeername = 102,
+    __SYS_readlink = 22, __SYS_ioctl = 58, __SYS_rmdir = 72,
+    __SYS_ftruncate = 80, __SYS_fsync = 81
 };

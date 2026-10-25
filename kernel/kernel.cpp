@@ -614,9 +614,14 @@ AtaPio& ata_fs_disk()
     return g_ata_fs;
 }
 
+/* Set once a userspace process maps /devices/display: the console must not
+ * repaint the framebuffer over the X server's pixels. Cleared on panic/fault. */
+static volatile bool g_display_owned = false;
+extern "C" void blockos_display_claim(void) { g_display_owned = true; }
+
 static void flush_console()
 {
-    if (!g_console_sink || !g_flush_fb || !g_flush_backbuf)
+    if (g_display_owned || !g_console_sink || !g_flush_fb || !g_flush_backbuf)
         return;
 
     g_console_sink->render(
@@ -634,6 +639,7 @@ static void flush_console()
 
 extern "C" void blockos_panic_flush(void)
 {
+    g_display_owned = false;
     flush_console();
 }
 
@@ -1191,7 +1197,9 @@ extern "C" EFI_STATUS efi_main(
 #ifdef BLOCKOS_SERVER_MODE
     const size_t heap_size = 32 * 1024 * 1024;
 #else
-    const size_t heap_size = 4 * 1024 * 1024;
+    /* 128 MB: execve reads each binary whole into the heap, and the X
+     * server, twm and client processes together need more than 32 MB. */
+    const size_t heap_size = 128 * 1024 * 1024;
 #endif
 
     void* heapbuf = NULL;
@@ -1684,6 +1692,12 @@ extern "C" EFI_STATUS efi_main(
             put_hex(pos, blockos_fault_error);
             put(pos, " rip=");
             put_hex(pos, blockos_fault_rip);
+            if (auto* fp = process::current()) {
+                put(pos, " pid=");
+                put_hex(pos, fp->pid);
+                put(pos, " ");
+                put(pos, fp->name);
+            }
             if (blockos_fault_vector == 14)
             {
                 put(pos, " cr2=");

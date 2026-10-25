@@ -1,4 +1,5 @@
 #pragma once
+#include <sys/types.h>
 #include <stddef.h>
 #include <stdarg.h>
 
@@ -13,6 +14,8 @@ struct FILE {
     size_t pos;
     size_t len;
     off_t offset;
+    unsigned char ungot_has;   /* one-character pushback for ungetc() */
+    unsigned char ungot_ch;
 };
 
 #define EOF (-1)
@@ -29,6 +32,8 @@ extern FILE *stdout;
 extern FILE *stderr;
 
 int vfprintf(FILE*, const char*, va_list);
+int vprintf(const char*, va_list);
+int putchar(int);
 int fprintf(FILE*, const char*, ...);
 int printf(const char*, ...);
 int vsnprintf(char*, size_t, const char*, va_list);
@@ -51,3 +56,14 @@ void rewind(FILE*);
 int feof(FILE*); int ferror(FILE*); void clearerr(FILE*);
 int setvbuf(FILE*, char*, int, size_t);
 void perror(const char*);
+
+int sprintf(char *s, const char *fmt, ...);
+int vsprintf(char *s, const char *fmt, va_list ap);
+int sscanf(const char *s, const char *fmt, ...);
+int vsscanf(const char *s, const char *fmt, va_list ap);
+int ungetc(int c, FILE *f);
+int remove(const char *path);
+int asprintf(char **out, const char *fmt, ...);
+int vasprintf(char **out, const char *fmt, va_list ap);
+int vfscanf(FILE *f, const char *fmt, va_list ap);
+int fscanf(FILE *f, const char *fmt, ...);

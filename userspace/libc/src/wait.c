@@ -4,7 +4,8 @@
 #include <stddef.h>
 
 static int call_wait4(pid_t pid, int *status, int options) {
-    long r = __blockos_syscall(__SYS_wait4, pid, (long)status, options, 0, 0, 0);
+    /* kernel ABI: rdi=pid, rdx=status ptr, r10=options */
+    long r = __blockos_syscall(__SYS_wait4, pid, 0, (long)status, options, 0, 0);
     if (r < 0) { errno = (int)-r; return -1; }
     return (int)r;
 }

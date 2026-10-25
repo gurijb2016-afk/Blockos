@@ -35,13 +35,70 @@ uint64_t paging::create_user_pml4() {
     return paging::clone_current_pml4();
 }
 
+/* Deep-copies one paging level. Only the table pages are duplicated; leaf
+ * entries (4 KB pages and 2 MB/1 GB huge pages) are copied as-is, so the
+ * physical user pages stay shared with the source address space, which is
+ * the vfork-style sharing fork relies on. Each new space must own its
+ * PDPT/PD/PT pages, because map_4k/table() add entries and set flags in
+ * them; a shallow copy of the PML4 page alone let a new ELF image overwrite
+ * the parent's low mappings (both link at 0x400000). */
+static uint64_t clone_table_level(uint64_t src_phys, int level) {
+    void* np = paging::alloc_page();
+    if (!np) return 0;
+    const uint64_t* s = (const uint64_t*)(uintptr_t)src_phys;
+    uint64_t* d = (uint64_t*)np;
+    for (uint64_t i = 0; i < 512; i++) {
+        uint64_t e = s[i];
+        if (!(e & PTE_PRESENT)) continue;
+        bool is_table = (level > 1) && (level == 4 || !(e & (1ULL << 7)));
+        if (is_table) {
+            uint64_t child = clone_table_level(e & ADDR_MASK, level - 1);
+            if (!child) return 0;
+            d[i] = (child & ADDR_MASK) | (e & 0xFFFULL) | (e & (1ULL << 63));
+        } else {
+            d[i] = e;
+        }
+    }
+    return (uint64_t)(uintptr_t)np;
+}
+
 uint64_t paging::clone_current_pml4() {
     uint64_t cur = paging::read_cr3() & ADDR_MASK;
     if (!cur) return 0;
-    uint64_t dst = paging::create_pml4();
-    if (!dst) return 0;
-    memcpy((void*)(uintptr_t)dst, (const void*)(uintptr_t)cur, 4096);
-    return dst;
+    return clone_table_level(cur, 4);
+}
+
+/* Like clone_table_level, but writable user leaves get a private copy of the
+ * page, so the child can write its stack and data without touching the
+ * parent. Read-only user pages and kernel pages stay shared. */
+static uint64_t clone_table_fork(uint64_t src_phys, int level) {
+    void* np = paging::alloc_page();
+    if (!np) return 0;
+    const uint64_t* s = (const uint64_t*)(uintptr_t)src_phys;
+    uint64_t* d = (uint64_t*)np;
+    for (uint64_t i = 0; i < 512; i++) {
+        uint64_t e = s[i];
+        if (!(e & PTE_PRESENT)) continue;
+        bool is_table = (level > 1) && (level == 4 || !(e & (1ULL << 7)));
+        if (is_table) {
+            uint64_t child = clone_table_fork(e & ADDR_MASK, level - 1);
+            if (!child) return 0;
+            d[i] = (child & ADDR_MASK) | (e & 0xFFFULL) | (e & (1ULL << 63));
+        } else if (level == 1 && (e & PTE_USER) && (e & PTE_WRITABLE)) {
+            void* pg = paging::alloc_page();
+            if (!pg) return 0;
+            memcpy(pg, (const void*)(uintptr_t)(e & ADDR_MASK), 4096);
+            d[i] = ((uint64_t)(uintptr_t)pg & ADDR_MASK) | (e & 0xFFFULL) | (e & (1ULL << 63));
+        } else {
+            d[i] = e;
+        }
+    }
+    return (uint64_t)(uintptr_t)np;
+}
+
+uint64_t paging::clone_for_fork(uint64_t src_pml4) {
+    if (!src_pml4) return 0;
+    return clone_table_fork(src_pml4 & ADDR_MASK, 4);
 }
 
 static bool table(uint64_t phys, uint64_t i, uint64_t flags, uint64_t*& out) {
@@ -84,6 +141,8 @@ bool paging::map_4k(uint64_t pml4_phys,uint64_t vaddr,uint64_t paddr,uint64_t fl
     if (!table((uint64_t)(uintptr_t)b,idx(vaddr,2),flags,c)) return false;
     uint64_t* pt=c;
     pt[idx(vaddr,1)] = (paddr & ADDR_MASK) | (flags & (PTE_WRITABLE|PTE_USER|PTE_PWT|PTE_PCD|PTE_NX)) | PTE_PRESENT;
+    /* A remapped page may still be cached in the TLB (e.g. after mmap touched it). */
+    asm volatile("invlpg (%0)"::"r"((void*)(uintptr_t)vaddr):"memory");
     return true;
 }
 

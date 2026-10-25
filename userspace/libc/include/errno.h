@@ -60,3 +60,6 @@ extern _Thread_local int errno;
 #define ECONNREFUSED 111
 #define EHOSTDOWN 112
 #define EINPROGRESS 115
+#ifndef EWOULDBLOCK
+#define EWOULDBLOCK EAGAIN
+#endif

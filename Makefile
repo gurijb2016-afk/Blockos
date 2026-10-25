@@ -204,8 +204,6 @@ DEP := $(OBJ:.o=.d)
 
 # Rebuild the archive on every make invocation, so changes anywhere under
 # rootfs/ cannot accidentally leave an outdated embedded InitRAMFS in EFI.
-# /bin/sh is optional at image-build time; the archive builder packages the
-# files that exist and does not require a userspace shell to be installed.
 .PHONY: initramfs FORCE_INITRAMFS
 
 initramfs: $(INITRAMFS_CPIO)
@@ -330,8 +328,7 @@ $(EFI_OUT): $(SO_OUT)
 	@echo "=============================================="
 	@echo " Creating BOOTX64.EFI"
 	@echo "=============================================="
-		$(OBJCOPY) \
-		-I elf64-x86-64 \
+	$(OBJCOPY) \
 		-j .text \
 		-j .plt \
 		-j .init_array \
@@ -344,11 +341,11 @@ $(EFI_OUT): $(SO_OUT)
 		-j .dynsym \
 		-j .rel \
 		-j .rela \
-		-j '.rel.*' \
-		-j '.rela.*' \
+		-j .rel.* \
+		-j .rela.* \
 		-j .reloc \
 		--subsystem=10 \
-		-O efi-app-x86_64 \
+		--target=efi-app-x86_64 \
 		$(SO_OUT) \
 		$(EFI_OUT)
 	@echo ""
@@ -503,6 +500,23 @@ windowmaker-clean:
 
 bx11:
 	$(MAKE) -C ports/bx11 host-test
+
+# BlockOS X11: shell, raw X client tests, and (optionally) the X server.
+# The X server is cross-built out of tree with ninja; pass its build dir:
+#   make x11 X11_BUILD=/path/to/xbuild_blockos
+X11_BUILD ?=
+X11_CC    ?= gcc
+x11:
+	sh userspace/sh/build-sh.sh
+	CC=$(X11_CC) AS=as AR=ar OUTDIR=userspace/libc/build sh userspace/libc/build-libc.sh
+	CC=$(X11_CC) LIBC_DIR=userspace/libc/build OUT_DIR=rootfs/bin sh userspace/tests/build-x11-sock.sh
+	@if [ -n "$(X11_BUILD)" ]; then \
+		rm -f $(X11_BUILD)/hw/kdrive/blockos/X && ninja -C $(X11_BUILD) && \
+		strip -o rootfs/system/bin/X $(X11_BUILD)/hw/kdrive/blockos/X && \
+		echo "[OK] X server rebuilt into rootfs/system/bin/X"; \
+	else \
+		echo "[SKIP] X11_BUILD not set: X server binary not rebuilt"; \
+	fi
 
 bx11-api-test:
 	cc -std=c11 \

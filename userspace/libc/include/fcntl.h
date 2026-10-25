@@ -20,6 +20,7 @@ int open(const char* path, int flags, ...);
 int openat(int dirfd, const char* path, int flags, ...);
 
 #define F_DUPFD 0
+#define F_DUPFD_CLOEXEC 1030
 #define F_GETFD 1
 #define F_SETFD 2
 #define F_GETFL 3
@@ -27,3 +28,6 @@ int openat(int dirfd, const char* path, int flags, ...);
 #define FD_CLOEXEC 1
 
 int fcntl(int fd, int cmd, ...);
+#ifndef FNDELAY
+#define FNDELAY 04000
+#endif

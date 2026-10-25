@@ -5,7 +5,7 @@
 
 typedef unsigned long pthread_t;
 typedef unsigned long pthread_key_t;
-typedef struct { volatile uint32_t state; } pthread_mutex_t;
+typedef struct { volatile uint32_t state; uint32_t owner; uint32_t count; uint32_t type; } pthread_mutex_t;
 typedef struct { volatile uint32_t seq; } pthread_cond_t;
 typedef struct { uint32_t flags; } pthread_mutexattr_t;
 typedef struct { uint32_t flags; } pthread_condattr_t;
@@ -68,3 +68,7 @@ void* pthread_getspecific(pthread_key_t);
 int pthread_setspecific(pthread_key_t,const void*);
 int pthread_setname_np(pthread_t,const char*);
 int pthread_getname_np(pthread_t,char*,size_t);
+
+#define PTHREAD_SCOPE_SYSTEM 0
+#define PTHREAD_SCOPE_PROCESS 1
+int pthread_attr_setscope(pthread_attr_t *a, int scope);

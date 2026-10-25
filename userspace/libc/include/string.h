@@ -1,4 +1,5 @@
 #pragma once
+#include <sys/types.h>
 #include <stddef.h>
 
 void*  memcpy(void* dst, const void* src, size_t n);
@@ -23,3 +24,14 @@ char*  strdup(const char* s);
  * strpbrk, wide-char variants. Add them if/when something you're porting
  * actually calls them - easier to diagnose one missing symbol at a time
  * than to guess in advance. */
+
+char *strerror(int errnum);
+int strerror_r(int errnum, char *buf, size_t buflen);
+char *strsignal(int sig);
+char *strtok(char *s, const char *delim);
+char *strtok_r(char *s, const char *delim, char **save);
+size_t strnlen(const char *s, size_t maxlen);
+int strcasecmp(const char *, const char *);
+int strncasecmp(const char *, const char *, size_t);
+size_t strspn(const char *s, const char *accept);
+size_t strcspn(const char *s, const char *reject);

@@ -9,3 +9,4 @@ typedef unsigned long dev_t;
 typedef unsigned long ino_t;
 typedef long ssize_t;
 typedef long off_t;
+typedef char *caddr_t;

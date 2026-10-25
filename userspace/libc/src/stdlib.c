@@ -365,7 +365,9 @@ void abort(void) {
     for (;;) __asm__ volatile("hlt");
 }
 
+void __blockos_run_atexit(void);
 void exit(int code) {
+    __blockos_run_atexit();
     _exit(code);
 }
 
@@ -388,3 +390,25 @@ int setenv(const char* name, const char* value, int overwrite) {
 int unsetenv(const char* name) { (void)name; return 0; }
 
 void __blockos_set_environ(char **envp) { environ = envp; g_environ = envp; }
+
+unsigned long strtoul(const char* s, char** endp, int base) {
+    const char* p = s;
+    unsigned long v = 0;
+    int neg = 0, any = 0;
+    while (*p == ' ' || (*p >= 9 && *p <= 13)) p++;
+    if (*p == '+') p++; else if (*p == '-') { neg = 1; p++; }
+    if ((base == 0 || base == 16) && p[0] == '0' && (p[1] == 'x' || p[1] == 'X')) { p += 2; base = 16; }
+    else if (base == 0) base = (p[0] == '0') ? 8 : 10;
+    for (;; p++) {
+        int d;
+        if (*p >= '0' && *p <= '9') d = *p - '0';
+        else if (*p >= 'a' && *p <= 'z') d = *p - 'a' + 10;
+        else if (*p >= 'A' && *p <= 'Z') d = *p - 'A' + 10;
+        else break;
+        if (d >= base) break;
+        v = v * (unsigned long) base + (unsigned long) d;
+        any = 1;
+    }
+    if (endp) *endp = (char*) (any ? p : s);
+    return neg ? (unsigned long) (-(long) v) : v;
+}

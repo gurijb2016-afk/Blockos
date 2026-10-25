@@ -9,6 +9,8 @@ void* alloc_page();
 uint64_t create_pml4();
 uint64_t create_user_pml4();
 uint64_t clone_current_pml4();
+/* fork(): new tables plus private copies of every writable user page. */
+uint64_t clone_for_fork(uint64_t src_pml4);
 bool map_4k(uint64_t pml4_phys, uint64_t vaddr, uint64_t paddr, uint64_t flags);
 bool unmap_4k(uint64_t pml4_phys, uint64_t vaddr);
 void switch_pml4(uint64_t pml4_phys);

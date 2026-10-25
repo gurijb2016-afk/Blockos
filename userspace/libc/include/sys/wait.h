@@ -9,6 +9,7 @@ typedef struct {
     pid_t   si_pid;
     int64_t si_uid;
     int64_t si_status;
+    void *si_addr;
     int64_t _pad[8];
 } siginfo_t;
 

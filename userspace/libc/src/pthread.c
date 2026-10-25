@@ -39,13 +39,44 @@ static int futex_wake(volatile uint32_t* p,int n){
     return r<0?(int)-r:0;
 }
 
-int pthread_mutex_init(pthread_mutex_t*m,const pthread_mutexattr_t*a){(void)a;if(m)m->state=0;return 0;}
-int pthread_mutex_lock(pthread_mutex_t*m){if(!m)return 22;for(;;){if(__sync_bool_compare_and_swap(&m->state,0,1))return 0;futex_wait(&m->state,1);}}
-int pthread_mutex_trylock(pthread_mutex_t*m){if(!m)return 22;return __sync_bool_compare_and_swap(&m->state,0,1)?0:16;}
-int pthread_mutex_unlock(pthread_mutex_t*m){if(!m)return 22;__sync_lock_release(&m->state);futex_wake(&m->state,1);return 0;}
+int pthread_mutex_init(pthread_mutex_t*m,const pthread_mutexattr_t*a){if(!m)return 22;m->state=0;m->owner=0;m->count=0;m->type=a?a->flags:0;return 0;}
+/* Recursive mutexes: the owning thread re-enters and only the outermost unlock releases. */
+static uint32_t mutex_self(void){return (uint32_t)pthread_self();}
+int pthread_mutex_lock(pthread_mutex_t*m){
+    if(!m)return 22;
+    uint32_t me=mutex_self();
+    if(m->type==PTHREAD_MUTEX_RECURSIVE&&m->count&&m->owner==me){m->count++;return 0;}
+    for(;;){
+        if(__sync_bool_compare_and_swap(&m->state,0,1)){m->owner=me;m->count=1;return 0;}
+        futex_wait(&m->state,1);
+    }
+}
+int pthread_mutex_trylock(pthread_mutex_t*m){
+    if(!m)return 22;
+    uint32_t me=mutex_self();
+    if(m->type==PTHREAD_MUTEX_RECURSIVE&&m->count&&m->owner==me){m->count++;return 0;}
+    if(__sync_bool_compare_and_swap(&m->state,0,1)){m->owner=me;m->count=1;return 0;}
+    return 16;
+}
+int pthread_mutex_unlock(pthread_mutex_t*m){
+    if(!m)return 22;
+    if(m->count>1){m->count--;return 0;}
+    m->owner=0;m->count=0;
+    __sync_lock_release(&m->state);futex_wake(&m->state,1);return 0;
+}
 int pthread_mutex_destroy(pthread_mutex_t*m){(void)m;return 0;}
 int pthread_cond_init(pthread_cond_t*c,const pthread_condattr_t*a){(void)a;if(c)c->seq=0;return 0;}
-int pthread_cond_wait(pthread_cond_t*c,pthread_mutex_t*m){if(!c||!m)return 22;uint32_t seq=c->seq;pthread_mutex_unlock(m);futex_wait(&c->seq,seq);pthread_mutex_lock(m);return 0;}
+int pthread_cond_wait(pthread_cond_t*c,pthread_mutex_t*m){
+    if(!c||!m)return 22;
+    uint32_t seq=c->seq;
+    uint32_t saved=m->count?m->count:1;
+    m->owner=0;m->count=0;
+    __sync_lock_release(&m->state);futex_wake(&m->state,1);
+    futex_wait(&c->seq,seq);
+    pthread_mutex_lock(m);
+    m->count=saved;
+    return 0;
+}
 int pthread_cond_signal(pthread_cond_t*c){if(!c)return 22;__sync_add_and_fetch(&c->seq,1);futex_wake(&c->seq,1);return 0;}
 int pthread_cond_broadcast(pthread_cond_t*c){if(!c)return 22;__sync_add_and_fetch(&c->seq,1);futex_wake(&c->seq,0x7fffffff);return 0;}
 int pthread_cond_destroy(pthread_cond_t*c){(void)c;return 0;}

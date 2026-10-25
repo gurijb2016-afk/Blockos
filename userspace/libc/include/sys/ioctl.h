@@ -10,4 +10,5 @@ struct winsize { uint16_t ws_row,ws_col,ws_xpixel,ws_ypixel; };
 #define TIOCSPGRP 0x424F5306UL
 #define TCFLSH 0x424F5307UL
 #define FIONBIO 0x424F5308UL
+#define FIONREAD 0x424F5309UL
 int ioctl(int fd,unsigned long request,...);

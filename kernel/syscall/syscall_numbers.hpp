@@ -100,6 +100,8 @@ enum Number : std::uint64_t {
     SYS_vfork = 92,
     SYS_dup3 = 93,
     SYS_madvise = 94,
+    SYS_getsockname = 101,
+    SYS_getpeername = 102,
     SYS_gettimeofday = 95,
     SYS_uname = 96,
     SYS_getrlimit = 97,

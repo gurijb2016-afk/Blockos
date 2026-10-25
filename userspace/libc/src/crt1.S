@@ -10,14 +10,22 @@ _start:
      * is identical - this crt1 doesn't need to know or care which.
      */
     xor %rbp, %rbp
-    mov (%rsp), %rdi        /* argc */
-    lea 8(%rsp), %rsi       /* argv */
-    mov %rdi, %rax
-    lea 16(%rsp,%rax,8), %rdx  /* envp = argv + (argc+1) */
-    push %rdx
+    /* Static binaries get no TLS from ld.so; errno lives in TLS, so set up
+     * FS first. A no-op when FS is already set (dynamic binaries). rbx keeps
+     * the original stack pointer across the call. */
+    mov %rsp, %rbx
+    and $-16, %rsp
+    call __blockos_static_tls_setup
+    mov %rbx, %rsp
+    mov (%rsp), %r12                 /* argc (kept in callee-saved r12) */
+    lea 8(%rsp), %r13                /* argv */
+    lea 16(%rsp,%r12,8), %r14        /* envp = argv + (argc+1) */
+    and $-16, %rsp                   /* ABI alignment before the calls */
+    mov %r14, %rdi                   /* __blockos_set_environ(envp) */
     call __blockos_set_environ
-    pop %rdx
-    and $-16, %rsp          /* defensive re-alignment before the call */
+    mov %r12, %rdi                   /* main(argc, argv, envp) */
+    mov %r13, %rsi
+    mov %r14, %rdx
     call main
     mov %eax, %edi
     call exit               /* never returns */

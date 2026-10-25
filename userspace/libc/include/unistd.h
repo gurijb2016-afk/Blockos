@@ -1,7 +1,8 @@
 #pragma once
+#include <sys/types.h>
 #include <stddef.h>
 #include <stdint.h>
-struct timespec { int64_t tv_sec; long tv_nsec; };
+#include <sys/time.h>
 
 typedef long ssize_t;
 typedef long off_t;
@@ -58,3 +59,36 @@ long sysconf(int name);
 long getpagesize(void);
 #define _SC_PAGESIZE 2
 #define _SC_OPEN_MAX 4
+
+#ifndef F_OK
+#define F_OK 0
+#define X_OK 1
+#define W_OK 2
+#define R_OK 4
+#endif
+
+int pipe(int fds[2]);
+int link(const char *oldpath, const char *newpath);
+char *basename(char *path);
+char *dirname(char *path);
+#define STDIN_FILENO 0
+#define STDOUT_FILENO 1
+#define STDERR_FILENO 2
+uid_t getuid(void);
+uid_t geteuid(void);
+gid_t getgid(void);
+gid_t getegid(void);
+int gethostname(char *name, size_t len);
+int setuid(uid_t uid);
+int setgid(gid_t gid);
+int seteuid(uid_t uid);
+int setegid(gid_t gid);
+int execl(const char *path, const char *arg, ...);
+
+#ifndef BLOCKOS_UNISTD_X11_COMPAT
+#define BLOCKOS_UNISTD_X11_COMPAT
+int getresuid(unsigned int *ruid, unsigned int *euid, unsigned int *suid);
+int getresgid(unsigned int *rgid, unsigned int *egid, unsigned int *sgid);
+#endif
+
+int execlp(const char *file, const char *arg, ...);

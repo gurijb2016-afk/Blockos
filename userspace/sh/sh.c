@@ -83,6 +83,76 @@ static void tty_setup(void) {
     sc3(SYS_IOCTL, 0, (long)TIOC_SETTERMIOS, (long)(uintptr_t)&t);
 }
 
+/* Four-argument syscall. The kernel's wait4 reads status from rdx and
+ * options from r10, so this helper is needed for that call. */
+static long sc4(long n, long a0, long a1, long a2, long a3) {
+    long r;
+    register long r10 __asm__("r10") = a3;
+    __asm__ volatile("int $0x80" : "=a"(r)
+                     : "a"(n), "D"(a0), "S"(a1), "d"(a2), "r"(r10)
+                     : "rcx", "r11", "memory", "cc");
+    return r;
+}
+
+#define SYS_FORK   91
+#define SYS_EXECVE 48
+#define SYS_WAIT4  43
+#define MAX_ARGS   16
+
+/* Runs /bin/<name> (or <name> when it contains '/') as a child process.
+ * argv is split on spaces; the child execs with an empty environment. */
+static void run_external(char* line) {
+    char* argv[MAX_ARGS + 1];
+    int argc = 0;
+    char* p = line;
+    /* A trailing '&' starts the command in the background (no wait). */
+    size_t len = 0;
+    while (line[len]) len++;
+    while (len > 0 && line[len - 1] == ' ') line[--len] = 0;
+    int background = 0;
+    if (len > 0 && line[len - 1] == '&') {
+        background = 1;
+        line[--len] = 0;
+        while (len > 0 && line[len - 1] == ' ') line[--len] = 0;
+    }
+    while (*p && argc < MAX_ARGS) {
+        while (*p == ' ') p++;
+        if (!*p) break;
+        argv[argc++] = p;
+        while (*p && *p != ' ') p++;
+        if (*p) *p++ = 0;
+    }
+    argv[argc] = 0;
+    if (argc == 0) return;
+
+    const char* name = argv[0];
+    int has_slash = 0;
+    for (const char* q = name; *q; q++) if (*q == '/') has_slash = 1;
+
+    char path[256];
+    size_t k = 0;
+    if (!has_slash) {
+        const char* pre = "/bin/";
+        while (*pre && k < sizeof path - 1) path[k++] = *pre++;
+    }
+    for (const char* q = name; *q && k < sizeof path - 1; q++) path[k++] = *q;
+    path[k] = 0;
+
+    long pid = sc3(SYS_FORK, 0, 0, 0);
+    if (pid < 0) { out("sh: fork failed\n"); return; }
+    if (pid == 0) {
+        char* envp[1] = { 0 };
+        sc3(SYS_EXECVE, (long)(uintptr_t)path, (long)(uintptr_t)argv, (long)(uintptr_t)envp);
+        /* execve only returns on failure */
+        out("sh: "); out(name); out(": command not found\n");
+        sc3(SYS_EXIT, 127, 0, 0);
+    }
+    if (background) return;
+    /* Wait for exactly this child (the kernel does not match wait4(-1)). */
+    int status = 0;
+    sc4(SYS_WAIT4, pid, 0, (long)(uintptr_t)&status, 0);
+}
+
 static void run(char* line) {
     while (*line == ' ') line++;
     if (*line == 0) return;
@@ -104,13 +174,7 @@ static void run(char* line) {
         if (sc3(SYS_CHDIR, (long)(uintptr_t)p, 0, 0) < 0) out("cd: no such directory\n");
         return;
     }
-    /* unknown: print the word */
-    char* w = line;
-    while (*w && *w != ' ') w++;
-    *w = 0;
-    out("sh: ");
-    out(line);
-    out(": command not found\n");
+    run_external(line);
 }
 
 int main(int argc, char** argv, char** envp) {

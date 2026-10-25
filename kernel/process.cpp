@@ -75,6 +75,7 @@ Process* spawn(const void* elf, size_t size, const char* path) {
     p->cwd[0] = '/'; p->cwd[1] = 0;
     p->brk_base = 0x0000000200000000ULL;
     p->brk_current = p->brk_base;
+    p->brk_mapped = 0;
     p->mmap_next = 0x0000000100000000ULL;
     p->has_interp = main_image.has_interp;
     p->real_entry = 0;
@@ -197,7 +198,16 @@ Process* fork_like(Process* parent, const TrapFrame& parent_frame, bool vfork_mo
     memset(child, 0, sizeof(*child));
     child->state = State::EMPTY;
     child->pid = next_pid++;
-    child->pml4 = parent->pml4;
+    if (vfork_mode) {
+        /* vfork: share the address space; the caller blocks until exec/exit. */
+        child->pml4 = parent->pml4;
+    } else {
+        /* fork: the child gets its own tables and private copies of its
+         * writable pages, so it can run (and return through its stack)
+         * without touching the parent. */
+        child->pml4 = paging::clone_for_fork(parent->pml4);
+        if (!child->pml4) { child->state = State::EMPTY; return nullptr; }
+    }
     child->fd_owner = child;
     child->parent_pid = parent->pid;
     child->pgid = parent->pgid;
@@ -206,6 +216,7 @@ Process* fork_like(Process* parent, const TrapFrame& parent_frame, bool vfork_mo
     child->fs_base = parent->fs_base;
     child->brk_base = parent->brk_base;
     child->brk_current = parent->brk_current;
+    child->brk_mapped = parent->brk_mapped;
     child->mmap_next = parent->mmap_next;
     child->has_interp = parent->has_interp;
     child->real_entry = parent->real_entry;

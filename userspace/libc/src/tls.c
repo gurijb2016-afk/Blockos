@@ -47,3 +47,47 @@ unsigned long __blockos_tls_clone_current(void) {
     t->region_base += delta;
     return new_tp;
 }
+
+/* Static executables have no ld.so to build the thread block, so crt1 calls
+ * this before main(). It builds a variant II TLS block (PT_TLS image ending at
+ * the thread pointer, TCB self pointer at fs:0) and sets FS to it. Returns at
+ * once when FS is already set, which is the case for dynamic binaries. */
+extern const unsigned char __ehdr_start[] __attribute__((weak));
+
+struct blockos_static_phdr {
+    uint32_t p_type, p_flags;
+    uint64_t p_offset, p_vaddr, p_paddr, p_filesz, p_memsz, p_align;
+};
+
+void __blockos_static_tls_setup(void) {
+    if (__blockos_tls_get_fs()) return;
+    if (!__ehdr_start) return;
+    const unsigned char* base = __ehdr_start;
+    uint64_t phoff = *(const uint64_t*)(base + 0x20);
+    uint16_t phentsize = *(const uint16_t*)(base + 0x36);
+    uint16_t phnum = *(const uint16_t*)(base + 0x38);
+    const struct blockos_static_phdr* tls = 0;
+    for (uint16_t i = 0; i < phnum; i++) {
+        const struct blockos_static_phdr* ph =
+            (const struct blockos_static_phdr*)(base + phoff + (uint64_t)i * phentsize);
+        if (ph->p_type == 7) { tls = ph; break; }  /* PT_TLS */
+    }
+    uint64_t align = (tls && tls->p_align) ? tls->p_align : 16;
+    if (align > 4096) align = 4096;
+    uint64_t memsz = tls ? tls->p_memsz : 0;
+    uint64_t tls_size = (memsz + align - 1) & ~(align - 1);
+    uint64_t total = tls_size + 4096;  /* block + one page for the TCB */
+    void* mem = mmap(0, (size_t)total, PROT_READ|PROT_WRITE,
+                     MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+    if (mem == MAP_FAILED) return;
+    unsigned long tp = (unsigned long)mem + tls_size;
+    if (tls && tls->p_filesz) {
+        memcpy((void*)(tp - tls_size), (const void*)(uintptr_t)tls->p_vaddr,
+               (size_t)tls->p_filesz);
+    }
+    struct blockos_tls_tcb* t = (struct blockos_tls_tcb*)tp;
+    t->self = tp;
+    t->region_base = (unsigned long)mem;
+    t->region_size = total;
+    __blockos_tls_set_fs(tp);
+}

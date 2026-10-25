@@ -6,6 +6,7 @@
 extern "C" uint64_t timer_uptime_ms();
 extern "C" void blockos_space_tick(uint64_t now_ms);
 
+
 namespace preempt {
 
 void to_trap(const InterruptFrame* s, TrapFrame* d) {
@@ -208,6 +209,23 @@ bool on_exit(BlockOSSyscallFrame* f) {
         cur->frame_valid = false;
     }
     process::Process* next = pick_next(cur);
+    if (!next) {
+        /* Nothing is READY, but a sibling may be asleep on a timeout (poll,
+         * nanosleep). Waking the earliest one now lets it re-check its
+         * condition instead of the system falling back into the boot
+         * context. Its sleep ends early; callers already loop on that. */
+        process::Process* sleeper = nullptr;
+        for (size_t i = 0; i < process::slot_count(); ++i) {
+            process::Process* p = process::slot_at(i);
+            if (!p || p == cur || p->state != process::State::BLOCKED || !p->wake_deadline_ms) continue;
+            if (!sleeper || p->wake_deadline_ms < sleeper->wake_deadline_ms) sleeper = p;
+        }
+        if (sleeper) {
+            sleeper->state = process::State::READY;
+            sleeper->wake_deadline_ms = 0;
+            next = sleeper;
+        }
+    }
     if (!next) {
         process::set_current(nullptr);
         return false;                    /* caller returns into the kernel */

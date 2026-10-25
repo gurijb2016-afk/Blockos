@@ -13,19 +13,19 @@ struct stat {
     unsigned long st_dev;
     unsigned long st_ino;
     unsigned long st_mode;
-    unsigned long __pad3;
-    unsigned long __pad4;
-    unsigned long __pad5;
+    unsigned long st_atime;   /* kernel writes 0 today; keeps layout */
+    unsigned long st_mtime;
+    unsigned long st_ctime;
     unsigned long __pad6;
     unsigned long st_size;
     unsigned long __pad8;
     unsigned long __pad9;
     unsigned long __pad10;
     unsigned long __pad11;
-    unsigned long __pad12;
-    unsigned long __pad13;
-    unsigned long __pad14;
-    unsigned long __pad15;
+    unsigned long st_uid;
+    unsigned long st_gid;
+    unsigned long st_nlink;
+    unsigned long st_rdev;
 };
 
 #define S_IFMT   0170000
@@ -52,3 +52,21 @@ int fstat(int fd, struct stat* buf);
 int stat(const char* path, struct stat* buf);
 int lstat(const char* path, struct stat* buf);
 int fstatat(int dirfd, const char* path, struct stat* buf, int flags);
+#define S_IFMT 0170000
+#define S_IFREG 0100000
+#define S_IFDIR 0040000
+#define S_IFLNK 0120000
+#define S_IFCHR 0020000
+#define S_IFBLK 0060000
+#define S_IFIFO 0010000
+#define S_IFSOCK 0140000
+#define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+#define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
+#define S_ISLNK(m) (((m) & S_IFMT) == S_IFLNK)
+#define S_ISCHR(m) (((m) & S_IFMT) == S_IFCHR)
+#define S_ISBLK(m) (((m) & S_IFMT) == S_IFBLK)
+#define S_ISFIFO(m) (((m) & S_IFMT) == S_IFIFO)
+#define S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK)
+int fchmod(int fd, unsigned int mode);
+int chmod(const char *path, unsigned int mode);
+int umask(int mask);
