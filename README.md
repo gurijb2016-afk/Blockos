@@ -19,7 +19,7 @@ Screenshots
 Screenshots will be added here as verified images from BlockOS.
 
 <!-- Replace these examples with actual screenshots committed to the repository. --><!--
-![BlockOS X11](docs/screenshots/x11.png)
+![BlockOS X11](docs/screenshots/x11.webp)
 -->Features and development
 
 BlockOS development includes:
