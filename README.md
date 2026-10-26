@@ -19,8 +19,6 @@ Screenshots
 Screenshots will be added here as verified images from BlockOS.
 
 <!-- Replace these examples with actual screenshots committed to the repository. --><!--
-![BlockOS boot](docs/screenshots/boot.png)
-![BlockOS terminal](docs/screenshots/terminal.png)
 ![BlockOS X11](docs/screenshots/x11.png)
 -->Features and development
 
