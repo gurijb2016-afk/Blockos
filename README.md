@@ -16,6 +16,12 @@ Repository: "gurijb2016-afk/Blockos" (https://github.com/gurijb2016-afk/Blockos)
 
 Screenshots
 
+<!-- Replace these examples with actual screenshots committed to the repository. -->
+
+!--
+![BlockOS X11](docs/screenshots/x11.webp)
+-->
+
 Screenshots will be added here as verified images from BlockOS.
 
 BlockOS development includes:
