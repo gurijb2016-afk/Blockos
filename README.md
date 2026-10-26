@@ -1,241 +1,321 @@
-# BlockOS
+BlockOS
 
-BlockOS is an experimental operating system project built from scratch in C++.
+BlockOS is an independently developed, experimental 64-bit x86-64 operating system written primarily in C++.
 
-It is designed as a learning and research OS with its own kernel, syscall layer, VFS work, service management ideas, networking work, and GUI direction. The project is still under active development.
+BlockOS is built around its own kernel, system call interface, executable loader, user-space environment, device support, networking stack, and graphical system. It is not based on the Linux kernel.
 
-## Status
+The long-term vision is to develop BlockOS into a reliable, self-contained operating system for desktop computers, workstations, and servers, with support for everyday applications and full desktop environments.
 
-**Experimental / work in progress**
+Status: Active development — experimental
 
-BlockOS is not a general-purpose production operating system yet. Many parts are still being built, tested, and integrated.
+BlockOS is not yet a production-ready general-purpose operating system. Development focuses on implementing, integrating, and testing individual components while expanding hardware and software compatibility.
 
-## Goals
+Goals
 
-BlockOS aims to explore and implement:
+The primary goal is to build a complete operating system that can eventually be used for everyday computing and long-running server workloads.
 
-* a custom kernel architecture
-* process and thread management
-* ELF loading
-* a VFS layer
-* filesystem support such as ext4-related work
-* a service/init system
-* a networking stack
-* security and sandboxing ideas
-* a modern GUI direction
-* user-space programs and developer tools
+Desktop and everyday use
 
-## Features already under development
+BlockOS aims to support a complete graphical desktop and become suitable for long-term daily use.
 
-Depending on the current branch and build state, the repository may include work on:
+Long-term goals include:
 
-* kernel boot and early init
-* paging and memory management
-* scheduler design
-* syscall handling and emulation
-* ELF loader
-* VFS and filesystem integration
-* ext4-related filesystem code
-* VirtIO and other driver work
-* networking components
-* service/daemon management
-* GUI / window manager experiments
-* user-space utilities
+- Running full desktop environments such as GNOME and KDE Plasma.
+- Supporting software and components from the KDE neon ecosystem, where their dependencies and interfaces can be provided.
+- Providing a graphical desktop, window management, keyboard and mouse input, audio, networking, and display support.
+- Supporting web browsers, multimedia applications, development tools, and general-purpose desktop software.
+- Providing a consistent native user-space environment and system libraries.
+- Improving stability, usability, installation, upgrades, and hardware compatibility.
 
-The exact layout may change as the project evolves.
+KDE neon is a Linux-based distribution rather than a desktop environment itself. The relevant goal for BlockOS is compatibility with KDE Plasma and the applications and components associated with that ecosystem.
 
-## Prerequisites
+Server use
 
-BlockOS boots as a UEFI application built against gnu-efi, and runs under QEMU with
-OVMF firmware. You need a Linux development machine (WSL works) with:
+BlockOS also aims to become suitable for server environments, including systems that need to run continuously.
 
-| Tool | Used for |
-| --- | --- |
-| `g++`, `ld`, `objcopy` | compiling and linking the kernel |
-| `make` | the build |
-| gnu-efi | UEFI headers, `libefi.a`, `libgnuefi.a`, `crt0-efi-x86_64.o`, linker script |
-| OVMF | UEFI firmware for QEMU; the default SeaBIOS is legacy-BIOS only |
-| `qemu-system-x86_64` | running the image |
-| `mtools` (`mmd`, `mcopy`) | populating the FAT boot image |
-| `dosfstools` (`mkfs.vfat`) | creating the FAT boot image |
-| `python3` | `make menuconfig` only |
+Long-term goals include:
 
-On Debian/Ubuntu:
+- Running long-lived background services and server applications.
+- Providing reliable TCP/IP networking and socket interfaces.
+- Supporting storage devices and filesystems.
+- Offering process isolation, permissions, resource management, and security controls.
+- Supporting remote administration and automated system management.
+- Improving reliability, diagnostics, recovery, and performance under sustained workloads.
 
-```bash
+Independent operating system
+
+BlockOS is intended to remain independent of the Linux kernel.
+
+The project aims to develop its own kernel and native system components, including the system call interface, executable loading, device drivers, user-space libraries, and system utilities. Compatibility layers and application interfaces may be implemented where needed to support additional software.
+
+Core development areas
+
+Kernel and boot process
+
+BlockOS targets 64-bit x86-64 systems and uses UEFI for booting.
+
+Kernel development includes:
+
+- UEFI boot and early initialization
+- Memory management and paging
+- Process and thread management
+- User-mode execution
+- System call handling
+- Interrupt and exception handling
+- Hardware discovery and device management
+
+Kernel components are under active development, and their completeness depends on the current branch and build.
+
+Processes and executable loading
+
+BlockOS includes work on a native ELF64 loader and user-space process execution.
+
+Development areas include:
+
+- Loading and starting executable programs
+- Process creation and termination
+- Waiting for child processes
+- Signals and process control
+- System call interfaces
+- User-space memory and execution context management
+
+The objective is to execute real programs as user-space processes through BlockOS's own interfaces rather than simulate an operating system inside another environment.
+
+Shell and user space
+
+BlockOS has development work on a real "/bin/sh" and native user-space programs.
+
+The user-space environment is being expanded to provide:
+
+- A command-line shell
+- Native executable utilities
+- Process and file operations
+- Networking tools
+- System administration commands
+- Libraries and APIs required by applications
+
+Compatibility and functionality vary by program. A successful test of one executable does not imply that all POSIX applications or Linux binaries are compatible.
+
+System calls and libraries
+
+BlockOS is developing its own system call layer and user-space library infrastructure.
+
+The goals include:
+
+- A consistent system call ABI
+- Process and file operations
+- Memory management interfaces
+- Socket and networking interfaces
+- Signals and synchronization primitives
+- Runtime support for native executables
+- Libraries needed by increasingly complex applications
+
+The project aims to avoid unnecessary dependence on Linux-specific runtime assumptions and to provide the interfaces required by its own user space.
+
+Virtual filesystem and storage
+
+Filesystem and storage development includes:
+
+- Virtual filesystem (VFS) integration
+- File and directory operations
+- Storage device discovery
+- ATA and AHCI-related driver work
+- VirtIO storage support
+- ext4-related filesystem work
+- Device nodes, mount points, and persistent storage
+
+Filesystem support and storage compatibility must be verified against the actual implementation and target hardware.
+
+Networking
+
+BlockOS includes networking and socket-related development.
+
+Areas of work include:
+
+- Network interface support
+- Ethernet and packet handling
+- TCP/IP networking
+- Socket operations
+- Client-server communication
+- DNS and other network services
+- Network device drivers
+
+Further development is required to expand protocol coverage, improve interoperability, and establish reliability for everyday and server use.
+
+Graphics and desktop
+
+BlockOS is developing a graphical environment based on X11.
+
+Development includes:
+
+- Framebuffer and display-device integration
+- X server compatibility
+- Keyboard and mouse input
+- Window manager support
+- Cursor and font integration
+- X11 applications and supporting libraries
+
+The immediate direction is a lightweight graphical desktop. Larger desktop environments such as GNOME and KDE Plasma are long-term goals and will require substantial additional work on graphics, input, libraries, system services, application interfaces, and hardware support.
+
+Hardware and drivers
+
+Hardware support is a major part of BlockOS development.
+
+Target areas include:
+
+- PCI device enumeration
+- Storage controllers and disks
+- Ethernet and other network adapters
+- USB controllers and USB input devices
+- Display adapters and graphics hardware
+- Audio devices
+- Keyboard, mouse, and other peripherals
+
+The project prioritizes modular, testable driver implementations rather than adding large amounts of unverified code. Device support depends on the hardware, driver implementation, and testing performed.
+
+Not every PC, graphics card, network adapter, or peripheral is supported.
+
+Security and reliability
+
+Security and reliability are essential to the long-term goal of daily desktop and server use.
+
+Planned development areas include:
+
+- Process isolation and privilege boundaries
+- User and group management
+- Permissions and access control
+- Memory safety and fault handling
+- Resource limits and process management
+- Logging and diagnostics
+- Service supervision and recovery
+- Testing under different workloads and hardware configurations
+
+These areas require continued implementation and testing before BlockOS can be considered suitable for production workloads.
+
+Building and running
+
+The build system and its requirements may change as kernel and user-space components evolve. Always check the current Makefile and build scripts for the exact requirements of the branch you are using.
+
+The development environment uses a C++ toolchain, GNU-EFI, GNU Make, and QEMU with OVMF firmware.
+
+On Debian or Ubuntu, a starting set of dependencies is:
+
 sudo apt update
-sudo apt install build-essential gnu-efi ovmf qemu-system-x86 mtools dosfstools python3
-```
+sudo apt install build-essential gnu-efi ovmf \
+    qemu-system-x86 mtools dosfstools python3
 
-The Makefile expects gnu-efi in the usual Debian locations (`/usr/include/efi`,
-`/usr/lib`). To check them before building:
+The repository may require additional tools or libraries depending on the current source tree and enabled components.
 
-```bash
+Check the EFI toolchain
+
 make check-efi
-```
 
-Adjust the paths at the top of the `Makefile` if your distribution installs
-gnu-efi elsewhere.
+This checks the GNU-EFI paths expected by the build system. If your distribution installs the files elsewhere, adjust the relevant paths in the Makefile.
 
-## Build
+Build
 
-```bash
 make
-```
 
-This compiles the sources in `drivers/`, `fs/`, `kernel/`, `examples/`, and
-`libc/src/`, links `build/kernel.so`, then converts it to `build/BOOTX64.EFI`.
+This invokes the repository's build system to compile and link the components configured for the current branch.
 
-Those directories are globbed one level deep only, so files in subdirectories are
-not picked up automatically. Anything nested has to be added to `SRC` in the
-`Makefile` by name.
+Run in QEMU
 
-Other targets:
-
-```bash
-make clean       # remove objects, dependency files, and build/
-make rebuild     # clean, then build
-make check-efi   # verify the gnu-efi toolchain paths
-```
-
-## Run
-
-```bash
 make run
-```
 
-This builds if needed, then runs `build_and_run.sh`, which:
+Where supported by the current build scripts, this launches BlockOS in QEMU using OVMF UEFI firmware.
 
-1. Creates `disk.img`, a 16MB FAT image, and copies `BOOTX64.EFI` to
-   `EFI/BOOT/BOOTX64.EFI` on it. Anything in `persistent/` is copied to the image
-   root. This image is rebuilt from scratch on every run.
-2. Creates `data.img`, a 16MB raw image, if it is missing or the wrong size.
-   Unlike `disk.img` this one persists between runs.
-3. Boots QEMU with OVMF, attaching both images as IDE drives.
+The exact boot image, storage layout, and runtime configuration depend on the checked-out branch. Consult "Makefile" and "build_and_run.sh" for the current behavior.
 
-The two images land in different IDE slots:
+Run with experimental USB input devices
 
-| Image | Slot | Purpose |
-| --- | --- | --- |
-| `disk.img` | primary master | EFI system partition, booted by OVMF |
-| `data.img` | primary slave | raw storage for the ATA driver |
+If the current run script supports the USB option:
 
-If OVMF is not found automatically, pass its path:
-
-```bash
-OVMF=/path/to/OVMF.fd make run
-```
-
-To run with experimental USB tablet/mouse devices, invoke the script directly:
-
-```bash
 sh build_and_run.sh usb
-```
 
-Note that this depends on QEMU's default i440fx machine, which provides the
-legacy IDE controller at ports 0x1F0/0x170. The `q35` machine has AHCI instead
-and the ATA driver will not find a drive there.
+QEMU machine type and controller configuration affect which virtual hardware is available. For example, a legacy ATA driver and an AHCI controller do not use the same hardware interface.
 
-Once booted, type `help` in the console for the available commands.
+Important: Begin testing in a virtual machine with disposable disk images. Experimental operating-system code can crash, fail to boot, or corrupt storage when tested on physical hardware.
 
-## Cleaning
+Cleaning build output
 
-```bash
-make clean       # remove build output
-make rebuild     # clean, then build
-```
+The following targets are available where defined by the current Makefile:
 
-`make clean` removes three things: the object files, the `.d` dependency files,
-and the `build/` directory. Note that objects are compiled **in place**, next to
-their sources rather than under `build/`, so a clean touches the source tree and
-not just one output directory.
+make clean
+make rebuild
 
-Neither disk image is removed:
+"make clean" removes the build artifacts covered by the current clean target. It does not necessarily remove persistent disk images, generated configuration files, or unrelated Autotools output.
 
-* `disk.img` is rebuilt from scratch on every run, so there is nothing to clean.
-* `data.img` is left alone deliberately. It is persistent storage, and anything
-  written with `ata-write` lives there.
+Before deleting any image, check whether it contains data you need to preserve.
 
-To reset persistent storage, or if `data.img` ever ends up corrupt or the wrong
-size, just delete it:
+Development workflow
 
-```bash
-rm data.img
-```
+BlockOS is developed incrementally, with an emphasis on integration and testing.
 
-The next run recreates it as a zeroed image of the correct size.
+Typical areas of work include:
 
-Autotools leftovers such as `config.log`, `config.status`, and `autom4te.cache/`
-are not covered by `make clean`, and there is no `distclean` target. Remove those
-by hand if you need to.
-
-## Development workflow
-
-A good way to work on BlockOS is to focus on one subsystem at a time:
-
-1. kernel boot and early init
-2. memory management
-3. process/scheduler integration
-4. syscall interface
+1. Kernel boot and initialization
+2. Memory management and CPU facilities
+3. Process execution and system calls
+4. Executable loading and native libraries
 5. VFS and filesystem support
-6. drivers
-7. networking
-8. security
-9. user space
-10. GUI and applications
+6. Hardware discovery and device drivers
+7. Networking and sockets
+8. Shell and user-space utilities
+9. Graphics, X11, and window management
+10. Security, reliability, and application compatibility
 
-## Adding new code
+These areas are interconnected and may be developed in parallel. This list is not a claim that each subsystem is complete.
 
-When contributing new modules, try to keep the code:
+Contributing
 
-* small and readable
-* separated by subsystem
-* documented with comments where needed
-* easy to test in QEMU
-* consistent with the existing style
+Contributions, testing, bug reports, and technical discussion are welcome.
 
-## Troubleshooting
+Areas where help is particularly valuable include:
 
-### QEMU boot problems
+- x86-64 kernel development
+- Storage and filesystem drivers
+- PCI, USB, and input-device support
+- Ethernet and network drivers
+- Graphics and audio drivers
+- Networking protocols
+- ELF loading and native libraries
+- X11 compatibility and window managers
+- Testing, debugging, and documentation
 
-Check:
+If you want to contribute, open a GitHub issue or discussion explaining the subsystem you are interested in and what you would like to work on.
 
-* bootloader configuration
-* kernel image path
-* initrd or rootfs path
-* memory size passed to QEMU
-* whether the image was rebuilt after code changes
+Contributions should be understandable, reviewable, and tested where possible. Please distinguish tested behavior from assumptions and incomplete implementations.
 
-### File permission issues
+BlockOS is an operating-system development project, not an advertisement for a product for sale.
 
-If scripts are not executable, fix them with: ``chmod +x *.sh``
+Roadmap
 
-## Roadmap
+Long-term development goals include:
 
-Possible future work includes:
+- More complete process and thread management
+- Expanded native system call and library coverage
+- Broader filesystem and storage support
+- More network protocols and device drivers
+- Improved user and group management
+- Stronger security and process isolation
+- Reliable service and background-process management
+- A more complete native user-space environment
+- A stable X11-based graphical desktop
+- Support for larger desktop environments, including GNOME and KDE Plasma
+- Compatibility with software from the KDE ecosystem, including relevant KDE neon components
+- Better installer, system administration, and developer tools
+- Improved reliability for everyday desktop and server workloads
 
-* stronger user and group management
-* capabilities and sandboxing
-* audit logging
-* a more complete POSIX layer
-* TCP/IP networking features
-* more device drivers
-* package management
-* service supervision
-* graphical shell and desktop components
-* better documentation for developers and testers
+The roadmap is subject to change as implementation, testing, and hardware support progress.
 
-## License
+License
 
-BlockOS is licensed under the **GNU General Public License, version 2**. The full
-text is in [LICENSE](LICENSE).
+BlockOS is licensed under the GNU General Public License, version 2 (GPL-2.0).
 
-Because the GPL is a copyleft license, anything distributed as a combined work
-with BlockOS is covered by the same terms, and source must be made available to
-whoever receives a binary.
+See "LICENSE" (LICENSE) for the full license text.
 
-## Credits
+Credits
 
-BlockOS is a personal operating system project built with a lot of experimentation, debugging, and iteration.
+BlockOS is an independently developed operating-system project built through systems programming, experimentation, debugging, and testing.
 
-If you want to build your own OS too, study the code, experiment carefully, and keep going.
+Thanks to everyone who studies the project, reports issues, shares technical knowledge, tests hardware compatibility, and contributes to independent operating-system development.
