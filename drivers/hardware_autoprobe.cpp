@@ -9,6 +9,10 @@
 #include "audio.hpp"
 #include "net/network_hw.hpp"
 #include "hardware_inventory.hpp"
+#include "virtio_input.hpp"
+#include "virtio_rng.hpp"
+#include "virtio_pci.hpp"
+#include "serial.hpp"
 
 #include <string.h>
 
@@ -52,6 +56,14 @@ static void probe_usb_audio()
     }
     g_report.hda = audio::init();
 }
+
+static void probe_input_entropy_serial()
+{
+    virtio_pci::scan();
+    g_report.virtio_input = virtio_input::init();
+    g_report.virtio_rng = virtio_rng::init();
+    g_report.serial = serial::init();
+}
 } // namespace
 
 void pre_exit_bootstrap(Report* out_report)
@@ -61,6 +73,7 @@ void pre_exit_bootstrap(Report* out_report)
     probe_storage();
     probe_network();
     probe_usb_audio();
+    probe_input_entropy_serial();
 
     // The inventory is read-only. It reports what was discovered and what
     // driver families exist, without assuming a device is initialized merely

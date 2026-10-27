@@ -19,6 +19,9 @@ struct Report {
     bool native_net;
     bool xhci;
     bool hda;
+    bool virtio_input;
+    bool virtio_rng;
+    bool serial;
 };
 
 void pre_exit_bootstrap(Report* out_report = nullptr);

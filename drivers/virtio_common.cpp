@@ -19,6 +19,12 @@ constexpr uint16_t VIRTIO_NET_MODERN = 0x1041;
 constexpr uint16_t VIRTIO_BLK_MODERN = 0x1042;
 constexpr uint16_t VIRTIO_GPU_LEGACY = 0x1010;
 constexpr uint16_t VIRTIO_GPU_MODERN = 0x1050;
+constexpr uint16_t VIRTIO_CONSOLE_LEGACY = 0x1003;
+constexpr uint16_t VIRTIO_CONSOLE_MODERN = 0x1043;
+constexpr uint16_t VIRTIO_RNG_LEGACY     = 0x1005;
+constexpr uint16_t VIRTIO_RNG_MODERN     = 0x1044;
+constexpr uint16_t VIRTIO_INPUT_LEGACY   = 0x1012;
+constexpr uint16_t VIRTIO_INPUT_MODERN   = 0x1052;
 
 constexpr uint8_t STATUS_ACKNOWLEDGE = 0x01;
 constexpr uint8_t STATUS_DRIVER      = 0x02;
@@ -307,6 +313,18 @@ static bool find_device_ids(virtio_common::DeviceType type, uint16_t& legacy_id,
         case virtio_common::DeviceType::GPU:
             legacy_id = VIRTIO_GPU_LEGACY;
             modern_id = VIRTIO_GPU_MODERN;
+            return true;
+        case virtio_common::DeviceType::INPUT:
+            legacy_id = VIRTIO_INPUT_LEGACY;
+            modern_id = VIRTIO_INPUT_MODERN;
+            return true;
+        case virtio_common::DeviceType::CONSOLE:
+            legacy_id = VIRTIO_CONSOLE_LEGACY;
+            modern_id = VIRTIO_CONSOLE_MODERN;
+            return true;
+        case virtio_common::DeviceType::ENTROPY:
+            legacy_id = VIRTIO_RNG_LEGACY;
+            modern_id = VIRTIO_RNG_MODERN;
             return true;
         default:
             return false;

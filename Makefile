@@ -37,6 +37,7 @@ ifeq ($(origin STRIP),default)
   STRIP := $(if $(filter clang,$(TOOLCHAIN)),llvm-strip,strip)
 endif
 PYTHON ?= python3
+EFI_TARGET ?= $(shell $(OBJCOPY) --info 2>/dev/null | grep -q 'efi-app-x86_64' && echo 'efi-app-x86_64' || echo 'pei-x86-64')
 
 # ============================================================
 # C++ FLAGS
@@ -345,7 +346,7 @@ $(EFI_OUT): $(SO_OUT)
 		-j .rela.* \
 		-j .reloc \
 		--subsystem=10 \
-		--target=efi-app-x86_64 \
+		-O $(EFI_TARGET) \
 		$(SO_OUT) \
 		$(EFI_OUT)
 	@echo ""

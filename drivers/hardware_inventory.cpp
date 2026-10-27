@@ -85,10 +85,11 @@ void print_report()
 
     Print((CHAR16*)L"\r\nBlockOS hardware inventory: PCI=%u, device-name matches=%u, driver-family hints=%u\r\n",
           (UINTN)total, (UINTN)identified, (UINTN)driver_hints);
-    Print((CHAR16*)L"Drivers detected: virtio-blk=%u nvme=%u ahci=%u virtio-net=%u native-net=%u xhci=%u hda=%u\r\n",
+    Print((CHAR16*)L"Drivers detected: blk=%u nvme=%u ahci=%u net=%u nat-net=%u xhci=%u hda=%u input=%u rng=%u uart=%u\r\n",
           (UINTN)report.virtio_block, (UINTN)report.nvme, (UINTN)report.ahci,
           (UINTN)report.virtio_net, (UINTN)report.native_net, (UINTN)report.xhci,
-          (UINTN)report.hda);
+          (UINTN)report.hda, (UINTN)report.virtio_input, (UINTN)report.virtio_rng,
+          (UINTN)report.serial);
     Print((CHAR16*)L"Capability check: MSI/MSI-X are reported only; they are not enabled here.\r\n");
 
     const size_t max_lines = 32;
