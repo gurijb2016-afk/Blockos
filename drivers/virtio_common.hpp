@@ -11,6 +11,8 @@ enum class DeviceType : uint8_t {
     BLOCK = 0,
     NETWORK = 1,
     INPUT = 2,
+    CONSOLE = 3,
+    ENTROPY = 4,
     GPU = 16
 };
 

@@ -3,8 +3,10 @@
 This file documents the current scaffold for virtio-input and virtio-blk and the planned next steps.
 
 Current status
-- virtio_input.cpp/.hpp: stub implementation. Kernel falls back to PS/2 input when virtio input is unavailable.
-- No functional virtio-blk driver yet. Persistence currently in-memory only.
+- virtio_pci.cpp/.hpp: full PCI bus scanner for vendor 0x1AF4, decoding device functions and reporting BAR0/capabilities.
+- virtio_input.cpp/.hpp: full native virtqueue-based event polling driver. Pre-allocates receive descriptors and provides read_byte_nonblocking() and poll().
+- virtio_rng.cpp/.hpp: native VirtIO random number generator (entropy source) driver.
+- virtio-blk and virtio-net: implemented with DMA ring allocation and multi-sector/packet handling.
 
 Planned work (next iterations)
 1) Implement virtio-pci probe and configuration space helper (scan PCI bus for vendor 0x1AF4). Create virtio_pci.* that: 

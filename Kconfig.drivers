@@ -78,6 +78,16 @@ config DRIVER_VIRTIO_NET
     default y
     depends on DRIVER_VIRTIO
 
+config DRIVER_VIRTIO_RNG
+    bool "VirtIO RNG (entropy)"
+    default y
+    depends on DRIVER_VIRTIO
+
+config DRIVER_SERIAL
+    bool "16550 UART serial driver"
+    default y
+    depends on ARCH_X86_64
+
 config DRIVER_VIRTIO_INPUT
     bool "VirtIO input"
     default y
