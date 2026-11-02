@@ -82,6 +82,69 @@ static void fo_fixed(fmt_out *o, double d, int prec_given, int prec, int width, 
     fo_number(o, prefix, dig, n, width, left, zero, 0, 0);
 }
 
+
+/* %e and %g: exponent form and shortest-of-both form, built on fo_fixed. */
+static void fo_expo(fmt_out *o, double d, int prec, int upper, int strip, int width, int left) {
+    char tb[160]; fmt_out t = { tb, sizeof tb, 0 };
+    int neg = d < 0 || (d == 0 && 1 / d < 0);
+    if (neg) d = -d;
+    int e = 0;
+    if (d != 0) {
+        while (d >= 10) { d /= 10; e++; }
+        while (d < 1) { d *= 10; e--; }
+    }
+    /* rounding can push the mantissa to 10.0 */
+    fmt_out m = { tb + 100, 40, 0 };
+    fo_fixed(&m, d, 1, prec, 0, 0, 0, 0, 0);
+    int mn = (int)(m.pos < 40 ? m.pos : 40);
+    if (mn >= 2 && tb[100] == '1' && tb[101] == '0') { /* 9.99.. rounded up */
+        d = 1; e++;
+        m.pos = 0; fo_fixed(&m, d, 1, prec, 0, 0, 0, 0, 0);
+        mn = (int)(m.pos < 40 ? m.pos : 40);
+    }
+    int k = 0;
+    if (neg) tb[k++] = '-';
+    int ml = mn;
+    if (strip && prec > 0) {
+        while (ml > 0 && tb[100 + ml - 1] == '0') ml--;
+        if (ml > 0 && tb[100 + ml - 1] == '.') ml--;
+    }
+    for (int i = 0; i < ml; i++) tb[k++] = tb[100 + i];
+    tb[k++] = upper ? 'E' : 'e';
+    tb[k++] = e < 0 ? '-' : '+';
+    int ae = e < 0 ? -e : e;
+    if (ae >= 100) tb[k++] = (char)('0' + ae / 100);
+    tb[k++] = (char)('0' + (ae / 10) % 10);
+    tb[k++] = (char)('0' + ae % 10);
+    fo_str(o, tb, (size_t)k, width, left);
+}
+
+static void fo_general(fmt_out *o, double d, int prec_given, int prec, int upper, int width, int left, int zero, int plus, int space) {
+    (void)zero; (void)plus; (void)space;
+    int P = prec_given ? (prec == 0 ? 1 : prec) : 6;
+    int X = 0;
+    double a = d < 0 ? -d : d;
+    if (a != 0) {
+        double t = a;
+        while (t >= 10) { t /= 10; X++; }
+        while (t < 1) { t *= 10; X--; }
+    }
+    if (X < -4 || X >= P) {
+        fo_expo(o, d, P - 1, upper, 1, width, left);
+    } else {
+        char tb[160]; fmt_out t = { tb, sizeof tb, 0 };
+        fo_fixed(&t, d, 1, P - 1 - X, 0, 0, 0, 0, 0);
+        size_t n = t.pos < sizeof tb ? t.pos : sizeof tb;
+        if (n >= 1 && tb[n - 1] == '\0') n--;
+        size_t len = n;
+        if (memchr(tb, '.', len)) {
+            while (len > 0 && tb[len - 1] == '0') len--;
+            if (len > 0 && tb[len - 1] == '.') len--;
+        }
+        fo_str(o, tb, len, width, left);
+    }
+}
+
 int vsnprintf(char *buf, size_t size, const char *fmt, va_list ap) {
     fmt_out o = { buf, size, 0 };
     for (const char *f = fmt; f && *f; f++) {
@@ -177,13 +240,21 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list ap) {
             break;
         }
         case 'f':
-        case 'F':
+        case 'F': {
+            double d = va_arg(ap, double);
+            fo_fixed(&o, d, prec_given, prec, width, left, zero, plus, space);
+            break;
+        }
         case 'e':
-        case 'E':
+        case 'E': {
+            double d = va_arg(ap, double);
+            fo_expo(&o, d, prec_given ? prec : 6, c == 'E', 0, width, left);
+            break;
+        }
         case 'g':
         case 'G': {
             double d = va_arg(ap, double);
-            fo_fixed(&o, d, prec_given, prec, width, left, zero, plus, space);
+            fo_general(&o, d, prec_given, prec, c == 'G', width, left, zero, plus, space);
             break;
         }
         case 'n': {
@@ -205,22 +276,22 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list ap) {
     return (int)o.pos;
 }
 int snprintf(char*buf,size_t size,const char*fmt,...){va_list ap;va_start(ap,fmt);int r=vsnprintf(buf,size,fmt,ap);va_end(ap);return r;}
-int printf(const char*fmt,...){char b[512];va_list ap;va_start(ap,fmt);int n=vsnprintf(b,sizeof(b),fmt,ap);va_end(ap);size_t w=n>=(int)sizeof(b)?sizeof(b)-1:(size_t)n;if(w)write(1,b,w);return n;}
+int printf(const char*fmt,...){va_list ap;va_start(ap,fmt);int n=vfprintf(stdout,fmt,ap);va_end(ap);return n;} /* via stdout buffer: keeps order with putchar/puts */
 
 static unsigned char in_buf[BUFSIZ], out_buf[BUFSIZ], err_buf[BUFSIZ];
 static FILE in_file={0,1,in_buf,sizeof(in_buf),0,0,0};
 static FILE out_file={1,2,out_buf,sizeof(out_buf),0,0,0};
 static FILE err_file={2,2,err_buf,sizeof(err_buf),0,0,0};
 FILE *stdin=&in_file; FILE *stdout=&out_file; FILE *stderr=&err_file;
-static int push_raw(FILE*f){if(!f||!f->buf||!f->len)return 0;ssize_t n=write(f->fd,f->buf,f->len);if(n<0)return EOF;f->len=0;f->pos=0;return 0;}
+static int push_raw(FILE*f){if(!f||!f->buf||!f->len)return 0;size_t off=0;while(off<f->len){ssize_t n=write(f->fd,f->buf+off,f->len-off);if(n<=0)return EOF;off+=(size_t)n;}f->len=0;f->pos=0;return 0;}
 int fflush(FILE*f){if(!f)return -1;return push_raw(f);}
 static FILE* alloc_stream(int fd,int flags){FILE*f=(FILE*)malloc(sizeof(FILE));if(!f)return 0;memset(f,0,sizeof(*f));f->fd=fd;f->flags=(unsigned)flags;f->buf=(unsigned char*)malloc(BUFSIZ);f->buf_size=f->buf?BUFSIZ:0;if(!f->buf){free(f);return 0;}return f;}
-static int mode_flags(const char*m,int*flags){if(!m||!m[0])return -1;int f=0;switch(m[0]){case 'r':f=O_RDONLY;break;case 'w':f=O_WRONLY|O_CREAT|O_TRUNC;break;case 'a':f=O_WRONLY|O_CREAT|O_APPEND;break;default:return -1;}if(m[1]=='+')f=(f&~3)|O_RDWR;return f;}
+static int mode_flags(const char*m,int*flags){if(!m||!m[0])return -1;int f=0;switch(m[0]){case 'r':f=O_RDONLY;break;case 'w':f=O_WRONLY|O_CREAT|O_TRUNC;break;case 'a':f=O_WRONLY|O_CREAT|O_APPEND;break;default:return -1;}if(m[1]=='+')f=(f&~3)|O_RDWR;*flags=f;return 0;}
 FILE* fopen(const char*path,const char*mode){int f=0;if(mode_flags(mode,&f)<0){errno=22;return 0;}int fd=open(path,f,0666);if(fd<0)return 0;FILE*s=alloc_stream(fd,2);if(!s){close(fd);return 0;}return s;}
 FILE* fdopen(int fd,const char*mode){int f=0;if(mode_flags(mode,&f)<0){errno=22;return 0;}return alloc_stream(fd,2);}
-int fclose(FILE*f){if(!f||f==stdin||f==stdout||f==stderr){errno=22;return -1;}int rc=fflush(f);int c=close(f->fd);free(f->buf);free(f);return rc<0?rc:c;}
+int fclose(FILE*f){if(!f){errno=22;return -1;}if(f==stdin||f==stdout||f==stderr){ /* standard streams stay open: flush only */ return fflush(f)<0?-1:0;}int rc=fflush(f);int c=close(f->fd);free(f->buf);free(f);return rc<0?rc:c;}
 size_t fread(void*ptr,size_t sz,size_t nm,FILE*f){if(!f||!ptr||!sz)return 0;size_t want=sz*nm,got=0;unsigned char*dst=(unsigned char*)ptr;if(f->ungot_has&&want){*dst=f->ungot_ch;f->ungot_has=0;dst++;want--;got=1;if(!want)return 1;}if(want){ssize_t n=read(f->fd,dst,want);if(n<0){f->flags|=4;return got/sz;}if(n==0)f->flags|=1;got+=(size_t)n;}return got/sz;}
-size_t fwrite(const void*ptr,size_t sz,size_t nm,FILE*f){if(!f||!ptr||!sz)return 0;size_t n=sz*nm;const unsigned char*p=ptr;size_t done=0;if(!f->buf)return 0;while(n){size_t room=f->buf_size-f->len;size_t k=n<room?n:room;memcpy(f->buf+f->len,p,k);f->len+=k;p+=k;n-=k;done+=k;if(f->len==f->buf_size&&push_raw(f)<0)break;}if(f==stderr)push_raw(f); /* stderr is unbuffered */return done/sz;}
+size_t fwrite(const void*ptr,size_t sz,size_t nm,FILE*f){if(!f||!ptr||!sz)return 0;size_t n=sz*nm;size_t n0=n;const unsigned char*p=ptr;size_t done=0;if(!f->buf)return 0;while(n){size_t room=f->buf_size-f->len;size_t k=n<room?n:room;memcpy(f->buf+f->len,p,k);f->len+=k;p+=k;n-=k;done+=k;if(f->len==f->buf_size&&push_raw(f)<0)break;}if(f==stderr)push_raw(f); /* stderr is unbuffered */if(f==stdout&&memchr(ptr,'\n',n0))push_raw(f); /* stdout is line-buffered */return done/sz;}
 int fgetc(FILE*f){unsigned char c;if(!f)return EOF;if(f->ungot_has){f->ungot_has=0;return f->ungot_ch;}return fread(&c,1,1,f)==1?c:EOF;}
 int ungetc(int c,FILE*f){if(c==EOF||!f||f->ungot_has)return EOF;f->ungot_ch=(unsigned char)c;f->ungot_has=1;f->flags&=~1u;return (unsigned char)c;}int getc(FILE*f){return fgetc(f);}int fputc(int c,FILE*f){unsigned char x=(unsigned char)c;return fwrite(&x,1,1,f)==1?x:EOF;}int putc(int c,FILE*f){return fputc(c,f);}
 char*fgets(char*s,int n,FILE*f){if(!s||n<=0||!f)return 0;int i=0;while(i<n-1){int c=fgetc(f);if(c==EOF)break;s[i++]=(char)c;if(c=='\n')break;}if(i==0)return 0;s[i]=0;return s;}

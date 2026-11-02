@@ -173,7 +173,11 @@ static bool install_entry(const char* path, uint32_t mode,
         return false; // Devices, FIFOs, sockets and symlink nodes are unsupported.
     if (vfs::exists(path) || (size != 0 && !data))
         return false;
-    return vfs::create_file(path, data, size);
+    if (!vfs::create_file(path, data, size))
+        return false;
+    // Keep the archive's permission bits (exec bits for scripts and tools).
+    vfs::set_mode(path, mode & 07777u);
+    return true;
 }
 
 static bool valid_shell()

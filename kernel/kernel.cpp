@@ -1,5 +1,11 @@
 #include "drivers/hardware_autoprobe.hpp"
 #include "allocator.hpp"
+extern uint64_t g_pml4_skips;
+extern uint64_t g_alias_hits;
+extern uint64_t g_reaps;
+extern uint64_t g_alias_pids;
+extern uint64_t g_alias_first_pa;
+extern uint64_t g_alias_first_va;
 #include "arch/86_64x/hardware_tables.hpp"
 #include "backbuffer.h"
 #include "cmd/cmd_forth.hpp"
@@ -1197,9 +1203,10 @@ extern "C" EFI_STATUS efi_main(
 #ifdef BLOCKOS_SERVER_MODE
     const size_t heap_size = 32 * 1024 * 1024;
 #else
-    /* 128 MB: execve reads each binary whole into the heap, and the X
-     * server, twm and client processes together need more than 32 MB. */
-    const size_t heap_size = 128 * 1024 * 1024;
+    /* 256 MB: execve reads each binary whole into the heap, and the X
+     * server, twm and client processes together need more than 32 MB.
+     * pkgsrc bootstrap runs hundreds of short-lived execs and exhausted 128 MB. */
+    const size_t heap_size = 1024ULL * 1024 * 1024;
 #endif
 
     void* heapbuf = NULL;
@@ -1622,7 +1629,7 @@ extern "C" EFI_STATUS efi_main(
 
     const char* first_user = blockos_space_recovery_requested()
         ? "/bin/recovery"
-        : "/bin/sh";
+        : "/bin/bsh";  /* BlockOS interactive boot shell; /bin/sh is the NetBSD sh for scripts */
 
     const uint8_t* shell_elf =
         vfs::read_file(
@@ -1630,7 +1637,7 @@ extern "C" EFI_STATUS efi_main(
             &shell_size);
 
     if ((!shell_elf || shell_size == 0) && blockos_space_recovery_requested()) {
-        first_user = "/bin/sh";
+        first_user = "/bin/bsh";
         shell_elf = vfs::read_file(first_user, &shell_size);
     }
 
@@ -1667,7 +1674,7 @@ extern "C" EFI_STATUS efi_main(
     /* Do not fail silently if the first userspace process returns. If it
      * ended on a CPU exception, say what happened. */
     {
-        static char fault_msg[160];
+        static char fault_msg[480];
         if (blockos_fault_vector != 0)
         {
             static const char hex[] = "0123456789abcdef";
@@ -1702,6 +1709,33 @@ extern "C" EFI_STATUS efi_main(
             {
                 put(pos, " cr2=");
                 put_hex(pos, blockos_fault_cr2);
+            }
+            {
+                const auto& rec = allocator::get_record();
+                put(pos, " heap=");
+                put_hex(pos, rec.used);
+                put(pos, " fail=");
+                put_hex(pos, rec.alloc_failed);
+                put(pos, " frees=");
+                put_hex(pos, rec.free_count);
+                put(pos, " shared_skips=");
+                put_hex(pos, g_pml4_skips);
+                put(pos, " bad_op=");
+                put_hex(pos, allocator::bad_op());
+                put(pos, " alias=");
+                put_hex(pos, g_alias_hits);
+                put(pos, " reaps=");
+                put_hex(pos, g_reaps);
+                put(pos, " rej=");
+                put_hex(pos, rec.free_rejected);
+                put(pos, " apid=");
+                put_hex(pos, g_alias_pids);
+                put(pos, " apa=");
+                put_hex(pos, g_alias_first_pa);
+                put(pos, " hb=");
+                put_hex(pos, allocator::heap_begin());
+                put(pos, " ava=");
+                put_hex(pos, g_alias_first_va);
             }
             fault_msg[pos] = 0;
             boot_error_halt(console, fault_msg);

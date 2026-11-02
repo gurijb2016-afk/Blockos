@@ -33,5 +33,6 @@ char *strtok_r(char *s, const char *delim, char **save);
 size_t strnlen(const char *s, size_t maxlen);
 int strcasecmp(const char *, const char *);
 int strncasecmp(const char *, const char *, size_t);
+int strcoll(const char *, const char *);
 size_t strspn(const char *s, const char *accept);
 size_t strcspn(const char *s, const char *reject);

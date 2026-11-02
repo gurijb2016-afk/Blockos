@@ -9,7 +9,7 @@ namespace process {
 enum class State : uint8_t { EMPTY = 0, READY, RUNNING, BLOCKED, TERMINATED };
 
 struct RuntimeFd {
-    enum Kind : uint8_t { None = 0, Tty, File, Directory, Device, UnixSocket };
+    enum Kind : uint8_t { None = 0, Tty, File, Directory, Device, UnixSocket, Null, Random };
     bool used;
     Kind kind;
     uint32_t flags;
@@ -34,8 +34,12 @@ struct Process {
      * and saved ring3 frames. */
     Process* fd_owner;
     uint64_t parent_pid;
+    bool pml4_owned;            /* this process frees its address space when reaped */
+    uint64_t pml4_pending_free; /* old space freed at the next syscall (after exec) */
     uint64_t pgid;
     uint64_t sid;
+    uint32_t uid, euid, gid, egid; /* credentials; 0 = root */
+    uint32_t wait_sock_plus1; /* unix socket index + 1 this task sleeps on (0 = none) */
     uint64_t tid;
     uint64_t fs_base;
     uint64_t wake_deadline_ms;

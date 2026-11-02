@@ -10,6 +10,7 @@ struct tm {
 time_t time(time_t *out);
 struct tm *gmtime(const time_t *t);
 struct tm *localtime(const time_t *t);
+time_t mktime(struct tm *tm);
 size_t strftime(char *s, size_t max, const char *fmt, const struct tm *tm);
 
 struct tm *localtime_r(const time_t *t, struct tm *out);

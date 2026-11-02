@@ -23,10 +23,12 @@ double ceil(double x) {
 }
 
 double sqrt(double x) {
+    /* Hardware sqrtsd: correctly rounded, same result as the host libm.
+     * (The former Newton iteration was 1 ulp off, e.g. sqrt(2) printed 1.414213562373095.) */
     if (x <= 0) return 0;
-    double g = x > 1 ? x : 1;
-    for (int i = 0; i < 60; i++) g = 0.5 * (g + x / g);
-    return g;
+    double r;
+    __asm__ ("sqrtsd %1, %0" : "=x"(r) : "x"(x));
+    return r;
 }
 
 double exp(double x) {

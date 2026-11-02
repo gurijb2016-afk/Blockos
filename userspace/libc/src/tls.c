@@ -61,8 +61,9 @@ struct blockos_static_phdr {
 
 void __blockos_static_tls_setup(void) {
     if (__blockos_tls_get_fs()) return;
-    if (!__ehdr_start) return;
-    const unsigned char* base = __ehdr_start;
+    /* tcc does not define __ehdr_start; static images link at 0x400000. */
+    const unsigned char* base = __ehdr_start ? __ehdr_start : (const unsigned char*)0x400000;
+    if (base[0] != 0x7f || base[1] != 'E' || base[2] != 'L' || base[3] != 'F') return;
     uint64_t phoff = *(const uint64_t*)(base + 0x20);
     uint16_t phentsize = *(const uint16_t*)(base + 0x36);
     uint16_t phnum = *(const uint16_t*)(base + 0x38);

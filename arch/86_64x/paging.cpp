@@ -1,5 +1,6 @@
 #include "paging.hpp"
 #include "dma.hpp"
+#include "kernel/allocator.hpp"
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
@@ -55,6 +56,10 @@ static uint64_t clone_table_level(uint64_t src_phys, int level) {
             uint64_t child = clone_table_level(e & ADDR_MASK, level - 1);
             if (!child) return 0;
             d[i] = (child & ADDR_MASK) | (e & 0xFFFULL) | (e & (1ULL << 63));
+        } else if (e & PTE_USER) {
+            /* User leaves are never inherited: a new space starts with kernel
+             * mappings only and maps its own pages. */
+            continue;
         } else {
             d[i] = e;
         }
@@ -66,6 +71,49 @@ uint64_t paging::clone_current_pml4() {
     uint64_t cur = paging::read_cr3() & ADDR_MASK;
     if (!cur) return 0;
     return clone_table_level(cur, 4);
+}
+
+/* Reference counts for kernel-heap user pages. A read-only page that fork()
+ * shares between parent and child is counted here (refs = number of extra
+ * sharers, 0 = one owner). Only the last owner frees it. Without this, the
+ * parent's exit freed a text/rodata page the child still mapped, the allocator
+ * reused it, and the child then jumped into garbage (fault at rip 0x408df9). */
+static uint16_t* page_refs = nullptr;
+static uintptr_t refs_base = 0;
+static size_t refs_pages = 0;
+
+static bool refs_ready() {
+    if (page_refs) return true;
+    uintptr_t b = allocator::heap_begin();
+    size_t n = allocator::heap_bytes() / 4096;
+    if (!b || !n) return false;
+    page_refs = (uint16_t*)allocator::alloc(n * sizeof(uint16_t), 8);
+    if (!page_refs) return false;
+    memset(page_refs, 0, n * sizeof(uint16_t));
+    refs_base = b;
+    refs_pages = n;
+    return true;
+}
+
+static bool ref_index(uint64_t pa, size_t& i) {
+    if (!refs_ready() || pa < refs_base) return false;
+    uint64_t off = pa - refs_base;
+    if (off >= (uint64_t)refs_pages * 4096ULL) return false;
+    i = (size_t)(off >> 12);
+    return true;
+}
+
+static void ref_share(uint64_t pa) {
+    size_t i;
+    if (ref_index(pa, i) && page_refs[i] < 0xffff) page_refs[i]++;
+}
+
+/* True when the caller is the last owner and must free the page. */
+static bool ref_release(uint64_t pa) {
+    size_t i;
+    if (!ref_index(pa, i)) return false;
+    if (page_refs[i]) { page_refs[i]--; return false; }
+    return true;
 }
 
 /* Like clone_table_level, but writable user leaves get a private copy of the
@@ -84,7 +132,15 @@ static uint64_t clone_table_fork(uint64_t src_phys, int level) {
             uint64_t child = clone_table_fork(e & ADDR_MASK, level - 1);
             if (!child) return 0;
             d[i] = (child & ADDR_MASK) | (e & 0xFFFULL) | (e & (1ULL << 63));
-        } else if (level == 1 && (e & PTE_USER) && (e & PTE_WRITABLE)) {
+        } else if (level == 1 && (e & PTE_USER) && !(e & PTE_WRITABLE) && allocator::owns((const void*)(uintptr_t)(e & ADDR_MASK))) {
+            /* Read-only kernel-heap page: shared with the child, counted so the
+             * last owner frees it. */
+            ref_share(e & ADDR_MASK);
+            d[i] = e;
+        } else if (level == 1 && (e & PTE_USER) && (e & PTE_WRITABLE) && allocator::owns((const void*)(uintptr_t)(e & ADDR_MASK))) {
+            /* Kernel-owned user page: the child gets a private copy, so each
+             * space owns its pages and can free them later. Device (MMIO) pages
+             * stay shared. */
             void* pg = paging::alloc_page();
             if (!pg) return 0;
             memcpy(pg, (const void*)(uintptr_t)(e & ADDR_MASK), 4096);
@@ -99,6 +155,101 @@ static uint64_t clone_table_fork(uint64_t src_phys, int level) {
 uint64_t paging::clone_for_fork(uint64_t src_pml4) {
     if (!src_pml4) return 0;
     return clone_table_fork(src_pml4 & ADDR_MASK, 4);
+}
+
+/* Frees a user address space: its page tables and the kernel-owned user pages
+ * it maps. Kernel leaves and device (MMIO) pages are not touched. The caller
+ * must not run on this space. */
+static void destroy_level(uint64_t phys, int level) {
+    const uint64_t* t = (const uint64_t*)(uintptr_t)phys;
+    for (uint64_t i = 0; i < 512; i++) {
+        uint64_t e = t[i];
+        if (!(e & PTE_PRESENT)) continue;
+        uint64_t addr = e & ADDR_MASK;
+        bool is_table = (level > 1) && (level == 4 || !(e & (1ULL << 7)));
+        if (is_table) {
+            destroy_level(addr, level - 1);
+        } else if (level == 1 && (e & PTE_USER) && allocator::owns((const void*)(uintptr_t)addr) && ref_release(addr)) {
+            allocator::free((void*)(uintptr_t)addr);
+        }
+    }
+    /* Every table below the root is a private copy (see clone_table_level),
+     * so this space owns it. */
+    if (level > 1 && allocator::owns((const void*)(uintptr_t)phys)) allocator::free((void*)(uintptr_t)phys);
+}
+
+/* Diagnostics: how many user leaves of `a` also appear in `b`. */
+uint64_t g_alias_first_pa = 0, g_alias_first_va = 0;
+static bool has_user_leaf(uint64_t phys, int level, uint64_t pa) {
+    const uint64_t* t = (const uint64_t*)(uintptr_t)phys;
+    for (uint64_t i = 0; i < 512; i++) {
+        uint64_t e = t[i];
+        if (!(e & PTE_PRESENT)) continue;
+        bool is_table = (level > 1) && (level == 4 || !(e & (1ULL << 7)));
+        if (is_table) { if (has_user_leaf(e & ADDR_MASK, level - 1, pa)) return true; }
+        else if (level == 1 && (e & PTE_USER) && (e & ADDR_MASK) == pa) return true;
+    }
+    return false;
+}
+static uint64_t count_user_leaves(uint64_t phys, int level, uint64_t other) {
+    const uint64_t* t = (const uint64_t*)(uintptr_t)phys;
+    uint64_t n = 0;
+    for (uint64_t i = 0; i < 512; i++) {
+        uint64_t e = t[i];
+        if (!(e & PTE_PRESENT)) continue;
+        bool is_table = (level > 1) && (level == 4 || !(e & (1ULL << 7)));
+        if (is_table) n += count_user_leaves(e & ADDR_MASK, level - 1, other);
+        else if (level == 1 && (e & PTE_USER) && has_user_leaf(other, 4, e & ADDR_MASK)) {
+            /* Only uncounted sharing is a problem: a counted page is shared on purpose. */
+            size_t ix; if (!ref_index(e & ADDR_MASK, ix) || page_refs[ix] == 0) {
+                if (!g_alias_first_pa) { g_alias_first_pa = e & ADDR_MASK; g_alias_first_va = (uint64_t)i << 12; }
+                n++;
+            }
+        }
+    }
+    return n;
+}
+uint64_t paging::count_shared_user_leaves(uint64_t a, uint64_t b) {
+    if (!a || !b) return 0;
+    return count_user_leaves(a & ADDR_MASK, 4, b & ADDR_MASK);
+}
+
+/* Diagnostics: table pages of `a` that some other space also points to. */
+static bool has_table_ptr(uint64_t phys, int level, uint64_t tp) {
+    const uint64_t* t = (const uint64_t*)(uintptr_t)phys;
+    for (uint64_t i = 0; i < 512; i++) {
+        uint64_t e = t[i];
+        if (!(e & PTE_PRESENT)) continue;
+        bool is_table = (level > 1) && (level == 4 || !(e & (1ULL << 7)));
+        if (!is_table) continue;
+        if ((e & ADDR_MASK) == tp) return true;
+        if (has_table_ptr(e & ADDR_MASK, level - 1, tp)) return true;
+    }
+    return false;
+}
+static uint64_t count_shared_tables_rec(uint64_t phys, int level, uint64_t other) {
+    const uint64_t* t = (const uint64_t*)(uintptr_t)phys;
+    uint64_t n = 0;
+    for (uint64_t i = 0; i < 512; i++) {
+        uint64_t e = t[i];
+        if (!(e & PTE_PRESENT)) continue;
+        bool is_table = (level > 1) && (level == 4 || !(e & (1ULL << 7)));
+        if (!is_table) continue;
+        if (has_table_ptr(other, 4, e & ADDR_MASK)) n++;
+        n += count_shared_tables_rec(e & ADDR_MASK, level - 1, other);
+    }
+    return n;
+}
+uint64_t paging::count_shared_tables(uint64_t a, uint64_t b) {
+    if (!a || !b) return 0;
+    return count_shared_tables_rec(a & ADDR_MASK, 4, b & ADDR_MASK);
+}
+
+void paging::destroy_user_space(uint64_t pml4_phys) {
+    uint64_t root = pml4_phys & ADDR_MASK;
+    if (!root) return;
+    /* destroy_level(…, 4) frees the root table itself. */
+    destroy_level(root, 4);
 }
 
 static bool table(uint64_t phys, uint64_t i, uint64_t flags, uint64_t*& out) {

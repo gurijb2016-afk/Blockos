@@ -14,6 +14,10 @@ double sin(double x);
 double cos(double x);
 double atan2(double y, double x);
 double pow(double x, double y);
+double tan(double x);
+double atan(double x);
+double log(double x);
+double fmod(double x, double y);
 #endif
 double trunc(double x);
 double hypot(double x, double y);
