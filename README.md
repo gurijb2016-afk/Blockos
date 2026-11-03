@@ -10,7 +10,7 @@ BlockOS is an experimental operating system project written primarily in C++ and
 - Graphics: X11 integration
 - Language: C++, C and assembly
 - Status: Experimental — active development
-- License: "GNU GPL-2.0" (LICENSE)
+- License: "BSD-2-Clause" (LICENSE)
 
 Repository: "gurijb2016-afk/Blockos" (https://github.com/gurijb2016-afk/Blockos)
 
