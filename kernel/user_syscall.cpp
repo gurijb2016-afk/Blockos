@@ -6,6 +6,8 @@
 #include "vfs.hpp"
 #include "elf_loader.hpp"
 #include "input_bridge.hpp"
+#include "ata_devices.hpp"
+#include "net/socket.hpp"
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
@@ -201,12 +203,43 @@ static void socket_release_fd(int si, process::Process* except_p, int except_fd)
     socket_free(si);
 }
 
-/* Process exit: drops every unix-socket fd the process still holds. */
+/* Inet (TCP) sockets: the net stack has no reference count, so the count is
+ * taken over every live fd that refers to the same net socket. A forked child
+ * shares its parent's socket; closing one copy must not tear the connection
+ * down while the other copy is still in use (Apache prefork pattern). */
+static int inet_other_refs(int ns, process::Process* except_p, int except_fd){
+    int n=0;
+    for(size_t i=0;;i++){
+        process::Process* q=process::slot_at(i);
+        if(!q) break;
+        if(q->state==process::State::EMPTY) continue;
+        for(int fd=0;fd<(int)process::MAX_RUNTIME_FDS;fd++){
+            if(q==except_p && fd==except_fd) continue;
+            const auto& d=q->fds[fd];
+            if(d.used && d.kind==process::RuntimeFd::InetSocket && (int)d.object==ns) n++;
+        }
+    }
+    return n;
+}
+static void inet_release_fd(int ns, process::Process* except_p, int except_fd){
+    if(ns<0) return;
+    if(inet_other_refs(ns, except_p, except_fd)!=0) return;
+    blockos::net::close(ns);
+}
+
+/* Process exit: drops every unix-socket and inet-socket fd the process still holds. */
 static void release_process_fds(process::Process* q){
     if(!q) return;
     for(int fd=0;fd<(int)process::MAX_RUNTIME_FDS;fd++){
         auto& d=q->fds[fd];
-        if(!d.used || d.kind!=process::RuntimeFd::UnixSocket) continue;
+        if(!d.used) continue;
+        if(d.kind==process::RuntimeFd::InetSocket){
+            int ns=(int)d.object;
+            d={};
+            inet_release_fd(ns, nullptr, -1);
+            continue;
+        }
+        if(d.kind!=process::RuntimeFd::UnixSocket) continue;
         int si=(int)d.object-1;
         d={};
         socket_release_fd(si, nullptr, -1);
@@ -459,6 +492,8 @@ static bool prepare_execve(BlockOSSyscallFrame* f) {
 }
 
 extern "C" void blockos_kernel_poll_input();
+/* AF_INET stream sockets: RuntimeFd.object holds a blockos::net socket index. */
+static inline bool inet_of(int fd,int* ns){auto* t=fdtable();if(fd<0||fd>=(int)process::MAX_RUNTIME_FDS||!t||!t[fd].used||t[fd].kind!=process::RuntimeFd::InetSocket)return false;*ns=(int)t[fd].object;return true;}
 extern "C" void blockos_syscall_dispatch_frame(BlockOSSyscallFrame* f){
     if(!f)return;
     /* Poll hardware AND route the events to the tty; poll_hardware() alone
@@ -476,6 +511,7 @@ extern "C" void blockos_syscall_dispatch_frame(BlockOSSyscallFrame* f){
         if(d.kind==process::RuntimeFd::Null){ r=f->rdx; }
         else if(d.kind==process::RuntimeFd::Tty){ r=blockos_tty_write((const void*)(uintptr_t)f->rsi,(size_t)f->rdx); }
         else if(d.kind==process::RuntimeFd::File){ if((d.flags&3u)==0){r=EBADF;break;} uint64_t noff=d.off; if(!vfs::write_file_at(d.path,d.off,(const uint8_t*)(uintptr_t)f->rsi,(uint32_t)f->rdx,(d.flags&O_APPEND)!=0,&noff)){r=ENOSPC;break;} uint32_t ns=0; d.data=vfs::read_file(d.path,&ns); d.size=ns; d.off=noff; r=f->rdx; }
+        else if(d.kind==process::RuntimeFd::InetSocket){int64_t n=blockos::net::send((int)d.object,(const void*)(uintptr_t)f->rsi,(size_t)f->rdx);r=n>0?n:EAGAIN;}
         else if(d.kind==process::RuntimeFd::UnixSocket){
             int si=fd_socket_index((int)f->rdi);
             if(si<0){r=ENOTCONN;break;}
@@ -555,6 +591,7 @@ extern "C" void blockos_syscall_dispatch_frame(BlockOSSyscallFrame* f){
         if(d.kind==process::RuntimeFd::Tty) r=blockos_tty_read((void*)(uintptr_t)f->rsi,(size_t)f->rdx);
         else if(d.kind==process::RuntimeFd::File){uint64_t avail=d.off<d.size?d.size-d.off:0;size_t n=(size_t)((uint64_t)f->rdx<avail?(uint64_t)f->rdx:avail);if(n)memcpy((void*)(uintptr_t)f->rsi,d.data+d.off,n);d.off+=n;r=n;}
         else if(d.kind==process::RuntimeFd::UnixSocket){int si=fd_socket_index((int)f->rdi);if(si<0){r=ENOTCONN;break;}if(unix_socks[si].rx_size==0&&!unix_socks[si].closed&&unix_socks[si].peer>=0&&f->rdx>0){ /* open but empty: not EOF. A blocking fd gives up the CPU and re-runs this read later. */ if(!(d.flags&FD_NONBLOCK)){ f->rax=0; f->rip-=2; if(p){ p->wait_sock_plus1=(uint32_t)si+1; if(preempt::block_from_syscall(f)) return; p->wait_sock_plus1=0; } if(preempt::yield_from_syscall(f)) return; f->rip+=2; } r=EAGAIN;break;} r=(int64_t)socket_read_idx(si,(uint8_t*)(uintptr_t)f->rsi,(size_t)f->rdx);}
+        else if(d.kind==process::RuntimeFd::InetSocket){int64_t n=blockos::net::recv((int)d.object,(void*)(uintptr_t)f->rsi,(size_t)f->rdx);r=n>0?n:EAGAIN;}
         else if(d.kind==process::RuntimeFd::Device){
             const auto* di=reinterpret_cast<const vfs::DeviceNodeInfo*>(d.data);
             if(!di || di->type!=vfs::DEVICE_INPUT){ r=ENOTTY; break; }
@@ -571,6 +608,7 @@ extern "C" void blockos_syscall_dispatch_frame(BlockOSSyscallFrame* f){
     }
     case blockos::syscall::SYS_close:{
         if(f->rdi>=process::MAX_RUNTIME_FDS||!fs||!fs[f->rdi].used){r=EBADF;break;}
+        if(fs[f->rdi].kind==process::RuntimeFd::InetSocket){int ns=(int)fs[f->rdi].object; fs[f->rdi]={}; inet_release_fd(ns,p,(int)f->rdi); r=0;break;}
         if(fs[f->rdi].kind==process::RuntimeFd::UnixSocket){int si=fd_socket_index((int)f->rdi); fs[f->rdi]={}; socket_release_fd(si,p,(int)f->rdi);} else fs[f->rdi]={}; r=0; break;
     }
     case blockos::syscall::SYS_lseek:{
@@ -671,6 +709,40 @@ extern "C" void blockos_syscall_dispatch_frame(BlockOSSyscallFrame* f){
         if(p){p->exit_code=f->rdi; if(auto* parent=process::get(p->parent_pid)){ if(parent->state==process::State::BLOCKED && (parent->wait_target_pid==0 || parent->wait_target_pid==p->pid)){ parent->saved_frame.rax=p->pid; if(parent->wait_status_ptr && parent->pml4){ /* the parent's stack lives in the parent's tables; fork gave us private copies, so write through the parent's pml4 */ uint64_t my_cr3=paging::read_cr3(); paging::switch_pml4(parent->pml4); if(paging::is_user_range(parent->wait_status_ptr,4,true)) *reinterpret_cast<int*>(static_cast<uintptr_t>(parent->wait_status_ptr))=(int)(p->exit_code<<8); paging::switch_pml4(my_cr3); } parent->wait_target_pid=0; parent->wait_status_ptr=0; parent->state=process::State::READY; } }if(p->clear_tid&&paging::is_user_range(p->clear_tid,4,true)){*(uint32_t*)(uintptr_t)p->clear_tid=0;wake_futex(p->clear_tid,1);}p->state=process::State::TERMINATED;}
         if(preempt::on_exit(f))return; f->rax=0;f->rip=(uint64_t)(uintptr_t)&blockos_user_return;f->cs=0x08;f->ss=0x10;f->rsp=blockos_user_saved_rsp;f->rflags|=0x200;return;
     }
+    case blockos::syscall::SYS_blockos_disk:{
+        /* rdi=op rsi=disk rdx=lba r10=count r8=buf
+         * disk: 0 = boot disk (Primary Master), 1 = data (Primary Slave), 2 = fs (Secondary Master)
+         * op: 0 count present disks, 1 sector count of disk, 2 read, 3 write, 4 flush
+         * Writes to the boot disk (0) are always refused. */
+        constexpr int64_t ENODEV_=-19;
+        AtaPio* d=nullptr;
+        if(f->rsi==0) d=&ata_boot_disk();
+        else if(f->rsi==1) d=&ata_data_disk();
+        else if(f->rsi==2) d=&ata_fs_disk();
+        const uint64_t op=f->rdi;
+        if(op==0){ int n=0; if(ata_boot_disk().present())n++; if(ata_data_disk().present())n++; if(ata_fs_disk().present())n++; r=n; break; }
+        if(!d){r=EINVAL;break;}
+        if(!d->present()){r=ENODEV_;break;}
+        if(op==1){ r=(int64_t)d->sector_count(); break; }
+        if(op==4){ r=d->flush()?0:EIO; break; }
+        if(op!=2 && op!=3){r=EINVAL;break;}
+        if(op==3 && f->rsi==0){r=EPERM;break;}
+        const uint64_t count=f->r10;
+        if(count==0 || count>255){r=EINVAL;break;}
+        if(f->rdx + count > (uint64_t)d->sector_count()){r=EINVAL;break;}
+        const size_t bytes=(size_t)count*512;
+        if(!paging::is_user_range(f->r8,bytes,op==2)){r=EFAULT;break;}
+        const bool ok = (op==2)
+            ? d->read_sectors((uint32_t)f->rdx,(uint8_t)count,(void*)(uintptr_t)f->r8)
+            : d->write_sectors((uint32_t)f->rdx,(uint8_t)count,(const void*)(uintptr_t)f->r8);
+        r = ok ? 0 : EIO;
+        break;
+    }
+    case blockos::syscall::SYS_blockos_reboot:{
+        /* Pulse the reset line through the keyboard controller (port 0x64, cmd 0xFE). */
+        __asm__ volatile("outb %0, %1" :: "a"((uint8_t)0xFE), "Nd"((uint16_t)0x64));
+        for(;;) __asm__ volatile("hlt");
+    }
     case blockos::syscall::SYS_getrandom:{
         if(!paging::is_user_range(f->rdi,(size_t)f->rsi,true)){r=EFAULT;break;} uint64_t x=timer_uptime_ms()^(uint64_t)(uintptr_t)p^(uint64_t)f->rip; for(size_t i=0;i<(size_t)f->rsi;i++){x^=x<<13;x^=x>>7;x^=x<<17;((uint8_t*)(uintptr_t)f->rdi)[i]=(uint8_t)x;} r=(int64_t)f->rsi; break; }
     case blockos::syscall::SYS_pipe2:{
@@ -735,12 +807,12 @@ extern "C" void blockos_syscall_dispatch_frame(BlockOSSyscallFrame* f){
         r=0;break;
     case blockos::syscall::SYS_statx:{
         char path[256]; if(!copy_user_string(f->rdi,path,sizeof(path))){r=EFAULT;break;} char abs[256];if(!resolve_path_for_process(p,path,abs,sizeof(abs))){r=ENAMETOOLONG;break;} uint32_t sz=0; const uint8_t*d=vfs::read_file(abs,&sz); if(!d&&!vfs::is_directory(abs)){r=ENOENT;break;} if(!paging::is_user_range(f->r9,256,true)){r=EFAULT;break;} memset((void*)(uintptr_t)f->r9,0,256); ((uint64_t*)(uintptr_t)f->r9)[0]=1; ((uint64_t*)(uintptr_t)f->r9)[2]=vfs::is_directory(abs)?0040755:0100444; ((uint64_t*)(uintptr_t)f->r9)[11]=sz; r=0;break; }
-    case blockos::syscall::SYS_socket:{int domain=(int)f->rdi,type=(int)(f->rsi&0xffff),proto=(int)f->rdx;if(domain!=AF_UNIX||(type&0xf)!=SOCK_STREAM){r=ENOSYS;break;}int si=socket_obj_alloc();if(si<0){r=ENOMEM;break;}int fd=alloc_fd();if(fd<0){socket_free(si);r=ENOMEM;break;}fs=fdtable();fs[fd]={true,process::RuntimeFd::UnixSocket,0,(uint32_t)(si+1),nullptr,0,0};r=fd;break;}
-    case blockos::syscall::SYS_bind:{int si=fd_socket_index((int)f->rdi);if(si<0){r=ENOTSOCK;break;}if(f->rdx<3||!paging::is_user_range(f->rsi,(size_t)f->rdx,false)){r=EFAULT;break;}char key[sizeof(unix_socks[0].path)]; if(!unix_key_from_addr(f->rsi,f->rdx,key,sizeof(key))){r=EINVAL;break;}bool collision=false;for(auto& s:unix_socks)if(s.used&&s.listener&&strcmp(s.path,key)==0){collision=true;break;}if(collision){r=EADDRINUSE;break;}strncpy(unix_socks[si].path,key,sizeof(unix_socks[si].path)-1);unix_socks[si].path[sizeof(unix_socks[si].path)-1]=0;r=0;break;}
-    case blockos::syscall::SYS_listen:{int si=fd_socket_index((int)f->rdi);if(si<0){r=ENOTSOCK;break;}unix_socks[si].listener=true;r=0;break;}
+    case blockos::syscall::SYS_socket:{int domain=(int)f->rdi,type=(int)(f->rsi&0xffff),proto=(int)f->rdx;if(domain==2&&(type&0xf)==1){int ns=blockos::net::socket(2,1,0);if(ns<0){r=ENOMEM;break;}int fd=alloc_fd();if(fd<0){blockos::net::close(ns);r=ENOMEM;break;}fs=fdtable();fs[fd]={true,process::RuntimeFd::InetSocket,0,(uint32_t)ns,nullptr,0,0};r=fd;break;}if(domain!=AF_UNIX||(type&0xf)!=SOCK_STREAM){r=ENOSYS;break;}int si=socket_obj_alloc();if(si<0){r=ENOMEM;break;}int fd=alloc_fd();if(fd<0){socket_free(si);r=ENOMEM;break;}fs=fdtable();fs[fd]={true,process::RuntimeFd::UnixSocket,0,(uint32_t)(si+1),nullptr,0,0};r=fd;break;}
+    case blockos::syscall::SYS_bind:{{int ns;if(inet_of((int)f->rdi,&ns)){if(f->rdx<8||!paging::is_user_range(f->rsi,(size_t)f->rdx,false)){r=EFAULT;break;}const uint8_t*sa=(const uint8_t*)(uintptr_t)f->rsi;uint16_t port=(uint16_t)((sa[2]<<8)|sa[3]);r=blockos::net::bind(ns,port)==0?0:EINVAL;break;}}int si=fd_socket_index((int)f->rdi);if(si<0){r=ENOTSOCK;break;}if(f->rdx<3||!paging::is_user_range(f->rsi,(size_t)f->rdx,false)){r=EFAULT;break;}char key[sizeof(unix_socks[0].path)]; if(!unix_key_from_addr(f->rsi,f->rdx,key,sizeof(key))){r=EINVAL;break;}bool collision=false;for(auto& s:unix_socks)if(s.used&&s.listener&&strcmp(s.path,key)==0){collision=true;break;}if(collision){r=EADDRINUSE;break;}strncpy(unix_socks[si].path,key,sizeof(unix_socks[si].path)-1);unix_socks[si].path[sizeof(unix_socks[si].path)-1]=0;r=0;break;}
+    case blockos::syscall::SYS_listen:{{int ns;if(inet_of((int)f->rdi,&ns)){r=0;break;}}int si=fd_socket_index((int)f->rdi);if(si<0){r=ENOTSOCK;break;}unix_socks[si].listener=true;r=0;break;}
     case blockos::syscall::SYS_connect:{int si=fd_socket_index((int)f->rdi);if(si<0){r=ENOTSOCK;break;}if(!paging::is_user_range(f->rsi,(size_t)f->rdx,false)||f->rdx<3){r=EFAULT;break;}char sp[sizeof(unix_socks[0].path)]; if(!unix_key_from_addr(f->rsi,f->rdx,sp,sizeof(sp))){r=EINVAL;break;}int li=-1;for(int i=0;i<256;i++)if(unix_socks[i].used&&unix_socks[i].listener&&strcmp(unix_socks[i].path,sp)==0){li=i;break;}if(li<0){r=ENOENT;break;}int peer=socket_obj_alloc();if(peer<0||unix_socks[li].pending_count>=16){r=ENOMEM;break;}unix_socks[si].peer=peer;unix_socks[si].connected=true;unix_socks[peer].peer=si;unix_socks[peer].connected=true;unix_socks[li].pending[unix_socks[li].pending_count++]=peer;r=0;break;}
     case blockos::syscall::SYS_accept:
-    case blockos::syscall::SYS_accept4:{int li=fd_socket_index((int)f->rdi);if(li<0||!unix_socks[li].listener){r=ENOTSOCK;break;}if(unix_socks[li].pending_count==0){r=EAGAIN;break;}int si=unix_socks[li].pending[0];for(int i=1;i<unix_socks[li].pending_count;i++)unix_socks[li].pending[i-1]=unix_socks[li].pending[i];--unix_socks[li].pending_count;int fd=alloc_fd();if(fd<0){r=ENOMEM;break;}fs=fdtable();fs[fd]={true,process::RuntimeFd::UnixSocket,(uint16_t)f->r10,(uint32_t)(si+1),nullptr,0,0};r=fd;break;}
+    case blockos::syscall::SYS_accept4:{{int ns;if(inet_of((int)f->rdi,&ns)){int nfd=blockos::net::accept(ns);if(nfd==-2){r=EAGAIN;break;}if(nfd<0){r=EINVAL;break;}int fd=alloc_fd();if(fd<0){blockos::net::close(nfd);r=ENOMEM;break;}fs=fdtable();fs[fd]={true,process::RuntimeFd::InetSocket,0,(uint32_t)nfd,nullptr,0,0};r=fd;break;}}int li=fd_socket_index((int)f->rdi);if(li<0||!unix_socks[li].listener){r=ENOTSOCK;break;}if(unix_socks[li].pending_count==0){r=EAGAIN;break;}int si=unix_socks[li].pending[0];for(int i=1;i<unix_socks[li].pending_count;i++)unix_socks[li].pending[i-1]=unix_socks[li].pending[i];--unix_socks[li].pending_count;int fd=alloc_fd();if(fd<0){r=ENOMEM;break;}fs=fdtable();fs[fd]={true,process::RuntimeFd::UnixSocket,(uint16_t)f->r10,(uint32_t)(si+1),nullptr,0,0};r=fd;break;}
     case blockos::syscall::SYS_sendto:{int si=fd_socket_index((int)f->rdi);if(si<0){r=ENOTSOCK;break;}if(!paging::is_user_range(f->rsi,(size_t)f->rdx,false)){r=EFAULT;break;}if(!socket_write_idx(si,(const uint8_t*)(uintptr_t)f->rsi,(size_t)f->rdx)){r=EAGAIN;break;}r=f->rdx;break;}
     case blockos::syscall::SYS_recvfrom:{int si=fd_socket_index((int)f->rdi);if(si<0){r=ENOTSOCK;break;}if(!paging::is_user_range(f->rsi,(size_t)f->rdx,true)){r=EFAULT;break;}if(unix_socks[si].rx_size==0&&!unix_socks[si].closed&&unix_socks[si].peer>=0&&f->rdx>0){r=EAGAIN;break;} /* open but empty: not EOF */ r=(int64_t)socket_read_idx(si,(uint8_t*)(uintptr_t)f->rsi,(size_t)f->rdx);break;}
     case blockos::syscall::SYS_getsockname:

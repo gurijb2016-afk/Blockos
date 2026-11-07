@@ -108,6 +108,12 @@ enum Number : std::uint64_t {
     SYS_setrlimit = 98,
     SYS_sched_getaffinity = 99,
     SYS_fstatat = 100,
+    SYS_pread64 = 103,
+    SYS_pwrite64 = 104,
+    SYS_chmod = 105,
+    SYS_symlink = 106,
+    SYS_blockos_disk = 107,
+    SYS_blockos_reboot = 108,
     SYS_unknown = 0xFFFFFFFFFFFFFFFFULL
 };
 
