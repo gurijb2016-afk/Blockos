@@ -1,3 +1,6 @@
+#ifdef __cplusplus
+extern "C" {
+#endif
 #ifndef BLOCKOS_MATH_H
 #define BLOCKOS_MATH_H
 #define M_PI 3.14159265358979323846
@@ -8,6 +11,7 @@
 double fabs(double x);
 double floor(double x);
 double ceil(double x);
+float ceilf(float x);
 double sqrt(double x);
 double exp(double x);
 double sin(double x);
@@ -27,3 +31,9 @@ double asin(double x);
 double acos(double x);
 double cbrt(double x);
 float sqrtf(float x);
+double modf(double x, double *iptr);
+double frexp(double x, int *e);
+
+#ifdef __cplusplus
+}
+#endif

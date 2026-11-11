@@ -1,3 +1,6 @@
+#ifdef __cplusplus
+extern "C" {
+#endif
 #pragma once
 #include <stddef.h>
 #include <stdint.h>
@@ -7,3 +10,12 @@ typedef struct DIR { int fd; unsigned char buf[8192]; size_t pos; size_t len; st
 DIR* opendir(const char* path);
 struct dirent* readdir(DIR* d);
 int closedir(DIR* d);
+int scandir(const char *dir, struct dirent ***namelist,
+            int (*filter)(const struct dirent *),
+            int (*compar)(const struct dirent **, const struct dirent **));
+int alphasort(const struct dirent **a, const struct dirent **b);
+void rewinddir(DIR *d);
+
+#ifdef __cplusplus
+}
+#endif

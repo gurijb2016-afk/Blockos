@@ -1,3 +1,6 @@
+#ifdef __cplusplus
+extern "C" {
+#endif
 #pragma once
 #include <sys/types.h>
 #include <stddef.h>
@@ -55,6 +58,7 @@ off_t ftell(FILE*);
 void rewind(FILE*);
 int feof(FILE*); int ferror(FILE*); void clearerr(FILE*);
 int setvbuf(FILE*, char*, int, size_t);
+void setbuf(FILE*, char*);
 void perror(const char*);
 
 int sprintf(char *s, const char *fmt, ...);
@@ -67,3 +71,21 @@ int asprintf(char **out, const char *fmt, ...);
 int vasprintf(char **out, const char *fmt, va_list ap);
 int vfscanf(FILE *f, const char *fmt, va_list ap);
 int fscanf(FILE *f, const char *fmt, ...);
+
+/* Single-threaded libc: the _unlocked variants are plain functions that call the locked ones
+ * (busybox_compat.c). They must not be macros: BusyBox's libbb.h redefines fgetc/putc on top of them. */
+int putc_unlocked(int, FILE*);
+int putchar_unlocked(int);
+int fputs_unlocked(const char*, FILE*);
+int ferror_unlocked(FILE*);
+int getc_unlocked(FILE*);
+char* fgets_unlocked(char*, int, FILE*);
+int fileno_unlocked(FILE*);
+int dprintf(int, const char*, ...);
+long getline(char**, size_t*, FILE*);
+int fseeko(FILE*, long, int);
+FILE* freopen(const char*, const char*, FILE*);
+
+#ifdef __cplusplus
+}
+#endif

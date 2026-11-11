@@ -1,3 +1,6 @@
+#ifdef __cplusplus
+extern "C" {
+#endif
 #pragma once
 #include <stddef.h>
 #include <stdint.h>
@@ -24,6 +27,12 @@ struct msghdr {
 #define AF_LOCAL AF_UNIX
 #define AF_INET 2
 #define AF_INET6 10
+/* protocol family names: same values as the address families (POSIX) */
+#define PF_UNSPEC AF_UNSPEC
+#define PF_UNIX AF_UNIX
+#define PF_LOCAL AF_LOCAL
+#define PF_INET AF_INET
+#define PF_INET6 AF_INET6
 #define IPPROTO_IP 0
 #define IPPROTO_TCP 6
 #define IPPROTO_UDP 17
@@ -33,6 +42,9 @@ struct in6_addr { uint8_t s6_addr[16]; };
 struct sockaddr_in6 { sa_family_t sin6_family; uint16_t sin6_port; uint32_t sin6_flowinfo; struct in6_addr sin6_addr; uint32_t sin6_scope_id; };
 #define SOCK_STREAM 1
 #define SOCK_DGRAM 2
+#define SOCK_RAW 3
+#define SOCK_RDM 4
+#define SOCK_SEQPACKET 5
 #define SOCK_CLOEXEC 0x80000
 #define SOCK_NONBLOCK 0x800
 #define SHUT_RD 0
@@ -87,3 +99,43 @@ struct cmsghdr { size_t cmsg_len; int cmsg_level; int cmsg_type; };
     (((unsigned char *)(c) + CMSG_ALIGN((c)->cmsg_len) + sizeof(struct cmsghdr) > \
       (unsigned char *)(m)->msg_control + (m)->msg_controllen) ? (struct cmsghdr *)0 : \
      (struct cmsghdr *)((unsigned char *)(c) + CMSG_ALIGN((c)->cmsg_len))))
+
+#ifndef SO_DEBUG
+#define SO_DEBUG 1
+#endif
+
+/* SOL_SOCKET options (Linux values), guarded so existing definitions win */
+#ifndef SO_REUSEADDR
+#define SO_REUSEADDR 2
+#endif
+#ifndef SO_TYPE
+#define SO_TYPE 3
+#endif
+#ifndef SO_OOBINLINE
+#define SO_OOBINLINE 10
+#endif
+#ifndef SO_LINGER
+#define SO_LINGER 13
+#endif
+#ifndef SO_REUSEPORT
+#define SO_REUSEPORT 15
+#endif
+#ifndef SO_RCVLOWAT
+#define SO_RCVLOWAT 18
+#define SO_SNDLOWAT 19
+#define SO_RCVTIMEO 20
+#define SO_SNDTIMEO 21
+#endif
+
+#ifndef BLOCKOS_STRUCT_LINGER
+#define BLOCKOS_STRUCT_LINGER
+struct linger { int l_onoff; int l_linger; };
+#endif
+
+#define SO_BROADCAST 6
+#define SO_REUSEADDR 2
+#define SO_KEEPALIVE 9
+
+#ifdef __cplusplus
+}
+#endif

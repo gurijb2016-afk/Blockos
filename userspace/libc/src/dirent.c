@@ -22,3 +22,44 @@ struct dirent* readdir(DIR*d){
     }
 }
 int closedir(DIR*d){if(!d){errno=22;return -1;}long r=__blockos_syscall(__SYS_close,d->fd,0,0,0,0,0);free(d);if(r<0){errno=(int)-r;return -1;}return 0;}
+
+/* scandir(3): read a directory, keep entries passing filter, sort with compar */
+#include <stdlib.h>
+#include <string.h>
+int alphasort(const struct dirent **a, const struct dirent **b) {
+    return strcmp((*a)->d_name, (*b)->d_name);
+}
+int scandir(const char *dir, struct dirent ***namelist,
+            int (*filter)(const struct dirent *),
+            int (*compar)(const struct dirent **, const struct dirent **)) {
+    DIR *d = opendir(dir);
+    if (!d) return -1;
+    size_t cap = 16, n = 0;
+    struct dirent **list = malloc(cap * sizeof(*list));
+    if (!list) { closedir(d); return -1; }
+    struct dirent *ent;
+    while ((ent = readdir(d)) != NULL) {
+        if (filter && !filter(ent)) continue;
+        if (n == cap) {
+            size_t ncap = cap * 2;
+            struct dirent **nl = realloc(list, ncap * sizeof(*list));
+            if (!nl) goto fail;
+            list = nl; cap = ncap;
+        }
+        size_t sz = sizeof(*ent);
+        struct dirent *copy = malloc(sz);
+        if (!copy) goto fail;
+        memcpy(copy, ent, sz);
+        list[n++] = copy;
+    }
+    closedir(d);
+    qsort(list, n, sizeof(*list),
+          (int (*)(const void *, const void *))(compar ? compar : alphasort));
+    *namelist = list;
+    return (int)n;
+fail:
+    for (size_t i = 0; i < n; i++) free(list[i]);
+    free(list);
+    closedir(d);
+    return -1;
+}

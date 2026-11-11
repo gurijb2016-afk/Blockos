@@ -305,3 +305,5 @@ int setvbuf(FILE*f,char*b,int mode,size_t n){(void)mode;if(!f)return -1;if(fflus
 int vfprintf(FILE*f,const char*fmt,va_list ap){char local[4096];va_list aq;va_copy(aq,ap);int n=vsnprintf(local,sizeof(local),fmt,aq);va_end(aq);if(n<0)return -1;if((size_t)n<sizeof(local))return fwrite(local,1,(size_t)n,f)==(size_t)n?n:-1;char*buf=(char*)malloc((size_t)n+1);if(!buf)return -1;va_copy(aq,ap);vsnprintf(buf,(size_t)n+1,fmt,aq);va_end(aq);int r=fwrite(buf,1,(size_t)n,f)==(size_t)n?n:-1;free(buf);return r;}
 int fprintf(FILE*f,const char*fmt,...){va_list ap;va_start(ap,fmt);int r=vfprintf(f,fmt,ap);va_end(ap);return r;}
 void perror(const char*s){fprintf(stderr,"%s: errno=%d\\n",s?s:"",errno);}
+
+void setbuf(FILE*f,char*b){setvbuf(f,b,b?_IOFBF:_IONBF,BUFSIZ);}

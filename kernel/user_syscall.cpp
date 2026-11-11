@@ -39,7 +39,7 @@ extern "C" uint64_t blockos_user_saved_cr3;
 extern "C" uint64_t blockos_user_saved_rsp;
 
 namespace {
-constexpr int64_t EPERM=-1,ESRCH=-3,EINTR=-4,EBADF=-9,EAGAIN=-11,EMFILE=-24,EFAULT=-14,EINVAL=-22,ENOSYS=-38,ENOTCONN=-107,EADDRINUSE=-98,ENOENT=-2,ENOTSOCK=-88,EMSGSIZE=-90,ENOMEM=-12,ESPIPE=-29,ECHILD=-10,EEXIST=-17,ENOTDIR=-20,EISDIR=-21,ENAMETOOLONG=-36,ENOSPC=-28,ENOTEMPTY=-39,EACCES=-13,ENOTTY=-25,EIO=-5;
+constexpr int64_t EPERM=-1,ESRCH=-3,EINTR=-4,EBADF=-9,EAGAIN=-11,EMFILE=-24,EFAULT=-14,EINVAL=-22,ENOSYS=-38,ENOTCONN=-107,EADDRINUSE=-98,ENOENT=-2,ENOTSOCK=-88,EMSGSIZE=-90,ENOMEM=-12,ESPIPE=-29,ECHILD=-10,EEXIST=-17,ENOTDIR=-20,EISDIR=-21,ENAMETOOLONG=-36,ENOSPC=-28,ENOTEMPTY=-39,EACCES=-13,ENOTTY=-25,EIO=-5,EPIPE=-32,EOPNOTSUPP=-95;
 constexpr uint64_t PAGE=0x1000;
 constexpr uint64_t MAP_ANONYMOUS=0x20;
 constexpr uint64_t MAP_FIXED=0x10;
@@ -73,6 +73,9 @@ struct UnixSocket {
     uint8_t rx[65536];
     uint32_t rx_head;
     uint32_t rx_size;
+    /* SCM_RIGHTS: copies of fd entries sent to this socket, handed out by recvmsg */
+    process::RuntimeFd passed[4];
+    uint8_t passed_count;
 };
 static UnixSocket unix_socks[256];
 static char directory_paths[128][256];
@@ -253,6 +256,46 @@ static int socket_obj_alloc(){
     return -1;
 }
 
+/* SCM_RIGHTS over AF_UNIX: sendmsg copies the sent fd entries onto the peer
+ * socket; recvmsg allocates them in the receiver. Only plain files, ttys and
+ * other non-socket fds can be passed (socket objects have no reference count). */
+static int scm_queue_rights(int si,const uint8_t* buf,size_t len){
+    auto* fs=fdtable(); if(!fs) return EBADF;
+    int pe=unix_socks[si].peer; if(pe<0) return EPIPE;
+    size_t off=0, count=0;
+    /* validate everything first so a failing call queues nothing */
+    while(off+16<=len){
+        uint64_t clen=*(const uint64_t*)(buf+off);
+        int32_t level=*(const int32_t*)(buf+off+8), type=*(const int32_t*)(buf+off+12);
+        if(clen<16||clen>len-off) return EINVAL;
+        if(level==1 && type==1){
+            size_t n=(clen-16)/4; const int32_t* ids=(const int32_t*)(buf+off+16);
+            for(size_t i=0;i<n;i++){
+                int fd=ids[i];
+                if(fd<0||fd>=(int)process::MAX_RUNTIME_FDS||!fs[fd].used) return EBADF;
+                if(fs[fd].kind==process::RuntimeFd::UnixSocket||fs[fd].kind==process::RuntimeFd::InetSocket) return EOPNOTSUPP;
+                count++;
+            }
+        }
+        off+=(clen+7)&~(uint64_t)7;
+    }
+    if(unix_socks[pe].passed_count+count>4) return EAGAIN;
+    off=0;
+    while(off+16<=len){
+        uint64_t clen=*(const uint64_t*)(buf+off);
+        int32_t level=*(const int32_t*)(buf+off+8), type=*(const int32_t*)(buf+off+12);
+        if(level==1 && type==1){
+            size_t n=(clen-16)/4; const int32_t* ids=(const int32_t*)(buf+off+16);
+            for(size_t i=0;i<n;i++){
+                unix_socks[pe].passed[unix_socks[pe].passed_count++]=fs[ids[i]];
+            }
+        }
+        off+=(clen+7)&~(uint64_t)7;
+    }
+    wake_socket_readers(pe);
+    return 0;
+}
+
 static int fd_socket_index(int fd){
     auto* fs=fdtable(); if(!fs||fd<0||fd>=(int)process::MAX_RUNTIME_FDS||!fs[fd].used||fs[fd].kind!=process::RuntimeFd::UnixSocket) return -1;
     return (int)fs[fd].object-1;
@@ -388,6 +431,21 @@ static int copy_user_vec(uint64_t up, char out[][256], int max_count) {
 }
 
 extern "C" void blockos_display_claim(void);
+/* memfd: anonymous pages behind a file descriptor. Every mapping and every fd
+ * copy (fork, SCM_RIGHTS) refers to the same pages, so MAP_SHARED works between
+ * processes. There is no reference count yet: an object lives until reboot. */
+constexpr uint64_t MEMFD_MAX_PAGES=256;
+struct MemfdObj{bool used; uint64_t size; uint64_t npages; uint64_t pages[MEMFD_MAX_PAGES];};
+static MemfdObj memfd_objs[16];
+static int memfd_resize(MemfdObj& m,uint64_t size){
+    if(size>MEMFD_MAX_PAGES*PAGE) return -1;
+    uint64_t need=(size+PAGE-1)/PAGE;
+    for(uint64_t i=m.npages;i<need;i++){ void* pg=paging::alloc_page(); if(!pg) return -1; m.pages[i]=(uint64_t)(uintptr_t)pg; }
+    if(need>m.npages) m.npages=need;
+    m.size=size; return 0;
+}
+static uint64_t fd_size(const process::RuntimeFd& d){ return d.kind==process::RuntimeFd::Memfd ? memfd_objs[d.object].size : d.size; }
+
 static int64_t do_mmap(uint64_t addr,uint64_t len,uint64_t prot,uint64_t flags,uint64_t fd_raw,uint64_t offset){
     auto* p=process::current(); if(!p||!len)return EINVAL;
     uint64_t rounded=(len+PAGE-1)&~(PAGE-1); if(rounded<len)return EINVAL;
@@ -395,8 +453,23 @@ static int64_t do_mmap(uint64_t addr,uint64_t len,uint64_t prot,uint64_t flags,u
     else { addr&=~(PAGE-1); if(!(flags&MAP_FIXED) && addr<p->mmap_next) addr=(p->mmap_next+PAGE-1)&~(PAGE-1); }
     if(addr<0x10000||addr+rounded<addr||addr+rounded>0x00007ffff0000000ULL)return EINVAL;
     if(flags&MAP_FIXED){ for(uint64_t va=addr;va<addr+rounded;va+=PAGE) paging::unmap_4k(p->pml4,va); }
+    {
+        auto* mfs=fdtable(); int64_t mfd=(int64_t)fd_raw;
+        if(!(flags&MAP_ANONYMOUS)&&mfd>=0&&mfd<(int64_t)process::MAX_RUNTIME_FDS&&mfs&&mfs[mfd].used&&mfs[mfd].kind==process::RuntimeFd::Memfd){
+            MemfdObj& m=memfd_objs[mfs[mfd].object];
+            uint64_t msz=(m.size+PAGE-1)&~(PAGE-1);
+            if((offset&(PAGE-1))||offset>=msz||rounded>msz-offset) return EINVAL;
+            uint64_t pf=((prot&2)?2:0)|4|((prot&4)?0:(1ULL<<63));
+            for(uint64_t va=addr,po=offset;va<addr+rounded;va+=PAGE,po+=PAGE)
+                if(!paging::map_4k(p->pml4,va,m.pages[po/PAGE],pf)) return ENOMEM;
+            return (int64_t)addr;
+        }
+    }
     uint64_t pflags=4; if(prot&2)pflags|=2; if(!(prot&4))pflags|=1ULL<<63;
-    if(!paging::map_user_range(p->pml4,addr,(size_t)rounded,pflags|4))return ENOMEM;
+    /* Map writable while the kernel fills the pages: the kernel writes them with
+     * memset/memcpy, and a write to a read-only page is a kernel-mode page fault,
+     * which halts the machine. The requested protection is applied after the fill. */
+    if(!paging::map_user_range(p->pml4,addr,(size_t)rounded,(pflags|4)|2))return ENOMEM;
     memset((void*)(uintptr_t)addr,0,(size_t)rounded);
     int64_t fd=(int64_t)fd_raw;
     auto* fs=fdtable();
@@ -412,6 +485,7 @@ static int64_t do_mmap(uint64_t addr,uint64_t len,uint64_t prot,uint64_t flags,u
     }
     bool file_backed=!(flags&MAP_ANONYMOUS)&&fd>=0&&fd<(int64_t)process::MAX_RUNTIME_FDS&&fs&&fs[fd].used&&fs[fd].kind==process::RuntimeFd::File;
     if(file_backed){ auto &f=fs[fd]; uint64_t avail=offset<f.size?f.size-offset:0; uint64_t n=rounded<avail?rounded:avail; if(n)memcpy((void*)(uintptr_t)addr,f.data+offset,(size_t)n); }
+    if(!(pflags&2)) paging::protect_user_range(p->pml4,addr,(size_t)rounded,pflags);
     return (int64_t)addr;
 }
 
@@ -508,6 +582,16 @@ extern "C" void blockos_syscall_dispatch_frame(BlockOSSyscallFrame* f){
         if(f->rdx==0){r=0;break;}
         if(!paging::is_user_range(f->rsi,(size_t)f->rdx,false)){r=EFAULT;break;}
         auto& d=fs[f->rdi];
+        if(d.kind==process::RuntimeFd::Memfd){
+            MemfdObj& m=memfd_objs[d.object];
+            if((d.flags&3u)==0){r=EBADF;break;}
+            if(d.flags&O_APPEND) d.off=m.size;
+            uint64_t end=d.off+f->rdx;
+            if(end>m.size && memfd_resize(m,end)!=0){r=ENOSPC;break;}
+            const uint8_t* ub=(const uint8_t*)(uintptr_t)f->rsi; size_t n=(size_t)f->rdx;
+            for(size_t k=0;k<n;){ uint64_t po=d.off+k; size_t chunk=PAGE-(po%PAGE); if(chunk>n-k)chunk=n-k; memcpy((uint8_t*)(uintptr_t)(m.pages[po/PAGE]+po%PAGE),ub+k,chunk); k+=chunk; }
+            d.off+=n; r=(int64_t)n; break;
+        }
         if(d.kind==process::RuntimeFd::Null){ r=f->rdx; }
         else if(d.kind==process::RuntimeFd::Tty){ r=blockos_tty_write((const void*)(uintptr_t)f->rsi,(size_t)f->rdx); }
         else if(d.kind==process::RuntimeFd::File){ if((d.flags&3u)==0){r=EBADF;break;} uint64_t noff=d.off; if(!vfs::write_file_at(d.path,d.off,(const uint8_t*)(uintptr_t)f->rsi,(uint32_t)f->rdx,(d.flags&O_APPEND)!=0,&noff)){r=ENOSPC;break;} uint32_t ns=0; d.data=vfs::read_file(d.path,&ns); d.size=ns; d.off=noff; r=f->rdx; }
@@ -581,6 +665,13 @@ extern "C" void blockos_syscall_dispatch_frame(BlockOSSyscallFrame* f){
         if(!paging::is_user_range(f->rsi,(size_t)f->rdx,true)){r=EFAULT;break;}
         auto& d=fs[f->rdi];
         if(d.kind==process::RuntimeFd::Null){r=0;break;}
+        if(d.kind==process::RuntimeFd::Memfd){
+            MemfdObj& m=memfd_objs[d.object];
+            uint64_t left=d.off<m.size?m.size-d.off:0; size_t n=f->rdx<left?(size_t)f->rdx:(size_t)left;
+            uint8_t* ub=(uint8_t*)(uintptr_t)f->rsi;
+            for(size_t k=0;k<n;){ uint64_t po=d.off+k; size_t chunk=PAGE-(po%PAGE); if(chunk>n-k)chunk=n-k; memcpy(ub+k,(const uint8_t*)(uintptr_t)(m.pages[po/PAGE]+po%PAGE),chunk); k+=chunk; }
+            d.off+=n; r=(int64_t)n; break;
+        }
         if(d.kind==process::RuntimeFd::Random){
             static uint64_t rng=0;
             if(!rng) rng=__builtin_ia32_rdtsc()|1;
@@ -588,7 +679,24 @@ extern "C" void blockos_syscall_dispatch_frame(BlockOSSyscallFrame* f){
             for(size_t k=0;k<(size_t)f->rdx;k++){ rng^=rng<<13; rng^=rng>>7; rng^=rng<<17; ub[k]=(uint8_t)(rng>>24); }
             r=f->rdx; break;
         }
-        if(d.kind==process::RuntimeFd::Tty) r=blockos_tty_read((void*)(uintptr_t)f->rsi,(size_t)f->rdx);
+        if(d.kind==process::RuntimeFd::Tty){
+            r=blockos_tty_read((void*)(uintptr_t)f->rsi,(size_t)f->rdx);
+            if(r==0 && f->rdx!=0 && !(d.flags&FD_NONBLOCK)){
+                /* Nothing typed yet. A blocking terminal read waits for a key; reporting 0 here
+                 * looks like EOF, so a shell (BusyBox ash) would exit at its first prompt.
+                 * Let other tasks run first and re-run this read when this task is scheduled
+                 * again; if no other task is runnable, poll the keyboard until a key arrives. */
+                f->rax=blockos::syscall::SYS_read; f->rip-=2;
+                if(p && preempt::yield_from_syscall(f)) return;
+                f->rip+=2;
+                for(;;){
+                    __asm__ volatile("pause");
+                    blockos_kernel_poll_input();
+                    r=blockos_tty_read((void*)(uintptr_t)f->rsi,(size_t)f->rdx);
+                    if(r!=0) break;
+                }
+            }
+        }
         else if(d.kind==process::RuntimeFd::File){uint64_t avail=d.off<d.size?d.size-d.off:0;size_t n=(size_t)((uint64_t)f->rdx<avail?(uint64_t)f->rdx:avail);if(n)memcpy((void*)(uintptr_t)f->rsi,d.data+d.off,n);d.off+=n;r=n;}
         else if(d.kind==process::RuntimeFd::UnixSocket){int si=fd_socket_index((int)f->rdi);if(si<0){r=ENOTCONN;break;}if(unix_socks[si].rx_size==0&&!unix_socks[si].closed&&unix_socks[si].peer>=0&&f->rdx>0){ /* open but empty: not EOF. A blocking fd gives up the CPU and re-runs this read later. */ if(!(d.flags&FD_NONBLOCK)){ f->rax=0; f->rip-=2; if(p){ p->wait_sock_plus1=(uint32_t)si+1; if(preempt::block_from_syscall(f)) return; p->wait_sock_plus1=0; } if(preempt::yield_from_syscall(f)) return; f->rip+=2; } r=EAGAIN;break;} r=(int64_t)socket_read_idx(si,(uint8_t*)(uintptr_t)f->rsi,(size_t)f->rdx);}
         else if(d.kind==process::RuntimeFd::InetSocket){int64_t n=blockos::net::recv((int)d.object,(void*)(uintptr_t)f->rsi,(size_t)f->rdx);r=n>0?n:EAGAIN;}
@@ -612,11 +720,11 @@ extern "C" void blockos_syscall_dispatch_frame(BlockOSSyscallFrame* f){
         if(fs[f->rdi].kind==process::RuntimeFd::UnixSocket){int si=fd_socket_index((int)f->rdi); fs[f->rdi]={}; socket_release_fd(si,p,(int)f->rdi);} else fs[f->rdi]={}; r=0; break;
     }
     case blockos::syscall::SYS_lseek:{
-        if(f->rdi>=process::MAX_RUNTIME_FDS||!fs||!fs[f->rdi].used||fs[f->rdi].kind!=process::RuntimeFd::File){r=ESPIPE;break;}
-        auto& d=fs[f->rdi]; int64_t base=(f->rdx==0?0:(f->rdx==1?(int64_t)d.off:(f->rdx==2?(int64_t)d.size:0))); if(f->rdx>2){r=EINVAL;break;} int64_t n=base+(int64_t)f->rsi;if(n<0){r=EINVAL;break;} d.off=(uint64_t)n;r=n;break;
+        if(f->rdi>=process::MAX_RUNTIME_FDS||!fs||!fs[f->rdi].used||(fs[f->rdi].kind!=process::RuntimeFd::File&&fs[f->rdi].kind!=process::RuntimeFd::Memfd)){r=ESPIPE;break;}
+        auto& d=fs[f->rdi]; int64_t base=(f->rdx==0?0:(f->rdx==1?(int64_t)d.off:(f->rdx==2?(int64_t)fd_size(d):0))); if(f->rdx>2){r=EINVAL;break;} int64_t n=base+(int64_t)f->rsi;if(n<0){r=EINVAL;break;} d.off=(uint64_t)n;r=n;break;
     }
     case blockos::syscall::SYS_fstat:{
-        if(f->rdi>=process::MAX_RUNTIME_FDS||!fs||!fs[f->rdi].used||!paging::is_user_range(f->rsi,128,true)){r=EBADF;break;} memset((void*)(uintptr_t)f->rsi,0,128); uint64_t* q=(uint64_t*)(uintptr_t)f->rsi; q[0]=1;q[1]=1;uint32_t fm=0644u; if(fs[f->rdi].path[0]) vfs::get_mode(fs[f->rdi].path,&fm); q[2]=((fs[f->rdi].kind==process::RuntimeFd::Directory)?0040000u:((fs[f->rdi].kind==process::RuntimeFd::File)?0100000u:0140000u))|(fm&07777u);q[7]=fs[f->rdi].size;r=0;break;
+        if(f->rdi>=process::MAX_RUNTIME_FDS||!fs||!fs[f->rdi].used||!paging::is_user_range(f->rsi,128,true)){r=EBADF;break;} memset((void*)(uintptr_t)f->rsi,0,128); uint64_t* q=(uint64_t*)(uintptr_t)f->rsi; q[0]=1;q[1]=1;uint32_t fm=0644u; if(fs[f->rdi].path[0]) vfs::get_mode(fs[f->rdi].path,&fm); q[2]=((fs[f->rdi].kind==process::RuntimeFd::Directory)?0040000u:((fs[f->rdi].kind==process::RuntimeFd::File||fs[f->rdi].kind==process::RuntimeFd::Memfd)?0100000u:0140000u))|(fm&07777u);q[7]=fd_size(fs[f->rdi]);r=0;break;
     }
     case blockos::syscall::SYS_openat:{
         char raw[256], path[256]; if(!copy_user_string(f->rsi,raw,sizeof(raw))){r=EFAULT;break;} if(!resolve_path_for_process(p,raw,path,sizeof(path))){r=ENAMETOOLONG;break;}
@@ -661,6 +769,13 @@ extern "C" void blockos_syscall_dispatch_frame(BlockOSSyscallFrame* f){
         auto& d=fs[f->rdi]; const char* dir=(const char*)(uintptr_t)d.data; size_t count=vfs::directory_entry_count(dir); size_t idx=(size_t)d.off; size_t used=0;
         while(idx<count){ const char* nm=vfs::directory_entry_name(dir,idx); if(!nm) break; size_t nl=strlen(nm); size_t reclen=(24+nl+1+7)&~(size_t)7; if(used+reclen>(size_t)f->rdx) break; uint8_t* out=(uint8_t*)(uintptr_t)(f->rsi+used); memset(out,0,reclen); uint64_t ino=idx+2; memcpy(out,&ino,8); int64_t off=(int64_t)(idx+1); memcpy(out+8,&off,8); uint16_t rr=(uint16_t)reclen; memcpy(out+16,&rr,2); char child[256]; size_t dl=strlen(dir); if(dl==1 && dir[0]=='/') snprintf(child,sizeof(child),"/%s",nm); else snprintf(child,sizeof(child),"%s/%s",dir,nm); out[18]=vfs::is_directory(child)?4:8; memcpy(out+19,nm,nl+1); used+=reclen; ++idx; } d.off=idx; r=(int64_t)used; break; }
     case blockos::syscall::SYS_mmap:r=do_mmap(f->rdi,f->rsi,f->rdx,f->r10,f->r8,f->r9);break;
+    case blockos::syscall::SYS_memfd_create:{
+        char name[64]; if(!copy_user_string(f->rdi,name,sizeof(name))){r=EFAULT;break;}
+        int oi=-1; for(int i=0;i<16;i++) if(!memfd_objs[i].used){ memfd_objs[i]={}; memfd_objs[i].used=true; oi=i; break; }
+        if(oi<0){r=ENOMEM;break;}
+        int fd=alloc_fd(); if(fd<0){memfd_objs[oi]={};r=EMFILE;break;}
+        fs=fdtable(); fs[fd]={true,process::RuntimeFd::Memfd,(uint32_t)((f->rsi&1)?FD_CLOEXEC:0),(uint32_t)oi,nullptr,0,0};
+        r=fd; break;}
     case blockos::syscall::SYS_munmap:{if(!p||!f->rsi){r=EINVAL;break;}uint64_t len=(f->rsi+PAGE-1)&~(PAGE-1),addr=f->rdi&~(PAGE-1);for(uint64_t va=addr;va<addr+len;va+=PAGE)paging::unmap_4k(p->pml4,va);r=0;break;}
     case blockos::syscall::SYS_mprotect:{if(!p||!f->rsi){r=EINVAL;break;}uint64_t len=(f->rsi+PAGE-1)&~(PAGE-1);uint64_t pf=4;if(f->rdx&2)pf|=2;if(!(f->rdx&4))pf|=1ULL<<63;r=paging::protect_user_range(p->pml4,f->rdi&~(PAGE-1),(size_t)len,pf)?0:ENOMEM;break;}
     case blockos::syscall::SYS_brk:{if(!p){r=ENOMEM;break;}uint64_t want=f->rdi;if(!want){r=p->brk_current;break;}if(want<p->brk_base||want>0x0000000400000000ULL){r=EINVAL;break;}uint64_t old=(p->brk_current+PAGE-1)&~(PAGE-1),nw=(want+PAGE-1)&~(PAGE-1);/* Pages up to brk_mapped are still mapped (brk never unmaps on shrink): map only the new tail, never remap live pages. */uint64_t from=old>p->brk_mapped?old:p->brk_mapped;if(nw>from&&!paging::map_user_range(p->pml4,from,(size_t)(nw-from),6|(1ULL<<63))){r=ENOMEM;break;}if(nw>p->brk_mapped)p->brk_mapped=nw;p->brk_current=want;r=want;break;}
@@ -754,9 +869,11 @@ extern "C" void blockos_syscall_dispatch_frame(BlockOSSyscallFrame* f){
     case blockos::syscall::SYS_ioctl:{
         /* Only tty termios GET/SET are implemented; other requests stay no-ops. */
         if(f->rdi>=process::MAX_RUNTIME_FDS||!fs||!fs[f->rdi].used){r=EBADF;break;}
-        if(fs[f->rdi].kind==process::RuntimeFd::Tty && (f->rsi==0x424F5303ULL||f->rsi==0x424F5304ULL)){
+        if(f->rsi==0x424F5303ULL||f->rsi==0x424F5304ULL){
+            /* termios GET/SET only work on a terminal; elsewhere it is ENOTTY (not a silent success). */
+            if(fs[f->rdi].kind!=process::RuntimeFd::Tty){r=ENOTTY;break;}
             const bool get = (f->rsi==0x424F5303ULL);
-            if(!paging::is_user_range(f->rdx,36,get)){r=EFAULT;break;}
+            if(!paging::is_user_range(f->rdx,48,get)){r=EFAULT;break;}
             r=blockos_tty_ioctl(f->rsi,(void*)(uintptr_t)f->rdx);
             break;
         }
@@ -844,9 +961,49 @@ extern "C" void blockos_syscall_dispatch_frame(BlockOSSyscallFrame* f){
     case blockos::syscall::SYS_socketpair:{
         if((int)f->rdi!=AF_UNIX||(int)(f->rsi&0xffff)!=SOCK_STREAM||!paging::is_user_range(f->r9,8,true)){r=ENOSYS;break;}int a=socket_obj_alloc(),b=socket_obj_alloc();if(a<0||b<0){if(a>=0)socket_free(a);if(b>=0)socket_free(b);r=ENOMEM;break;}unix_socks[a].peer=b;unix_socks[b].peer=a;unix_socks[a].connected=unix_socks[b].connected=true;int fda=alloc_fd(),fdb=alloc_fd();if(fda<0||fdb<0){r=ENOMEM;break;}fs=fdtable();fs[fda]={true,process::RuntimeFd::UnixSocket,0,(uint32_t)(a+1),nullptr,0,0};fs[fdb]={true,process::RuntimeFd::UnixSocket,0,(uint32_t)(b+1),nullptr,0,0};int* up=(int*)(uintptr_t)f->r9;up[0]=fda;up[1]=fdb;r=0;break;}
     case blockos::syscall::SYS_sendmsg:{
-        int si=fd_socket_index((int)f->rdi);if(si<0||!paging::is_user_range(f->rsi,56,false)){r=ENOTSOCK;break;}struct IOV{void*base;size_t len;};struct MSG{void*name;uint32_t namelen;uint32_t pad;IOV*iov;size_t iovlen;void*control;size_t controllen;int flags;};auto*m=(MSG*)(uintptr_t)f->rsi;size_t total=0;for(size_t i=0;i<m->iovlen&&i<64;i++){if(!paging::is_user_range((uint64_t)(uintptr_t)m->iov[i].base,m->iov[i].len,false)){r=EFAULT;goto sendmsg_done;}if(!socket_write_idx(si,(const uint8_t*)m->iov[i].base,m->iov[i].len)){r=EAGAIN;goto sendmsg_done;}total+=m->iov[i].len;}r=(int64_t)total;sendmsg_done:break;}
+        int si=fd_socket_index((int)f->rdi);if(si<0||!paging::is_user_range(f->rsi,56,false)){r=ENOTSOCK;break;}
+        struct IOV{void*base;size_t len;};struct MSG{void*name;uint32_t namelen;uint32_t pad;IOV*iov;size_t iovlen;void*control;size_t controllen;int flags;};
+        auto*m=(MSG*)(uintptr_t)f->rsi;
+        if(m->controllen){
+            if(!paging::is_user_range((uint64_t)(uintptr_t)m->control,m->controllen,false)){r=EFAULT;break;}
+            int e=scm_queue_rights(si,(const uint8_t*)(uintptr_t)m->control,m->controllen);
+            if(e){r=e;break;}
+        }
+        size_t total=0;
+        for(size_t i=0;i<m->iovlen&&i<64;i++){if(!paging::is_user_range((uint64_t)(uintptr_t)m->iov[i].base,m->iov[i].len,false)){r=EFAULT;goto sendmsg_done;}if(!socket_write_idx(si,(const uint8_t*)m->iov[i].base,m->iov[i].len)){r=EAGAIN;goto sendmsg_done;}total+=m->iov[i].len;}
+        r=(int64_t)total;
+        sendmsg_done: break;}
     case blockos::syscall::SYS_recvmsg:{
-        int si=fd_socket_index((int)f->rdi);if(si<0||!paging::is_user_range(f->rsi,56,true)){r=ENOTSOCK;break;}struct IOV{void*base;size_t len;};struct MSG{void*name;uint32_t namelen;uint32_t pad;IOV*iov;size_t iovlen;void*control;size_t controllen;int flags;};auto*m=(MSG*)(uintptr_t)f->rsi;size_t total=0;m->controllen=0;m->flags=0;if(unix_socks[si].rx_size==0&&!unix_socks[si].closed&&unix_socks[si].peer>=0&&m->iovlen>0){r=EAGAIN;break;} /* open but empty: not EOF */for(size_t i=0;i<m->iovlen&&i<64;i++){if(!paging::is_user_range((uint64_t)(uintptr_t)m->iov[i].base,m->iov[i].len,true)){r=EFAULT;goto recvmsg_done;}size_t n=socket_read_idx(si,(uint8_t*)m->iov[i].base,m->iov[i].len);total+=n;if(n<m->iov[i].len)break;}r=(int64_t)total;recvmsg_done:break;}
+        int si=fd_socket_index((int)f->rdi);if(si<0||!paging::is_user_range(f->rsi,56,true)){r=ENOTSOCK;break;}
+        struct IOV{void*base;size_t len;};struct MSG{void*name;uint32_t namelen;uint32_t pad;IOV*iov;size_t iovlen;void*control;size_t controllen;int flags;};
+        auto*m=(MSG*)(uintptr_t)f->rsi;size_t total=0;
+        size_t space=m->controllen; m->controllen=0; m->flags=0;
+        if(unix_socks[si].rx_size==0&&unix_socks[si].passed_count==0&&!unix_socks[si].closed&&unix_socks[si].peer>=0&&m->iovlen>0){r=EAGAIN;break;} /* open but empty: not EOF */
+        for(size_t i=0;i<m->iovlen&&i<64;i++){if(!paging::is_user_range((uint64_t)(uintptr_t)m->iov[i].base,m->iov[i].len,true)){r=EFAULT;goto recvmsg_done;}size_t n=socket_read_idx(si,(uint8_t*)m->iov[i].base,m->iov[i].len);total+=n;if(n<m->iov[i].len)break;}
+        /* hand out the passed fds, as one SCM_RIGHTS control message */
+        if(unix_socks[si].passed_count){
+            size_t maxn=(space>=16)?(space-16)/4:0;
+            size_t n=unix_socks[si].passed_count<maxn?unix_socks[si].passed_count:maxn;
+            if(n==0){m->flags|=8; /* MSG_CTRUNC: fds stay queued */}
+            else if(!paging::is_user_range((uint64_t)(uintptr_t)m->control,space,true)){r=EFAULT;goto recvmsg_done;}
+            else{
+                uint8_t* cb=(uint8_t*)(uintptr_t)m->control;
+                int32_t* ids=(int32_t*)(cb+16);
+                for(size_t i=0;i<n;i++){
+                    int nfd=alloc_fd();
+                    if(nfd<0){ for(size_t j=0;j<i;j++){ auto* ff=fdtable(); if(ff) ff[ids[j]]={}; } r=EMFILE; goto recvmsg_done; }
+                    auto* ff=fdtable(); ff[nfd]=unix_socks[si].passed[i]; ff[nfd].used=true;
+                    ids[i]=nfd;
+                }
+                *(uint64_t*)cb=16+4*n; *(int32_t*)(cb+8)=1; *(int32_t*)(cb+12)=1;
+                m->controllen=(16+4*n+7)&~(size_t)7;
+                size_t left=unix_socks[si].passed_count-n;
+                for(size_t i=0;i<left;i++) unix_socks[si].passed[i]=unix_socks[si].passed[i+n];
+                unix_socks[si].passed_count=(uint8_t)left;
+            }
+        }
+        r=(int64_t)total;
+        recvmsg_done: break;}
     case blockos::syscall::SYS_poll:{
         struct Pollfd{int fd;short events;short revents;};if(!paging::is_user_range(f->rdi,(size_t)f->rsi*sizeof(Pollfd),true)){r=EFAULT;break;}auto* pfd=(Pollfd*)(uintptr_t)f->rdi;int ready=0;for(uint64_t i=0;i<f->rsi;i++){pfd[i].revents=0;if((pfd[i].events&POLLIN)&&fd_readable(pfd[i].fd))pfd[i].revents|=POLLIN;if((pfd[i].events&POLLOUT)&&fd_writable(pfd[i].fd))pfd[i].revents|=POLLOUT;if(pfd[i].revents)ready++;}r=ready;break;}
     case blockos::syscall::SYS_epoll_create1:{int ei=-1;for(int i=0;i<64;i++)if(!epolls[i].used){epolls[i]={};epolls[i].used=true;ei=i;break;}if(ei<0){r=ENOMEM;break;}int fd=alloc_fd();if(fd<0){epolls[ei]={};r=ENOMEM;break;}fs=fdtable();fs[fd]={true,process::RuntimeFd::File,0,(uint32_t)(0x80000000u|(uint32_t)ei),nullptr,0,0};r=fd;break;}
@@ -870,6 +1027,7 @@ if(x->pml4_owned&&x->pml4&&x->pml4!=(paging::read_cr3()&0x000ffffffffff000ULL)){
         break; }
     case blockos::syscall::SYS_fsync: { r=0; break; }
     case blockos::syscall::SYS_ftruncate: {
+        if(f->rdi<process::MAX_RUNTIME_FDS&&fs&&fs[f->rdi].used&&fs[f->rdi].kind==process::RuntimeFd::Memfd){ r=memfd_resize(memfd_objs[fs[f->rdi].object],f->rsi)==0?0:ENOSPC; break; }
         if(f->rdi>=process::MAX_RUNTIME_FDS||!fs||!fs[f->rdi].used||fs[f->rdi].kind!=process::RuntimeFd::File){r=EBADF;break;}
         auto& d=fs[f->rdi]; if(f->rsi>0xffffffffULL||!vfs::truncate_file(d.path,(uint32_t)f->rsi)){r=EINVAL;break;}
         uint32_t ns=0; d.data=vfs::read_file(d.path,&ns); d.size=ns; if(d.off>ns)d.off=ns; r=0; break;
@@ -907,6 +1065,20 @@ if(x->pml4_owned&&x->pml4&&x->pml4!=(paging::read_cr3()&0x000ffffffffff000ULL)){
     }
     case blockos::syscall::SYS_uname: {
         if(!paging::is_user_range(f->rdi,390,true)){r=EFAULT;break;} char* q=(char*)(uintptr_t)f->rdi; memset(q,0,390); const char* a[]={"BlockOS","blockos","1.0","BlockOS x86_64","x86_64"}; for(int i=0;i<5;i++)strncpy(q+i*65,a[i],64); r=0; break;
+    }
+    case blockos::syscall::SYS_prlimit64: {
+        /* prlimit64(pid, resource, new, old): limits are unbounded here, so set is accepted
+         * and get reports infinity, the same as getrlimit above. */
+        if(f->r10){ if(!paging::is_user_range(f->r10,16,true)){r=EFAULT;break;} uint64_t* q=(uint64_t*)(uintptr_t)f->r10; q[0]=0x7fffffffffffffffULL; q[1]=0x7fffffffffffffffULL; }
+        r=0; break;
+    }
+    case blockos::syscall::SYS_sigaltstack: {
+        /* stack_t { void* sp; int flags; size_t size; }. The stack is recorded per process
+         * for compatibility; signal delivery does not switch to it yet. */
+        static uint64_t alt_sp=0, alt_size=0; static int alt_flags=2 /* SS_DISABLE */;
+        if(f->rdi){ if(!paging::is_user_range(f->rdi,24,false)){r=EFAULT;break;} uint64_t* q=(uint64_t*)(uintptr_t)f->rdi; alt_sp=q[0]; alt_flags=(int)(uint32_t)q[1]; alt_size=q[2]; }
+        if(f->rsi){ if(!paging::is_user_range(f->rsi,24,true)){r=EFAULT;break;} uint64_t* q=(uint64_t*)(uintptr_t)f->rsi; q[0]=alt_sp; q[1]=(uint64_t)(uint32_t)alt_flags; q[2]=alt_size; }
+        r=0; break;
     }
     case blockos::syscall::SYS_getrlimit:
     case blockos::syscall::SYS_setrlimit: {

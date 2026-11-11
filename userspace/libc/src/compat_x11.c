@@ -294,3 +294,11 @@ int putenv(char *s) {
     environ = arr;
     return 0;
 }
+
+/* inet_aton(3): dotted-quad IPv4 text to network-order address */
+int inet_aton(const char *cp, struct in_addr *inp) {
+    unsigned char out[4];
+    if (inet_pton(AF_INET, cp, out) != 1) return 0;
+    memcpy(&inp->s_addr, out, 4);
+    return 1;
+}

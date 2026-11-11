@@ -103,3 +103,13 @@ double asin(double x) {
     if (x <= -1) return -M_PI / 2;
     return atan2(x, sqrt(1 - x * x));
 }
+
+/* modf: splits x into an integral part (stored in *iptr) and a fraction (returned). */
+double modf(double x, double *iptr) {
+    double ip = (x >= 0.0) ? floor(x) : -floor(-x);
+    *iptr = ip;
+    return x - ip;
+}
+
+/* single precision wrapper (BSD/C99 ceilf) */
+float ceilf(float x) { return (float)ceil((double)x); }

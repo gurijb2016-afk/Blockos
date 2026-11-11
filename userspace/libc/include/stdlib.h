@@ -1,3 +1,6 @@
+#ifdef __cplusplus
+extern "C" {
+#endif
 #pragma once
 #include <sys/types.h>
 #include <stddef.h>
@@ -26,6 +29,9 @@ int system(const char *cmd);
 int abs(int);
 long labs(long);
 int rand(void);
+#ifndef RAND_MAX
+#define RAND_MAX 2147483647
+#endif
 void srand(unsigned int);
 int system(const char *cmd);
 void qsort(void *base, size_t nmemb, size_t size, int (*cmp)(const void *, const void *));
@@ -53,4 +59,16 @@ int mblen(const char *s, size_t n);
 int mbtowc(wchar_t *pwc, const char *s, size_t n);
 int wctomb(char *s, wchar_t wc);
 size_t mbstowcs(wchar_t *dst, const char *src, size_t n);
+#endif
+void *bsearch(const void *key, const void *base, size_t nmemb, size_t size, int (*cmp)(const void *, const void *));
+
+#include <alloca.h>
+
+unsigned long long strtoull(const char*, char**, int);
+long long strtoll(const char*, char**, int);
+int clearenv(void);
+char* realpath(const char*, char*);
+
+#ifdef __cplusplus
+}
 #endif
