@@ -33,20 +33,6 @@ are **not implemented**. They are intentionally absent rather than represented
 by empty functions or success-shaped placeholders. The BlockOS VFS and kernel
 module loader integration is also not included.
 
-## Build and test on a host
-
-```sh
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j
-ctest --test-dir build --output-on-failure
-```
-
-The library target is compiled with freestanding/no-exception/no-RTTI flags.
-The host test executable uses the host C runtime only for test output.
-Known-answer tests cover SHA-256, SHA-512, SHA3-256, BLAKE2s-256, ChaCha20,
-Poly1305, ChaCha20-Poly1305, HKDF-SHA-256, and PBKDF2-HMAC-SHA-256. The
-ChaCha20-Poly1305 expected output was cross-checked against Python's
-`cryptography` implementation when preparing this package.
 
 ## BlockOS integration
 
