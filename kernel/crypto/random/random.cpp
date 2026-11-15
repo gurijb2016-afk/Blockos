@@ -1,2 +1,4 @@
 #include "csprng.h"
-// Public random API is routed through the registered trusted provider.
+namespace BlockOS { namespace Crypto {
+CryptoResult GenerateRandom(uint8_t* output, size_t length) { return CSPRNGFill(output, length); }
+} }

@@ -1,28 +1,41 @@
-# Kernel integration contract
+# Kernel integration checklist
+
+## Build
+
+Compile the implementation files below as part of BlockOS. Keep the library
+freestanding: no STL, heap allocator, exceptions, RTTI, or host OS calls are used.
+
+- `core/`, `hash/`, `cipher/`, `kdf/`, `random/`, `keys/`, `integrity/`, `security/`
+
+Suggested BlockOS-compatible compiler flags include the project's existing
+freestanding options (`-ffreestanding -fno-exceptions -fno-rtti -fno-builtin`).
+Do not blindly copy the host CMake command into the kernel build.
 
 ## Initialization order
 
-1. Initialize the BlockOS memory manager and synchronization primitives.
-2. Initialize the VFS and module trust store (if module providers are enabled).
-3. Initialize architecture feature detection.
-4. Register a vetted random provider backed by the platform CSPRNG.
-5. Call `BlockOS::Crypto::Initialize()` and fail closed if it returns an error.
+1. `Crypto::Initialize()` registers SHA-256, SHA-512, SHA3-256 and BLAKE2s-256,
+   then runs known-answer self-tests.
+2. Initialize the platform entropy collection subsystem.
+3. Register a static `Crypto::RandomProvider` that returns conditioned entropy.
+4. Call `Crypto::CSPRNGInitialize()`; do not use random-dependent services before
+   this succeeds.
+5. Use the CSPRNG for `GenerateVolatileKey()` and other kernel random needs.
+6. Call `Crypto::Shutdown()` during orderly kernel shutdown.
 
-The current framework does not ship a production entropy conditioner or CSPRNG.
-Until a reviewed provider is connected, `GenerateRandom()` returns
-`EntropyUnavailable`.
+## Required BlockOS work outside this directory
 
-## Concurrency
+- Supply conditioned entropy with source health tests, reseed policy and failure
+  reporting. RDRAND alone must not automatically be treated as a sufficient
+  entropy source.
+- Serialize registry, DRBG and key-vault global state using BlockOS locks.
+- Add VFS-based key persistence only with a separately designed access-control
+  and authenticated-storage scheme. The included key vault is volatile only.
+- Implement signed external-module discovery only after integrating BlockOS VFS,
+  module loader, signature verification, ABI/version checks and rollback policy.
+- Add platform-level boot-chain verification and signed update integration.
 
-The fixed registry and provider slots are currently intended for serialized
-initialization-time use. Before runtime registration/unregistration is enabled,
-protect these operations with the BlockOS kernel's lock/interrupt discipline.
-Do not add ad-hoc spinlocks without considering interrupt context and lock order.
+## Verified functions
 
-## External module paths
-
-The module directory is intentionally an integration boundary, not an automatic
-loader. The BlockOS module manager must enumerate configured paths, validate
-file ownership/permissions, verify a signature against an explicitly trusted
-key, enforce ABI and architecture compatibility, enforce anti-rollback policy,
-and only then map/execute the module. A path is never a trust decision.
+The host CTest target covers the known-answer vectors listed in `README.md`.
+This validates the tested algorithms and code paths, not kernel integration or
+security certification.
