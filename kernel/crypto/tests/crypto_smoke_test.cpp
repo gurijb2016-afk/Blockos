@@ -1,0 +1,45 @@
+#include "../core/crypto.h"
+#include "../security/secure_memory.h"
+#include <stdio.h>
+
+static bool CheckHash(const uint8_t* input, size_t input_size,
+                      const uint8_t expected[32]) {
+    using namespace BlockOS::Crypto;
+    uint8_t digest[32] = {};
+    const CryptoResult result = Hash("SHA-256", input, input_size,
+                                     digest, sizeof(digest));
+    const bool valid = result == CryptoResult::Success &&
+                       ConstantTimeEqual(digest, expected, sizeof(digest));
+    SecureZero(digest, sizeof(digest));
+    return valid;
+}
+
+int main() {
+    using namespace BlockOS::Crypto;
+    if (Initialize() != CryptoResult::Success) return 1;
+
+    static const uint8_t empty_expected[32] = {
+        0xe3,0xb0,0xc4,0x42,0x98,0xfc,0x1c,0x14,0x9a,0xfb,0xf4,0xc8,0x99,0x6f,0xb9,0x24,
+        0x27,0xae,0x41,0xe4,0x64,0x9b,0x93,0x4c,0xa4,0x95,0x99,0x1b,0x78,0x52,0xb8,0x55
+    };
+    static const uint8_t abc_expected[32] = {
+        0xba,0x78,0x16,0xbf,0x8f,0x01,0xcf,0xea,0x41,0x41,0x40,0xde,0x5d,0xae,0x22,0x23,
+        0xb0,0x03,0x61,0xa3,0x96,0x17,0x7a,0x9c,0xb4,0x10,0xff,0x61,0xf2,0x00,0x15,0xad
+    };
+    static const uint8_t fifty_six_a_expected[32] = {
+        0xb3,0x54,0x39,0xa4,0xac,0x6f,0x09,0x48,0xb6,0xd6,0xf9,0xe3,0xc6,0xaf,0x0f,0x5f,
+        0x59,0x0c,0xe2,0x0f,0x1b,0xde,0x70,0x90,0xef,0x79,0x70,0x68,0x6e,0xc6,0x73,0x8a
+    };
+    const uint8_t abc[3] = {'a','b','c'};
+    uint8_t fifty_six_a[56];
+    for (size_t i = 0; i < sizeof(fifty_six_a); ++i) fifty_six_a[i] = 'a';
+
+    if (!CheckHash(nullptr, 0, empty_expected)) return 2;
+    if (!CheckHash(abc, sizeof(abc), abc_expected)) return 3;
+    if (!CheckHash(fifty_six_a, sizeof(fifty_six_a), fifty_six_a_expected)) return 4;
+
+    SecureZero(fifty_six_a, sizeof(fifty_six_a));
+    Shutdown();
+    puts("BlockOS Crypto smoke tests: PASS");
+    return 0;
+}
