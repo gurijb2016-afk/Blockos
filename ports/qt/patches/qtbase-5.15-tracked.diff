@@ -1,0 +1,143 @@
+diff --git a/src/3rdparty/double-conversion/double-conversion.cc b/src/3rdparty/double-conversion/double-conversion.cc
+index 148193b7..0517a257 100644
+--- a/src/3rdparty/double-conversion/double-conversion.cc
++++ b/src/3rdparty/double-conversion/double-conversion.cc
+@@ -26,7 +26,6 @@
+ // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+ #include <climits>
+-#include <locale>
+ #include <cmath>
+ 
+ #include <double-conversion/double-conversion.h>
+@@ -428,10 +427,9 @@ void DoubleToStringConverter::DoubleToAscii(double v,
+ 
+ namespace {
+ 
++/* BlockOS: no std::locale yet; same result as the classic ("C") locale. */
+ inline char ToLower(char ch) {
+-  static const std::ctype<char>& cType =
+-      std::use_facet<std::ctype<char> >(std::locale::classic());
+-  return cType.tolower(ch);
++  return (ch >= 'A' && ch <= 'Z') ? static_cast<char>(ch - 'A' + 'a') : ch;
+ }
+ 
+ inline char Pass(char ch) {
+@@ -758,7 +756,7 @@ static double RadixStringToIeee(Iterator* current,
+     while (IsDecimalDigitForRadix(**current, 10)) {
+       // No need to read exponents if they are too big. That could potentially overflow
+       // the `written_exponent` variable.
+-      if (abs(written_exponent) <= 100 * Double::kMaxExponent) {
++      if ((written_exponent < 0 ? -written_exponent : written_exponent) <= 100 * Double::kMaxExponent) {
+         written_exponent = 10 * written_exponent + **current - '0';
+       }
+       if (Advance(current, separator, radix, end)) break;
+diff --git a/src/3rdparty/forkfd/forkfd.c b/src/3rdparty/forkfd/forkfd.c
+index b663b8a9..2d1e98bc 100644
+--- a/src/3rdparty/forkfd/forkfd.c
++++ b/src/3rdparty/forkfd/forkfd.c
+@@ -43,6 +43,7 @@
+ #include <sys/wait.h>
+ #include <assert.h>
+ #include <errno.h>
++#include <fcntl.h>
+ #include <pthread.h>
+ #include <signal.h>
+ #include <stdlib.h>
+@@ -503,6 +504,22 @@ static void cleanup()
+     }
+ }
+ 
++#ifdef BOS_FORKFD_POLL
++/* BlockOS: the kernel does not deliver SIGCHLD to user handlers yet, so the
++ * reaper that sigchld_handler() runs (wait4 on each child, then the payload
++ * is written to the child's pipe) is driven from a 10 ms helper thread. */
++static void *bos_forkfd_poller(void *unused)
++{
++    struct timespec nap = { 0, 10 * 1000 * 1000 };
++    (void)unused;
++    for (;;) {
++        nanosleep(&nap, NULL);
++        sigchld_handler(SIGCHLD, NULL, NULL);
++    }
++    return NULL;
++}
++#endif
++
+ static void forkfd_initialize()
+ {
+ #if defined(HAVE_BROKEN_WAITID)
+@@ -538,6 +555,12 @@ static void forkfd_initialize()
+      * signal could be delivered to another thread.
+      */
+     sigaction(SIGCHLD, &action, &old_sigaction);
++#ifdef BOS_FORKFD_POLL
++    {
++        pthread_t poller;
++        pthread_create(&poller, NULL, bos_forkfd_poller, NULL);
++    }
++#endif
+ 
+ #ifndef O_NOSIGPIPE
+     /* disable SIGPIPE too */
+@@ -840,7 +863,21 @@ int forkfd_wait4(int ffd, struct forkfd_info *info, int options, struct rusage *
+             return ret;
+     }
+ 
++#ifdef BOS_FORKFD_POLL
++    /* BlockOS read() on an empty socket returns EAGAIN instead of blocking, so a
++     * blocking wait sleeps briefly and retries until the reaper writes the payload. */
++    for (;;) {
++        ret = read(ffd, &payload, sizeof(payload));
++        if (ret != -1 || errno != EAGAIN || (options & FFDW_NOHANG))
++            break;
++        if (fcntl(ffd, F_GETFL) & O_NONBLOCK)
++            break;      /* the caller asked for a non-blocking descriptor */
++        struct timespec ts = { 0, 1000000 };    /* 1 ms */
++        nanosleep(&ts, NULL);
++    }
++#else
+     ret = read(ffd, &payload, sizeof(payload));
++#endif
+     if (ret == -1)
+         return ret;     /* pass errno, probably EINTR, EBADF or EWOULDBLOCK */
+ 
+diff --git a/src/corelib/global/qsystemdetection.h b/src/corelib/global/qsystemdetection.h
+index ad5d30d5..c7769ed9 100644
+--- a/src/corelib/global/qsystemdetection.h
++++ b/src/corelib/global/qsystemdetection.h
+@@ -179,6 +179,9 @@
+ #  define Q_OS_VXWORKS
+ #elif defined(__HAIKU__)
+ #  define Q_OS_HAIKU
++#elif defined(__blockos__)
++/* BlockOS port: POSIX-like userland on its own kernel. Q_OS_UNIX is set below. */
++#  define Q_OS_BLOCKOS
+ #elif defined(__MAKEDEPEND__)
+ #else
+ #  error "Qt has not been ported to this OS - see http://www.qt-project.org/"
+diff --git a/src/corelib/io/qprocess_unix.cpp b/src/corelib/io/qprocess_unix.cpp
+index 0435180f..12259bea 100644
+--- a/src/corelib/io/qprocess_unix.cpp
++++ b/src/corelib/io/qprocess_unix.cpp
+@@ -459,7 +459,7 @@ void QProcessPrivate::startProcess()
+     // safe with vfork semantics: suspend the parent execution until the child
+     // either execve()s or _exit()s.
+     int ffdflags = FFD_CLOEXEC;
+-    if (typeid(*q) != typeid(QProcess))
++    if (q->metaObject() != &QProcess::staticMetaObject)
+         ffdflags |= FFD_USE_FORK;
+     pid_t childPid;
+     forkfd = ::forkfd(ffdflags , &childPid);
+diff --git a/src/corelib/serialization/qcbormap.cpp b/src/corelib/serialization/qcbormap.cpp
+index a13313c2..9b3ada8e 100644
+--- a/src/corelib/serialization/qcbormap.cpp
++++ b/src/corelib/serialization/qcbormap.cpp
+@@ -39,6 +39,7 @@
+ 
+ #include "qcbormap.h"
+ #include "qcborvalue_p.h"
++#include <QtCore/qdatastream.h>
+ 
+ QT_BEGIN_NAMESPACE
+ 
