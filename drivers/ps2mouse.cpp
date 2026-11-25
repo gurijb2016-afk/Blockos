@@ -59,16 +59,16 @@ void PS2Mouse::init()
             (void) inb(0x60);
         }
     }
-    // Send reset/enable sequence to mouse
+    // Send reset/enable sequence to mouse and consume ACK/BAT/device-ID bytes
     ps2_send_mouse(0xFF); // reset
-    for (int i = 0; i < 100; i++)
+    for (int n = 0; n < 3; ++n)
     {
-        if (inb(0x64) & 1)
-        {
-            (void) inb(0x60);
-        }
+        ps2_wait_output_full();
+        if (inb(0x64) & 1) (void) inb(0x60);
     }
     ps2_send_mouse(0xF4); // enable data reporting
+    ps2_wait_output_full();
+    if (inb(0x64) & 1) (void) inb(0x60); // consume 0xFA ACK so it doesn't stall keyboard/mouse reads
 }
 
 // Return type int16_t, as INT8_MIN was a valid value for keyboard and mouse scancodes
