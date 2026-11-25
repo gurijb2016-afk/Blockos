@@ -161,8 +161,9 @@ EXCLUDED_SRC += fs/ramfs.cpp fs/files.cpp
 SRC := $(filter-out $(EXCLUDED_SRC), \
 	$(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.cpp)))
 
-# Hardware portability: include nested NIC drivers.
+# Hardware portability: include nested NIC and VirtIO-GPU drivers.
 SRC += $(wildcard drivers/net/*.cpp)
+SRC += drivers/gpu/virtio_gpu.cpp
 
 # No-op GuiEngine implementation (GuiEngine::render/draw_rect, `desktop`).
 SRC += gui.cpp
