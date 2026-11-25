@@ -135,10 +135,9 @@ void* malloc(size_t size) {
     size = align_up(size, ALIGNMENT);
     if (!size) { errno = ENOMEM; return 0; }
 
-    heap_lock();
-
     struct block* b = 0;
     if (size < MMAP_THRESHOLD) {
+        heap_lock();
         for (b = g_head; b; b = b->next) {
             if (b->flags == FLAG_FREE && b->size >= size) {
                 b->flags = 0;
@@ -148,11 +147,11 @@ void* malloc(size_t size) {
             }
         }
         b = extend_heap(size);
+        heap_unlock();
     } else {
         b = map_block(size);
     }
 
-    heap_unlock();
     if (!b) { errno = ENOMEM; return 0; }
     return (void*)(b + 1);
 }
@@ -176,16 +175,20 @@ void free(void* ptr) {
     }
 
     struct block* b = payload_block(ptr);
-    if (!valid_block(b)) return;
+    heap_lock();
+    if (!valid_block(b) || b->flags == FLAG_FREE) {
+        heap_unlock();
+        return;
+    }
 
     if (b->flags == FLAG_MAPPED) {
         size_t len = b->mapping_size;
         b->magic = 0;
+        heap_unlock();
         if (len) (void)munmap((void*)b, len);
         return;
     }
 
-    heap_lock();
     b->flags = FLAG_FREE;
 
     if (b->next && b->next->flags == FLAG_FREE) {
@@ -248,19 +251,22 @@ void* realloc(void* ptr, size_t size) {
     }
 
     struct block* b = payload_block(ptr);
+    size_t wanted = align_up(size, ALIGNMENT);
+    if (!wanted) { errno = ENOMEM; return 0; }
+
+    heap_lock();
     if (!valid_block(b) || b->flags == FLAG_FREE) {
+        heap_unlock();
         errno = EINVAL;
         return 0;
     }
 
-    size_t wanted = align_up(size, ALIGNMENT);
-    if (!wanted) { errno = ENOMEM; return 0; }
     if (b->size >= wanted) {
         if (!(b->flags & FLAG_MAPPED)) split_block(b, wanted);
+        heap_unlock();
         return ptr;
     }
 
-    heap_lock();
     if (!(b->flags & FLAG_MAPPED) && b->next && b->next->flags == FLAG_FREE &&
         b->size + sizeof(struct block) + b->next->size >= wanted) {
         struct block* n = b->next;
@@ -272,11 +278,12 @@ void* realloc(void* ptr, size_t size) {
         heap_unlock();
         return ptr;
     }
+    size_t old_size = b->size;
     heap_unlock();
 
     void* np = malloc(size);
     if (!np) return 0;
-    size_t copy = b->size < size ? b->size : size;
+    size_t copy = old_size < size ? old_size : size;
     memcpy(np, ptr, copy);
     free(ptr);
     return np;

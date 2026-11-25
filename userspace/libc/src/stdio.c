@@ -279,31 +279,123 @@ int snprintf(char*buf,size_t size,const char*fmt,...){va_list ap;va_start(ap,fmt
 int printf(const char*fmt,...){va_list ap;va_start(ap,fmt);int n=vfprintf(stdout,fmt,ap);va_end(ap);return n;} /* via stdout buffer: keeps order with putchar/puts */
 
 static unsigned char in_buf[BUFSIZ], out_buf[BUFSIZ], err_buf[BUFSIZ];
-static FILE in_file={0,1,in_buf,sizeof(in_buf),0,0,0};
-static FILE out_file={1,2,out_buf,sizeof(out_buf),0,0,0};
-static FILE err_file={2,2,err_buf,sizeof(err_buf),0,0,0};
+static FILE in_file={0,1,in_buf,sizeof(in_buf),0,0,0,0,0,0};
+static FILE out_file={1,2,out_buf,sizeof(out_buf),0,0,0,0,0,0};
+static FILE err_file={2,2,err_buf,sizeof(err_buf),0,0,0,0,0,0};
 FILE *stdin=&in_file; FILE *stdout=&out_file; FILE *stderr=&err_file;
-static int push_raw(FILE*f){if(!f||!f->buf||!f->len)return 0;size_t off=0;while(off<f->len){ssize_t n=write(f->fd,f->buf+off,f->len-off);if(n<=0)return EOF;off+=(size_t)n;}f->len=0;f->pos=0;return 0;}
-int fflush(FILE*f){if(!f)return -1;return push_raw(f);}
+
+static inline void file_lock(FILE *f) {
+    while (__sync_lock_test_and_set(&f->lock, 1u))
+        __asm__ volatile("pause");
+}
+
+static inline void file_unlock(FILE *f) {
+    __sync_lock_release(&f->lock);
+}
+
+static int push_raw_locked(FILE*f){
+    if(!f||!f->buf||!f->len)return 0;
+    size_t off=0;
+    while(off<f->len){
+        ssize_t n=write(f->fd,f->buf+off,f->len-off);
+        if(n<=0){f->flags|=4;return EOF;}
+        off+=(size_t)n;
+    }
+    f->len=0;
+    f->pos=0;
+    return 0;
+}
+
+static size_t fread_locked(void*ptr,size_t sz,size_t nm,FILE*f){
+    if(!f||!ptr||!sz)return 0;
+    size_t want=sz*nm,got=0;
+    unsigned char*dst=(unsigned char*)ptr;
+    if(f->ungot_has&&want){
+        *dst=f->ungot_ch;
+        f->ungot_has=0;
+        dst++;want--;got=1;
+        if(!want)return 1;
+    }
+    if(want){
+        ssize_t n=read(f->fd,dst,want);
+        if(n<0){f->flags|=4;return got/sz;}
+        if(n==0)f->flags|=1;
+        got+=(size_t)n;
+    }
+    return got/sz;
+}
+
+static size_t fwrite_locked(const void*ptr,size_t sz,size_t nm,FILE*f){
+    if(!f||!ptr||!sz)return 0;
+    size_t n=sz*nm;
+    size_t n0=n;
+    const unsigned char*p=(const unsigned char*)ptr;
+    size_t done=0;
+    if(!f->buf||f->buf_size==0){
+        while(n){
+            ssize_t w=write(f->fd,p,n);
+            if(w<=0){f->flags|=4;break;}
+            p+=(size_t)w;n-=(size_t)w;done+=(size_t)w;
+        }
+        return done/sz;
+    }
+    while(n){
+        size_t room=f->buf_size-f->len;
+        size_t k=n<room?n:room;
+        memcpy(f->buf+f->len,p,k);
+        f->len+=k;p+=k;n-=k;done+=k;
+        if(f->len==f->buf_size&&push_raw_locked(f)<0)break;
+    }
+    if(f==stderr)push_raw_locked(f); /* stderr is unbuffered */
+    if(f==stdout&&memchr(ptr,'\n',n0))push_raw_locked(f); /* stdout is line-buffered */
+    return done/sz;
+}
+
+static int fgetc_locked(FILE*f){
+    unsigned char c;
+    if(!f)return EOF;
+    if(f->ungot_has){f->ungot_has=0;return f->ungot_ch;}
+    return fread_locked(&c,1,1,f)==1?c:EOF;
+}
+
+int fflush(FILE*f){
+    if(!f){
+        int rc=0;
+        if(fflush(stdout)<0)rc=-1;
+        if(fflush(stderr)<0)rc=-1;
+        return rc;
+    }
+    file_lock(f);
+    int rc=push_raw_locked(f);
+    file_unlock(f);
+    return rc;
+}
+
 static FILE* alloc_stream(int fd,int flags){FILE*f=(FILE*)malloc(sizeof(FILE));if(!f)return 0;memset(f,0,sizeof(*f));f->fd=fd;f->flags=(unsigned)flags;f->buf=(unsigned char*)malloc(BUFSIZ);f->buf_size=f->buf?BUFSIZ:0;if(!f->buf){free(f);return 0;}return f;}
 static int mode_flags(const char*m,int*flags){if(!m||!m[0])return -1;int f=0;switch(m[0]){case 'r':f=O_RDONLY;break;case 'w':f=O_WRONLY|O_CREAT|O_TRUNC;break;case 'a':f=O_WRONLY|O_CREAT|O_APPEND;break;default:return -1;}if(m[1]=='+')f=(f&~3)|O_RDWR;*flags=f;return 0;}
 FILE* fopen(const char*path,const char*mode){int f=0;if(mode_flags(mode,&f)<0){errno=22;return 0;}int fd=open(path,f,0666);if(fd<0)return 0;FILE*s=alloc_stream(fd,2);if(!s){close(fd);return 0;}return s;}
 FILE* fdopen(int fd,const char*mode){int f=0;if(mode_flags(mode,&f)<0){errno=22;return 0;}return alloc_stream(fd,2);}
-int fclose(FILE*f){if(!f){errno=22;return -1;}if(f==stdin||f==stdout||f==stderr){ /* standard streams stay open: flush only */ return fflush(f)<0?-1:0;}int rc=fflush(f);int c=close(f->fd);free(f->buf);free(f);return rc<0?rc:c;}
-size_t fread(void*ptr,size_t sz,size_t nm,FILE*f){if(!f||!ptr||!sz)return 0;size_t want=sz*nm,got=0;unsigned char*dst=(unsigned char*)ptr;if(f->ungot_has&&want){*dst=f->ungot_ch;f->ungot_has=0;dst++;want--;got=1;if(!want)return 1;}if(want){ssize_t n=read(f->fd,dst,want);if(n<0){f->flags|=4;return got/sz;}if(n==0)f->flags|=1;got+=(size_t)n;}return got/sz;}
-size_t fwrite(const void*ptr,size_t sz,size_t nm,FILE*f){if(!f||!ptr||!sz)return 0;size_t n=sz*nm;size_t n0=n;const unsigned char*p=ptr;size_t done=0;if(!f->buf)return 0;while(n){size_t room=f->buf_size-f->len;size_t k=n<room?n:room;memcpy(f->buf+f->len,p,k);f->len+=k;p+=k;n-=k;done+=k;if(f->len==f->buf_size&&push_raw(f)<0)break;}if(f==stderr)push_raw(f); /* stderr is unbuffered */if(f==stdout&&memchr(ptr,'\n',n0))push_raw(f); /* stdout is line-buffered */return done/sz;}
-int fgetc(FILE*f){unsigned char c;if(!f)return EOF;if(f->ungot_has){f->ungot_has=0;return f->ungot_ch;}return fread(&c,1,1,f)==1?c:EOF;}
-int ungetc(int c,FILE*f){if(c==EOF||!f||f->ungot_has)return EOF;f->ungot_ch=(unsigned char)c;f->ungot_has=1;f->flags&=~1u;return (unsigned char)c;}int getc(FILE*f){return fgetc(f);}int fputc(int c,FILE*f){unsigned char x=(unsigned char)c;return fwrite(&x,1,1,f)==1?x:EOF;}int putc(int c,FILE*f){return fputc(c,f);}
-char*fgets(char*s,int n,FILE*f){if(!s||n<=0||!f)return 0;int i=0;while(i<n-1){int c=fgetc(f);if(c==EOF)break;s[i++]=(char)c;if(c=='\n')break;}if(i==0)return 0;s[i]=0;return s;}
-int fputs(const char*s,FILE*f){if(!s)return EOF;size_t n=strlen(s);return fwrite(s,1,n,f)==n?0:EOF;}int puts(const char*s){if(fputs(s,stdout)==EOF)return EOF;return fputc('\n',stdout);}
+int fclose(FILE*f){if(!f){errno=22;return -1;}if(f==stdin||f==stdout||f==stderr){ /* standard streams stay open: flush only */ return fflush(f)<0?-1:0;}file_lock(f);int rc=push_raw_locked(f);int fd=f->fd;unsigned char*buf=f->buf;f->buf=0;file_unlock(f);int c=close(fd);free(buf);free(f);return rc<0?rc:c;}
+size_t fread(void*ptr,size_t sz,size_t nm,FILE*f){if(!f||!ptr||!sz)return 0;file_lock(f);size_t r=fread_locked(ptr,sz,nm,f);file_unlock(f);return r;}
+size_t fwrite(const void*ptr,size_t sz,size_t nm,FILE*f){if(!f||!ptr||!sz)return 0;file_lock(f);size_t r=fwrite_locked(ptr,sz,nm,f);file_unlock(f);return r;}
+int fgetc(FILE*f){if(!f)return EOF;file_lock(f);int r=fgetc_locked(f);file_unlock(f);return r;}
+int ungetc(int c,FILE*f){if(c==EOF||!f)return EOF;file_lock(f);if(f->ungot_has){file_unlock(f);return EOF;}f->ungot_ch=(unsigned char)c;f->ungot_has=1;f->flags&=~1u;file_unlock(f);return (unsigned char)c;}
+int getc(FILE*f){return fgetc(f);}
+int fputc(int c,FILE*f){if(!f)return EOF;unsigned char x=(unsigned char)c;file_lock(f);size_t r=fwrite_locked(&x,1,1,f);file_unlock(f);return r==1?x:EOF;}
+int putc(int c,FILE*f){return fputc(c,f);}
+char*fgets(char*s,int n,FILE*f){if(!s||n<=0||!f)return 0;file_lock(f);int i=0;while(i<n-1){int c=fgetc_locked(f);if(c==EOF)break;s[i++]=(char)c;if(c=='\n')break;}file_unlock(f);if(i==0)return 0;s[i]=0;return s;}
+int fputs(const char*s,FILE*f){if(!s||!f)return EOF;size_t n=strlen(s);file_lock(f);size_t r=fwrite_locked(s,1,n,f);file_unlock(f);return r==n?0:EOF;}
+int puts(const char*s){if(!s)return EOF;size_t n=strlen(s);unsigned char nl='\n';file_lock(stdout);size_t r1=fwrite_locked(s,1,n,stdout);size_t r2=(r1==n)?fwrite_locked(&nl,1,1,stdout):0;file_unlock(stdout);return (r1==n&&r2==1)?0:EOF;}
 int fileno(FILE*f){if(!f){errno=22;return -1;}return f->fd;}
-int fseek(FILE*f,off_t off,int whence){if(!f){errno=22;return -1;}f->ungot_has=0;if(fflush(f)<0)return -1;off_t r=lseek(f->fd,off,whence);if(r<0)return -1;f->offset=r;f->flags&=~1u;return 0;}
-off_t ftell(FILE*f){if(!f){errno=22;return -1;}return lseek(f->fd,0,SEEK_CUR);}
+int fseek(FILE*f,off_t off,int whence){if(!f){errno=22;return -1;}file_lock(f);f->ungot_has=0;if(push_raw_locked(f)<0){file_unlock(f);return -1;}off_t r=lseek(f->fd,off,whence);if(r<0){file_unlock(f);return -1;}f->offset=r;f->flags&=~1u;file_unlock(f);return 0;}
+off_t ftell(FILE*f){if(!f){errno=22;return -1;}file_lock(f);off_t cur=lseek(f->fd,0,SEEK_CUR);if(cur>=0){cur+=(off_t)f->len;if(f->ungot_has&&cur>0)cur--;}file_unlock(f);return cur;}
 void rewind(FILE*f){if(f)fseek(f,0,SEEK_SET);}
-int feof(FILE*f){return f?(f->flags&1)!=0:0;}int ferror(FILE*f){return f?(f->flags&4)!=0:1;}void clearerr(FILE*f){if(f)f->flags&=~5u;}
-int setvbuf(FILE*f,char*b,int mode,size_t n){(void)mode;if(!f)return -1;if(fflush(f)<0)return -1;if(f->buf&&f!=stdin&&f!=stdout&&f!=stderr)free(f->buf);if(mode==_IONBF){f->buf=0;f->buf_size=0;return 0;}f->buf=b;if(!f->buf)f->buf=(unsigned char*)malloc(n?n:BUFSIZ);f->buf_size=f->buf?(n?n:BUFSIZ):0;return f->buf?0:-1;}
-int vfprintf(FILE*f,const char*fmt,va_list ap){char local[4096];va_list aq;va_copy(aq,ap);int n=vsnprintf(local,sizeof(local),fmt,aq);va_end(aq);if(n<0)return -1;if((size_t)n<sizeof(local))return fwrite(local,1,(size_t)n,f)==(size_t)n?n:-1;char*buf=(char*)malloc((size_t)n+1);if(!buf)return -1;va_copy(aq,ap);vsnprintf(buf,(size_t)n+1,fmt,aq);va_end(aq);int r=fwrite(buf,1,(size_t)n,f)==(size_t)n?n:-1;free(buf);return r;}
+int feof(FILE*f){if(!f)return 0;file_lock(f);int r=(f->flags&1)!=0;file_unlock(f);return r;}
+int ferror(FILE*f){if(!f)return 1;file_lock(f);int r=(f->flags&4)!=0;file_unlock(f);return r;}
+void clearerr(FILE*f){if(!f)return;file_lock(f);f->flags&=~5u;file_unlock(f);}
+int setvbuf(FILE*f,char*b,int mode,size_t n){if(!f)return -1;file_lock(f);if(push_raw_locked(f)<0){file_unlock(f);return -1;}if(f->buf&&f!=stdin&&f!=stdout&&f!=stderr)free(f->buf);if(mode==_IONBF){f->buf=0;f->buf_size=0;file_unlock(f);return 0;}f->buf=(unsigned char*)b;if(!f->buf)f->buf=(unsigned char*)malloc(n?n:BUFSIZ);f->buf_size=f->buf?(n?n:BUFSIZ):0;int ok=f->buf?0:-1;file_unlock(f);return ok;}
+int vfprintf(FILE*f,const char*fmt,va_list ap){if(!f)return -1;char local[4096];va_list aq;va_copy(aq,ap);int n=vsnprintf(local,sizeof(local),fmt,aq);va_end(aq);if(n<0)return -1;if((size_t)n<sizeof(local))return fwrite(local,1,(size_t)n,f)==(size_t)n?n:-1;char*buf=(char*)malloc((size_t)n+1);if(!buf)return -1;va_copy(aq,ap);vsnprintf(buf,(size_t)n+1,fmt,aq);va_end(aq);int r=fwrite(buf,1,(size_t)n,f)==(size_t)n?n:-1;free(buf);return r;}
 int fprintf(FILE*f,const char*fmt,...){va_list ap;va_start(ap,fmt);int r=vfprintf(f,fmt,ap);va_end(ap);return r;}
-void perror(const char*s){fprintf(stderr,"%s: errno=%d\\n",s?s:"",errno);}
+void perror(const char*s){fprintf(stderr,"%s: errno=%d\n",s?s:"",errno);}
 
 void setbuf(FILE*f,char*b){setvbuf(f,b,b?_IOFBF:_IONBF,BUFSIZ);}
