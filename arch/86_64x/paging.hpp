@@ -18,4 +18,7 @@ uint64_t read_cr3();
 bool is_user_range(uint64_t addr, size_t len, bool write);
 bool map_user_range(uint64_t pml4_phys, uint64_t base, size_t len, uint64_t flags);
 bool protect_user_range(uint64_t pml4_phys, uint64_t base, size_t len, uint64_t flags);
+uint64_t count_shared_user_leaves(uint64_t a, uint64_t b);
+uint64_t count_shared_tables(uint64_t a, uint64_t b);
+void destroy_user_space(uint64_t pml4_phys);
 }
