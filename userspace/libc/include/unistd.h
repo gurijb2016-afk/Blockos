@@ -1,3 +1,6 @@
+#ifdef __cplusplus
+extern "C" {
+#endif
 #pragma once
 #include <sys/types.h>
 #include <stddef.h>
@@ -22,6 +25,23 @@ int     setpgid(pid_t pid, pid_t pgid);
 pid_t   getpgid(pid_t pid);
 pid_t   getpgrp(void);
 pid_t   setsid(void);
+pid_t   getsid(pid_t pid);
+char *getcwd(char *buf, size_t size);
+int chdir(const char *path);
+int chown(const char *path, uid_t owner, gid_t group);
+int fchown(int fd, uid_t owner, gid_t group);
+int setreuid(uid_t ruid, uid_t euid);
+int setregid(gid_t rgid, gid_t egid);
+int setgroups(size_t size, const gid_t *list);
+int initgroups(const char *user, gid_t group);
+pid_t tcgetsid(int fd);
+#define AT_FDCWD (-100)
+#define AT_REMOVEDIR 0x200
+int symlink(const char *target, const char *linkpath);
+int symlinkat(const char *target, int newdirfd, const char *linkpath);
+int unlinkat(int dirfd, const char *path, int flags);
+int tcsetpgrp(int fd, pid_t pgrp);
+void sync(void);
 void*   sbrk(long increment);   /* returns (void*)-1 on failure */
 __attribute__((noreturn)) void _exit(int code);
 
@@ -59,6 +79,7 @@ long sysconf(int name);
 long getpagesize(void);
 #define _SC_PAGESIZE 2
 #define _SC_OPEN_MAX 4
+#define _SC_SYMLOOP_MAX 173
 
 #ifndef F_OK
 #define F_OK 0
@@ -92,3 +113,25 @@ int getresgid(unsigned int *rgid, unsigned int *egid, unsigned int *sgid);
 #endif
 
 int execlp(const char *file, const char *arg, ...);
+
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+unsigned int alarm(unsigned int seconds);
+int fchdir(int fd);
+int lchown(const char *path, uid_t owner, gid_t group);
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+int execve(const char *path, char *const argv[], char *const envp[]);
+#ifdef __cplusplus
+}
+#endif

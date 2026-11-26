@@ -1,8 +1,13 @@
+#ifdef __cplusplus
+extern "C" {
+#endif
 #pragma once
 
 /* TLS-backed errno.  The BlockOS dynamic linker provides PT_TLS/FS_BASE
  * support, so errno is independent for each pthread. */
-extern _Thread_local int errno;
+#ifndef __BLOCKOS_LIBGCC  /* libgcc's tsystem.h declares a plain int errno itself */
+extern __thread int errno;
+#endif
 
 #define EPERM   1
 #define ENOENT  2
@@ -32,6 +37,18 @@ extern _Thread_local int errno;
 #define EROFS   30
 #define EMLINK  31
 #define EPIPE   32
+/* Linux-compatible numbers for the rest of the POSIX/C++ errno set (libstdc++ uses them). */
+#define ENOEXEC 8
+#define EXDEV   18
+#define EDOM    33
+#define ENOMSG  42
+#define EILSEQ  84
+#define EMSGSIZE 90
+#define EDESTADDRREQ 89
+#define EPROTOTYPE 91
+#define ENOPROTOOPT 92
+#define EPROTONOSUPPORT 93
+#define EALREADY 114
 #define ERANGE  34
 #define ENOSYS  38
 #define ENOTSOCK 88
@@ -62,4 +79,25 @@ extern _Thread_local int errno;
 #define EINPROGRESS 115
 #ifndef EWOULDBLOCK
 #define EWOULDBLOCK EAGAIN
+#endif
+
+#ifdef __cplusplus
+}
+#endif
+
+#ifndef EIDRM
+#define EIDRM 43
+#endif
+#ifndef EPROTO
+#define EPROTO 71
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+#ifndef ETXTBSY
+#define ETXTBSY 26
+#endif
+#ifdef __cplusplus
+}
 #endif

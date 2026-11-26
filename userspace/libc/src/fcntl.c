@@ -33,8 +33,9 @@ int openat(int dirfd, const char* path, int flags, ...) {
 int fcntl(int fd, int cmd, ...) {
     va_list ap;
     va_start(ap, cmd);
-    int arg = 0;
-    if (cmd == F_DUPFD || cmd == F_DUPFD_CLOEXEC || cmd == F_SETFD || cmd == F_SETFL)
+    long arg = 0;
+    if (cmd == 5 || cmd == 6 || cmd == 7) arg = (long)va_arg(ap, void*); /* F_GETLK/F_SETLK/F_SETLKW take struct flock* */
+    else if (cmd == F_DUPFD || cmd == F_DUPFD_CLOEXEC || cmd == F_SETFD || cmd == F_SETFL)
         arg = va_arg(ap, int);
     va_end(ap);
     long r = __blockos_syscall(__SYS_fcntl, fd, cmd, arg, 0, 0, 0);

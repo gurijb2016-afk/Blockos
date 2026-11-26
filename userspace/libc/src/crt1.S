@@ -23,6 +23,22 @@ _start:
     and $-16, %rsp                   /* ABI alignment before the calls */
     mov %r14, %rdi                   /* __blockos_set_environ(envp) */
     call __blockos_set_environ
+    /* This toolchain's crtbegin registers .eh_frame from .init, which crt1
+     * never runs, so register it here or C++ exceptions cannot unwind.
+     * __blockos_eh_frame_begin sits at the start of .eh_frame (crt1 is linked
+     * first and contributes nothing to that section). */
+    lea __blockos_eh_frame_begin(%rip), %rdi
+    lea __blockos_eh_object(%rip), %rsi
+    call __register_frame_info
+    /* Run C++ static constructors (.init_array) before main(). */
+    lea __init_array_start(%rip), %r15
+    lea __init_array_end(%rip), %rbx
+1:  cmp %rbx, %r15
+    jae 2f
+    call *(%r15)
+    add $8, %r15
+    jmp 1b
+2:
     mov %r12, %rdi                   /* main(argc, argv, envp) */
     mov %r13, %rsi
     mov %r14, %rdx
@@ -33,3 +49,12 @@ _start:
     hlt
     jmp .Lhang
 .size _start,.-_start
+
+.section .eh_frame,"a",@progbits
+.globl __blockos_eh_frame_begin
+__blockos_eh_frame_begin:
+.section .bss
+.balign 16
+__blockos_eh_object:
+    .zero 128
+.text

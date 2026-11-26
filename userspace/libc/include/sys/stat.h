@@ -1,5 +1,9 @@
+#ifdef __cplusplus
+extern "C" {
+#endif
 #pragma once
 #include <stdint.h>
+#include <sys/types.h>
 
 /*
  * This layout is BlockOS-specific, not the real glibc x86-64 struct stat
@@ -69,4 +73,43 @@ int fstatat(int dirfd, const char* path, struct stat* buf, int flags);
 #define S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK)
 int fchmod(int fd, unsigned int mode);
 int chmod(const char *path, unsigned int mode);
-int umask(int mask);
+mode_t umask(mode_t mask);
+
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+int mkfifo(const char *path, mode_t mode);
+int mknod(const char *path, mode_t mode, dev_t dev);
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+int mkdir(const char *path, mode_t mode);
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+#ifndef S_IRWXU
+#define S_IRWXU 0700
+#define S_IRWXG 0070
+#define S_IRWXO 0007
+#endif
+#ifdef __cplusplus
+}
+#endif
+
+#ifndef S_ISUID
+#define S_ISUID 04000
+#define S_ISGID 02000
+#define S_ISVTX 01000
+#endif

@@ -1,0 +1,5 @@
+# Demo producer: its output goes into a pipe read by the s6log service.
+type = process
+command = /bin/logprod
+log-type = pipe
+restart = false

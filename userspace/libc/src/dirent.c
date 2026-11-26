@@ -63,3 +63,11 @@ fail:
     closedir(d);
     return -1;
 }
+
+/* rewinddir(3): restart enumeration from the beginning of the directory */
+void rewinddir(DIR *d) {
+    if (!d) return;
+    __blockos_syscall(__SYS_lseek, d->fd, 0, 0 /* SEEK_SET */, 0, 0, 0);
+    d->pos = 0;
+    d->len = 0;
+}

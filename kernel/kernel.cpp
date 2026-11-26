@@ -41,6 +41,7 @@ extern "C"
 }
 
 extern "C" volatile uint64_t blockos_fault_vector;
+extern "C" volatile uint64_t blockos_fault_seen;
 extern "C" volatile uint64_t blockos_fault_error;
 extern "C" volatile uint64_t blockos_fault_rip;
 extern "C" volatile uint64_t blockos_fault_cr2;
@@ -1627,9 +1628,11 @@ extern "C" EFI_STATUS efi_main(
 
     uint32_t shell_size = 0;
 
+    /* PID 1 is dinit when the image ships it (System/bin/dinit); it starts the
+     * console service from System/etc/dinit.d. Otherwise the boot shell runs. */
     const char* first_user = blockos_space_recovery_requested()
         ? "/bin/recovery"
-        : "/bin/bsh";  /* BlockOS interactive boot shell; /bin/sh is the NetBSD sh for scripts */
+        : "/bin/bsh";  /* BlockOS interactive boot shell; dinit (System/bin/dinit) is started from it until it runs as PID 1 */
 
     const uint8_t* shell_elf =
         vfs::read_file(
@@ -1641,11 +1644,18 @@ extern "C" EFI_STATUS efi_main(
         shell_elf = vfs::read_file(first_user, &shell_size);
     }
 
+    /* The boot shell is /bin/bsh when the image has one. Otherwise use /bin/sh,
+     * the minimal static shell that rootfs/ and userspace/sh provide. */
+    if (!shell_elf || shell_size == 0) {
+        first_user = "/bin/sh";
+        shell_elf = vfs::read_file(first_user, &shell_size);
+    }
+
     if (!shell_elf || shell_size == 0)
     {
         boot_error_halt(
             console,
-            "/bin/sh could not be loaded from the embedded RAMFS");
+            "no boot shell (/bin/bsh or /bin/sh) in the embedded RAMFS");
     }
 
     process::Process* shell_process =
@@ -1675,7 +1685,7 @@ extern "C" EFI_STATUS efi_main(
      * ended on a CPU exception, say what happened. */
     {
         static char fault_msg[480];
-        if (blockos_fault_vector != 0)
+        if (blockos_fault_seen != 0)
         {
             static const char hex[] = "0123456789abcdef";
             auto put = [&](size_t& pos, const char* text) {

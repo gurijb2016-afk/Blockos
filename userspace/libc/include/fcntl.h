@@ -1,3 +1,6 @@
+#ifdef __cplusplus
+extern "C" {
+#endif
 #pragma once
 
 #define O_RDONLY    0
@@ -30,4 +33,20 @@ int openat(int dirfd, const char* path, int flags, ...);
 int fcntl(int fd, int cmd, ...);
 #ifndef FNDELAY
 #define FNDELAY 04000
+#endif
+
+#ifdef __cplusplus
+}
+#endif
+
+/* POSIX record locks (struct flock and F_*LCK), needed by skalibs. */
+#include <sys/types.h>
+#ifndef F_GETLK
+#define F_GETLK  5
+#define F_SETLK  6
+#define F_SETLKW 7
+#define F_RDLCK  0
+#define F_WRLCK  1
+#define F_UNLCK  2
+struct flock { short l_type; short l_whence; off_t l_start; off_t l_len; pid_t l_pid; };
 #endif

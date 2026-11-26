@@ -1,0 +1,5 @@
+# Boot target: the console shell and the s6-log demo pipeline.
+type = internal
+depends-on = console
+depends-on = logprod
+depends-on = s6log

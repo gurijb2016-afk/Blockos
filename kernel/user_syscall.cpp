@@ -12,6 +12,7 @@
 #include <stddef.h>
 #include <string.h>
 #include <stdio.h>
+#include "fd_objects.hpp"
 
 /* Address-space reclamation guard. A space may be freed only when no other
  * process still uses it (vfork children share their parent's space). Shared
@@ -503,55 +504,59 @@ static bool wake_futex(uint64_t addr,uint32_t count){
 static bool fd_readable(int fd){
     auto* fs=fdtable(); if(!fs||fd<0||fd>=(int)process::MAX_RUNTIME_FDS||!fs[fd].used)return false;
     if(fs[fd].kind==process::RuntimeFd::Tty) return true;
-    if(fs[fd].kind==process::RuntimeFd::File) return fs[fd].off<fs[fd].size;
+    if(fs[fd].kind==process::RuntimeFd::File) return true; /* POSIX: regular files are always readable (EOF reads 0) */
     if(fs[fd].kind==process::RuntimeFd::Device) return false;
     if(fs[fd].kind==process::RuntimeFd::UnixSocket){int i=fd_socket_index(fd);if(i<0)return false;if(unix_socks[i].listener)return unix_socks[i].pending_count>0;return unix_socks[i].rx_size>0||unix_socks[i].closed;}
+    if(fs[fd].kind==process::RuntimeFd::EventFd) return fdobj::eventfd_readable((int)fs[fd].object);
+    if(fs[fd].kind==process::RuntimeFd::TimerFd) return fdobj::timerfd_readable((int)fs[fd].object);
+    if(fs[fd].kind==process::RuntimeFd::SignalFd) return fdobj::signalfd_readable((int)fs[fd].object);
     return false;
 }
 static bool fd_writable(int fd){
     auto* fs=fdtable(); if(!fs||fd<0||fd>=(int)process::MAX_RUNTIME_FDS||!fs[fd].used)return false;
     if(fs[fd].kind==process::RuntimeFd::Tty||fs[fd].kind==process::RuntimeFd::File||fs[fd].kind==process::RuntimeFd::Device)return true;
     if(fs[fd].kind==process::RuntimeFd::UnixSocket){int i=fd_socket_index(fd);return i>=0&&unix_socks[i].peer>=0;}
+    if(fs[fd].kind==process::RuntimeFd::EventFd) return fdobj::eventfd_writable((int)fs[fd].object);
     return false;
 }
 
 static bool prepare_execve(BlockOSSyscallFrame* f) {
-    auto* p=process::current(); if(!p) return false;
-    char path[256]; if(!copy_user_string(f->rdi,path,sizeof(path))) return false;
-    if(path[0] != '/') { char abs[256]; if(!resolve_path_for_process(p,path,abs,sizeof(abs))) return false; memcpy(path,abs,sizeof(path)); }
-    uint32_t sz=0; const uint8_t* main_buf=vfs::read_file(path,&sz); if(!main_buf||sz==0) return false;
+    auto* p=process::current(); if(!p) { return false; }
+    char path[256]; if(!copy_user_string(f->rdi,path,sizeof(path))) { return false; }
+    if(path[0] != '/') { char abs[256]; if(!resolve_path_for_process(p,path,abs,sizeof(abs))) { return false; } memcpy(path,abs,sizeof(path)); }
+    uint32_t sz=0; const uint8_t* main_buf=vfs::read_file(path,&sz); if(!main_buf||sz==0) { return false; }
 
     /* static: exec vectors are large and prepare_execve never yields while using them.
      * pkgsrc bootstrap exports more than 16 variables, so allow up to 128. */
     static char argv[128][256], envp[128][256];
     int argc=copy_user_vec(f->rsi,argv,128); int envc=copy_user_vec(f->rdx,envp,128);
-    if(argc<0||envc<0) return false;
+    if(argc<0||envc<0) { return false; }
     static const char* argv_ptrs[128]; static const char* envp_ptrs[128];
     if(argc==0){ strncpy(argv[0],path,sizeof(argv[0])-1); argv[0][sizeof(argv[0])-1]=0; argc=1; }
     for(int i=0;i<argc;i++) argv_ptrs[i]=argv[i];
     for(int i=0;i<envc;i++) envp_ptrs[i]=envp[i];
 
-    uint64_t new_pml4=paging::create_user_pml4(); if(!new_pml4) return false;
+    uint64_t new_pml4=paging::create_user_pml4(); if(!new_pml4) { return false; }
     elf_loader::LoadResult main_image{};
-    if(!elf_loader::load_elf64_into(new_pml4,main_buf,sz,0,&main_image)) return false;
+    if(!elf_loader::load_elf64_into(new_pml4,main_buf,sz,0,&main_image)) { return false; }
     constexpr uint64_t INTERP_BASE=0x0000700000000000ULL;
     uint64_t start_entry=main_image.entry, start_rsp=0, real_entry=main_image.entry;
     if(main_image.has_interp){
         const char* selected_interp=main_image.interp_path;
         if(strcmp(selected_interp,"/lib64/ld-linux-x86-64.so.2")==0 || strcmp(selected_interp,"/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2")==0 || strcmp(selected_interp,"/lib/ld-linux-x86-64.so.2")==0) selected_interp="/system/lib/ld.so";
-        uint32_t isz=0; const uint8_t* ib=vfs::read_file(selected_interp,&isz); if(!ib||isz==0) return false;
-        elf_loader::LoadResult interp{}; if(!elf_loader::load_elf64_into(new_pml4,ib,isz,INTERP_BASE,&interp)) return false;
-        if(interp.has_interp) return false;
+        uint32_t isz=0; const uint8_t* ib=vfs::read_file(selected_interp,&isz); if(!ib||isz==0) { return false; }
+        elf_loader::LoadResult interp{}; if(!elf_loader::load_elf64_into(new_pml4,ib,isz,INTERP_BASE,&interp)) { return false; }
+        if(interp.has_interp) { return false; }
         start_entry=interp.entry;
         start_rsp=elf_loader::build_initial_stack(new_pml4,0x00007ffffff00000ULL,32,argv_ptrs,argc,envp_ptrs,envc,main_image,interp.load_bias);
-        if(!start_rsp) return false;
+        if(!start_rsp) { return false; }
         real_entry=main_image.entry;
     } else {
         uint64_t stack_base=0x00007ffffff00000ULL-32*0x1000ULL;
-        if(!paging::map_user_range(new_pml4,stack_base,32*0x1000ULL,4|2|(1ULL<<63))) return false;
+        if(!paging::map_user_range(new_pml4,stack_base,32*0x1000ULL,4|2|(1ULL<<63))) { return false; }
         const char* const empty_env[1]={nullptr};
         start_rsp=elf_loader::build_initial_stack(new_pml4,0x00007ffffff00000ULL,32,argv_ptrs,argc,envp_ptrs,envc,main_image,0);
-        if(!start_rsp){ (void)empty_env; return false; }
+        if(!start_rsp){ (void)empty_env; { return false; } }
     }
 
     for(size_t i=3;i<process::MAX_RUNTIME_FDS;i++) if(p->fd_owner->fds[i].used && (p->fd_owner->fds[i].flags & 1u)) p->fd_owner->fds[i]={};
@@ -582,6 +587,13 @@ extern "C" void blockos_syscall_dispatch_frame(BlockOSSyscallFrame* f){
         if(f->rdx==0){r=0;break;}
         if(!paging::is_user_range(f->rsi,(size_t)f->rdx,false)){r=EFAULT;break;}
         auto& d=fs[f->rdi];
+        if(d.kind==process::RuntimeFd::EventFd){
+            if(f->rdx<8){r=EINVAL;break;}
+            uint64_t v=*(const uint64_t*)(uintptr_t)f->rsi;
+            int64_t e=fdobj::eventfd_write((int)d.object,v);
+            if(e){ if(e==EAGAIN && (d.flags&FD_NONBLOCK)==0){ r=EAGAIN; break; } r=e; break; }
+            r=8; break;
+        }
         if(d.kind==process::RuntimeFd::Memfd){
             MemfdObj& m=memfd_objs[d.object];
             if((d.flags&3u)==0){r=EBADF;break;}
@@ -665,6 +677,18 @@ extern "C" void blockos_syscall_dispatch_frame(BlockOSSyscallFrame* f){
         if(!paging::is_user_range(f->rsi,(size_t)f->rdx,true)){r=EFAULT;break;}
         auto& d=fs[f->rdi];
         if(d.kind==process::RuntimeFd::Null){r=0;break;}
+        if(d.kind==process::RuntimeFd::EventFd||d.kind==process::RuntimeFd::TimerFd){
+            if(f->rdx<8){r=EINVAL;break;}
+            uint64_t v=0; int64_t e=(d.kind==process::RuntimeFd::EventFd)
+                ? fdobj::eventfd_read((int)d.object,&v,(d.flags&FD_NONBLOCK)!=0)
+                : fdobj::timerfd_read((int)d.object,&v,(d.flags&FD_NONBLOCK)!=0);
+            if(e){r=e;break;}
+            memcpy((void*)(uintptr_t)f->rsi,&v,8); r=8; break;
+        }
+        if(d.kind==process::RuntimeFd::SignalFd){
+            r=fdobj::signalfd_read((int)d.object,(void*)(uintptr_t)f->rsi,(size_t)f->rdx,(d.flags&FD_NONBLOCK)!=0);
+            break;
+        }
         if(d.kind==process::RuntimeFd::Memfd){
             MemfdObj& m=memfd_objs[d.object];
             uint64_t left=d.off<m.size?m.size-d.off:0; size_t n=f->rdx<left?(size_t)f->rdx:(size_t)left;
@@ -681,6 +705,7 @@ extern "C" void blockos_syscall_dispatch_frame(BlockOSSyscallFrame* f){
         }
         if(d.kind==process::RuntimeFd::Tty){
             r=blockos_tty_read((void*)(uintptr_t)f->rsi,(size_t)f->rdx);
+            if(r==0 && f->rdx!=0 && (d.flags&FD_NONBLOCK)) r=EAGAIN; /* O_NONBLOCK with no key pending: EAGAIN, not EOF */
             if(r==0 && f->rdx!=0 && !(d.flags&FD_NONBLOCK)){
                 /* Nothing typed yet. A blocking terminal read waits for a key; reporting 0 here
                  * looks like EOF, so a shell (BusyBox ash) would exit at its first prompt.
@@ -727,7 +752,16 @@ extern "C" void blockos_syscall_dispatch_frame(BlockOSSyscallFrame* f){
         if(f->rdi>=process::MAX_RUNTIME_FDS||!fs||!fs[f->rdi].used||!paging::is_user_range(f->rsi,128,true)){r=EBADF;break;} memset((void*)(uintptr_t)f->rsi,0,128); uint64_t* q=(uint64_t*)(uintptr_t)f->rsi; q[0]=1;q[1]=1;uint32_t fm=0644u; if(fs[f->rdi].path[0]) vfs::get_mode(fs[f->rdi].path,&fm); q[2]=((fs[f->rdi].kind==process::RuntimeFd::Directory)?0040000u:((fs[f->rdi].kind==process::RuntimeFd::File||fs[f->rdi].kind==process::RuntimeFd::Memfd)?0100000u:0140000u))|(fm&07777u);q[7]=fd_size(fs[f->rdi]);r=0;break;
     }
     case blockos::syscall::SYS_openat:{
-        char raw[256], path[256]; if(!copy_user_string(f->rsi,raw,sizeof(raw))){r=EFAULT;break;} if(!resolve_path_for_process(p,raw,path,sizeof(path))){r=ENAMETOOLONG;break;}
+        char raw[256], path[256]; if(!copy_user_string(f->rsi,raw,sizeof(raw))){r=EFAULT;break;}
+        { /* openat with a directory fd: relative names are relative to that directory */
+            int64_t dfd=(int64_t)f->rdi;
+            if(raw[0]!='/' && dfd>=0 && dfd<(int64_t)process::MAX_RUNTIME_FDS && fs && fs[dfd].used && fs[dfd].kind==process::RuntimeFd::Directory){
+                char comb[256]; size_t dl=strlen(fs[dfd].path); size_t rl=strlen(raw);
+                if(dl+1+rl<sizeof(comb)){ memcpy(comb,fs[dfd].path,dl); comb[dl]='/'; memcpy(comb+dl+1,raw,rl+1); memcpy(raw,comb,dl+2+rl); }
+            }
+        }
+        if(!resolve_path_for_process(p,raw,path,sizeof(path))){r=ENAMETOOLONG;break;}
+        if(strcmp(path,"/devices/console")==0||strcmp(path,"/devices/console0")==0){ int fd=alloc_fd(); if(fd<0){r=EMFILE;break;} fs=fdtable(); uint32_t ff=(uint32_t)f->rdx; if(f->rdx&O_CLOEXEC) ff|=FD_CLOEXEC; fs[fd]={true,process::RuntimeFd::Tty,ff,0,nullptr,0,0,{}}; strncpy(fs[fd].path,path,sizeof(fs[fd].path)-1); r=fd; break; }
         if(strcmp(path,"/dev/null")==0){ int fd=alloc_fd(); if(fd<0){r=EMFILE;break;} fs=fdtable(); uint32_t ff=(uint32_t)f->rdx; if(f->rdx&O_CLOEXEC) ff|=FD_CLOEXEC; fs[fd]={true,process::RuntimeFd::Null,ff,0,nullptr,0,0,{}}; strncpy(fs[fd].path,path,sizeof(fs[fd].path)-1); r=fd; break; }
         if((strcmp(path,"/dev/urandom")==0||strcmp(path,"/dev/random")==0)){ int fd=alloc_fd(); if(fd<0){r=EMFILE;break;} fs=fdtable(); uint32_t ff=(uint32_t)f->rdx; if(f->rdx&O_CLOEXEC) ff|=FD_CLOEXEC; fs[fd]={true,process::RuntimeFd::Random,ff,0,nullptr,0,0,{}}; strncpy(fs[fd].path,path,sizeof(fs[fd].path)-1); r=fd; break; }
         if(vfs::is_directory(path)){ int fd=alloc_fd(); if(fd<0){r=EMFILE;break;} fs=fdtable(); fs[fd]={true,process::RuntimeFd::Directory,(uint32_t)f->rdx,0,(const uint8_t*)store_directory_path(path),0,0,{}}; strncpy(fs[fd].path,path,sizeof(fs[fd].path)-1); r=fd; break; }
@@ -802,6 +836,8 @@ extern "C" void blockos_syscall_dispatch_frame(BlockOSSyscallFrame* f){
         uint64_t deadline=timer_uptime_ms()+(uint64_t)sec*1000ull+(uint64_t)(nsec/1000000);
         r=0;
         if(preempt::block_until_from_syscall(f,deadline)) return;
+        /* Nothing else is runnable: idle here until the deadline instead of returning early. */
+        while(timer_uptime_ms()<deadline){ __asm__ volatile("sti; hlt; cli" ::: "memory"); }
         break;
     }
     case blockos::syscall::SYS_clone:{
@@ -821,7 +857,7 @@ extern "C" void blockos_syscall_dispatch_frame(BlockOSSyscallFrame* f){
     case blockos::syscall::SYS_exit_group:{ 
         release_process_fds(p);
         if(p&&p->vfork_child){ if(auto* parent=process::get(p->vfork_parent_pid)){ if(parent->state==process::State::BLOCKED) parent->state=process::State::READY; } p->vfork_child=false; p->vfork_parent_pid=0; }
-        if(p){p->exit_code=f->rdi; if(auto* parent=process::get(p->parent_pid)){ if(parent->state==process::State::BLOCKED && (parent->wait_target_pid==0 || parent->wait_target_pid==p->pid)){ parent->saved_frame.rax=p->pid; if(parent->wait_status_ptr && parent->pml4){ /* the parent's stack lives in the parent's tables; fork gave us private copies, so write through the parent's pml4 */ uint64_t my_cr3=paging::read_cr3(); paging::switch_pml4(parent->pml4); if(paging::is_user_range(parent->wait_status_ptr,4,true)) *reinterpret_cast<int*>(static_cast<uintptr_t>(parent->wait_status_ptr))=(int)(p->exit_code<<8); paging::switch_pml4(my_cr3); } parent->wait_target_pid=0; parent->wait_status_ptr=0; parent->state=process::State::READY; } }if(p->clear_tid&&paging::is_user_range(p->clear_tid,4,true)){*(uint32_t*)(uintptr_t)p->clear_tid=0;wake_futex(p->clear_tid,1);}p->state=process::State::TERMINATED;}
+        if(p){p->exit_code=f->rdi; if(p->parent_pid) fdobj::signal_raise(p->parent_pid, 17 /* SIGCHLD */); if(auto* parent=process::get(p->parent_pid)){ if(parent->state==process::State::BLOCKED && (parent->wait_target_pid==0 || parent->wait_target_pid==p->pid)){ parent->saved_frame.rax=p->pid; if(parent->wait_status_ptr && parent->pml4){ /* the parent's stack lives in the parent's tables; fork gave us private copies, so write through the parent's pml4 */ uint64_t my_cr3=paging::read_cr3(); paging::switch_pml4(parent->pml4); if(paging::is_user_range(parent->wait_status_ptr,4,true)) *reinterpret_cast<int*>(static_cast<uintptr_t>(parent->wait_status_ptr))=(int)(p->exit_code<<8); paging::switch_pml4(my_cr3); } parent->wait_target_pid=0; parent->wait_status_ptr=0; parent->state=process::State::READY; } }if(p->clear_tid&&paging::is_user_range(p->clear_tid,4,true)){*(uint32_t*)(uintptr_t)p->clear_tid=0;wake_futex(p->clear_tid,1);}p->state=process::State::TERMINATED;}
         if(preempt::on_exit(f))return; f->rax=0;f->rip=(uint64_t)(uintptr_t)&blockos_user_return;f->cs=0x08;f->ss=0x10;f->rsp=blockos_user_saved_rsp;f->rflags|=0x200;return;
     }
     case blockos::syscall::SYS_blockos_disk:{
@@ -918,6 +954,18 @@ extern "C" void blockos_syscall_dispatch_frame(BlockOSSyscallFrame* f){
         if(!p){r=ESRCH;break;}
         p->sid=p->pid; p->pgid=p->pid; r=(int64_t)p->sid; break;
     }
+    case blockos::syscall::SYS_getsid:{
+        if(!p){r=ESRCH;break;}
+        uint64_t pid=f->rdi?f->rdi:p->pid; auto* x=process::get(pid);
+        if(!x){r=ESRCH;break;}
+        r=(int64_t)x->sid; break;
+    }
+    case blockos::syscall::SYS_umask:{
+        if(!p){r=ESRCH;break;}
+        uint16_t old=p->umask_set?p->umask_val:022;
+        p->umask_val=(uint16_t)(f->rdi&0777); p->umask_set=true;
+        r=(int64_t)old; break;
+    }
     case blockos::syscall::SYS_set_robust_list:
     case blockos::syscall::SYS_rseq:
     case blockos::syscall::SYS_prctl:
@@ -1007,9 +1055,17 @@ extern "C" void blockos_syscall_dispatch_frame(BlockOSSyscallFrame* f){
     case blockos::syscall::SYS_poll:{
         struct Pollfd{int fd;short events;short revents;};if(!paging::is_user_range(f->rdi,(size_t)f->rsi*sizeof(Pollfd),true)){r=EFAULT;break;}auto* pfd=(Pollfd*)(uintptr_t)f->rdi;int ready=0;for(uint64_t i=0;i<f->rsi;i++){pfd[i].revents=0;if((pfd[i].events&POLLIN)&&fd_readable(pfd[i].fd))pfd[i].revents|=POLLIN;if((pfd[i].events&POLLOUT)&&fd_writable(pfd[i].fd))pfd[i].revents|=POLLOUT;if(pfd[i].revents)ready++;}r=ready;break;}
     case blockos::syscall::SYS_epoll_create1:{int ei=-1;for(int i=0;i<64;i++)if(!epolls[i].used){epolls[i]={};epolls[i].used=true;ei=i;break;}if(ei<0){r=ENOMEM;break;}int fd=alloc_fd();if(fd<0){epolls[ei]={};r=ENOMEM;break;}fs=fdtable();fs[fd]={true,process::RuntimeFd::File,0,(uint32_t)(0x80000000u|(uint32_t)ei),nullptr,0,0};r=fd;break;}
-    case blockos::syscall::SYS_epoll_ctl:{if(f->rdi>=process::MAX_RUNTIME_FDS||!fs||!fs[f->rdi].used){r=EBADF;break;}uint32_t obj=fs[f->rdi].object; if(!(obj&0x80000000u)){r=EINVAL;break;}EpollObj& ep=epolls[obj&0x7fffffffu];struct Ev{uint32_t events;uint32_t pad;uint64_t data;};if(!paging::is_user_range(f->r9,16,false)){r=EFAULT;break;}auto* ev=(Ev*)(uintptr_t)f->r9;int idx=-1;for(int i=0;i<64;i++)if(ep.watch[i].used&&ep.watch[i].fd==(int)f->rdx){idx=i;break;}int op=(int)f->rsi;if(op==1){for(int i=0;i<64;i++)if(!ep.watch[i].used){ep.watch[i]={true,(int)f->rdx,ev->events,ev->data};r=0;break;}if(r!=0)r=ENOMEM;}else if(op==2){if(idx>=0){ep.watch[idx]={};r=0;}else r=ENOENT;}else if(op==3){if(idx>=0){ep.watch[idx].events=ev->events;ep.watch[idx].data=ev->data;r=0;}else r=ENOENT;}else r=EINVAL;break;}
-    case blockos::syscall::SYS_epoll_wait:{if(f->rdi>=process::MAX_RUNTIME_FDS||!fs||!fs[f->rdi].used){r=EBADF;break;}uint32_t obj=fs[f->rdi].object;if(!(obj&0x80000000u)){r=EINVAL;break;}EpollObj& ep=epolls[obj&0x7fffffffu];struct Ev{uint32_t events;uint32_t pad;uint64_t data;};if(!paging::is_user_range(f->rsi,(size_t)f->rdx*sizeof(Ev),true)){r=EFAULT;break;}auto*out=(Ev*)(uintptr_t)f->rsi;int n=0;for(auto&w:ep.watch){if(!w.used||n>=(int)f->rdx)continue;uint32_t ev=0;if((w.events&POLLIN)&&fd_readable(w.fd))ev|=POLLIN;if((w.events&POLLOUT)&&fd_writable(w.fd))ev|=POLLOUT;if(ev){out[n++]={ev,0,w.data};}}r=n;break;}
-    case blockos::syscall::SYS_fcntl:{if(f->rdi>=process::MAX_RUNTIME_FDS||!fs||!fs[f->rdi].used){r=EBADF;break;}auto&d=fs[f->rdi];switch(f->rsi){case F_GETFD:r=(d.flags&FD_CLOEXEC)?FD_CLOEXEC:0;break;case F_SETFD:d.flags=(uint16_t)((d.flags&~FD_CLOEXEC)|((uint16_t)f->rdx&FD_CLOEXEC));r=0;break;case F_GETFL:r=d.flags;break;case F_SETFL:d.flags=(uint16_t)f->rdx;r=0;break;case F_DUPFD:{int n=alloc_fd((uint16_t)f->rdx);if(n<0){r=EMFILE;break;}fs[n]=d;r=n;break;}case 1030 /* F_DUPFD_CLOEXEC */:{int n=alloc_fd((uint16_t)f->rdx);if(n<0){r=EMFILE;break;}fs[n]=d;fs[n].flags=(uint16_t)(fs[n].flags|FD_CLOEXEC);r=n;break;}default:r=EINVAL;break;}break;}
+    case blockos::syscall::SYS_epoll_ctl:{if(f->rdi>=process::MAX_RUNTIME_FDS||!fs||!fs[f->rdi].used){r=EBADF;break;}uint32_t obj=fs[f->rdi].object; if(!(obj&0x80000000u)){r=EINVAL;break;}EpollObj& ep=epolls[obj&0x7fffffffu];struct __attribute__((packed)) Ev{uint32_t events;uint64_t data;}; /* x86-64 struct epoll_event is packed (12 bytes) */if(!paging::is_user_range(f->r9,12,false)){r=EFAULT;break;}auto* ev=(Ev*)(uintptr_t)f->r9;int idx=-1;for(int i=0;i<64;i++)if(ep.watch[i].used&&ep.watch[i].fd==(int)f->rdx){idx=i;break;}int op=(int)f->rsi;if(op==1){for(int i=0;i<64;i++)if(!ep.watch[i].used){ep.watch[i]={true,(int)f->rdx,ev->events,ev->data};r=0;break;}if(r!=0)r=ENOMEM;}else if(op==2){if(idx>=0){ep.watch[idx]={};r=0;}else r=ENOENT;}else if(op==3){if(idx>=0){ep.watch[idx].events=ev->events;ep.watch[idx].data=ev->data;r=0;}else r=ENOENT;}else r=EINVAL;break;}
+    case blockos::syscall::SYS_epoll_wait:{if(f->rdi>=process::MAX_RUNTIME_FDS||!fs||!fs[f->rdi].used){r=EBADF;break;}uint32_t obj=fs[f->rdi].object;if(!(obj&0x80000000u)){r=EINVAL;break;}EpollObj& ep=epolls[obj&0x7fffffffu];struct __attribute__((packed)) Ev{uint32_t events;uint64_t data;}; /* x86-64 struct epoll_event is packed (12 bytes) */if(!paging::is_user_range(f->rsi,(size_t)f->rdx*sizeof(Ev),true)){r=EFAULT;break;}auto*out=(Ev*)(uintptr_t)f->rsi;int n=0;for(auto&w:ep.watch){if(!w.used||n>=(int)f->rdx)continue;uint32_t ev=0;if((w.events&POLLIN)&&fd_readable(w.fd))ev|=POLLIN;if((w.events&POLLOUT)&&fd_writable(w.fd))ev|=POLLOUT;if(ev){out[n++]={ev,w.data}; if(w.events&(1u<<30)){ /* EPOLLONESHOT: disarm until the next EPOLL_CTL_MOD */ w.events&=~(uint32_t)(POLLIN|POLLOUT);} }}
+        if(n==0 && (int)f->r10!=0){ /* Nothing ready: wait one slice (or the caller timeout if shorter) instead of spinning. */
+            uint64_t now=timer_uptime_ms(); uint64_t slice=now+1;
+            if((int)f->r10>0 && now+(uint64_t)(int)f->r10<slice) slice=now+(uint64_t)(int)f->r10;
+            r=0;
+            if(preempt::block_until_from_syscall(f,slice)) return;
+            while(timer_uptime_ms()<slice){ __asm__ volatile("sti; hlt; cli" ::: "memory"); }
+        }
+        r=n;break;}
+    case blockos::syscall::SYS_fcntl:{if(f->rdi>=process::MAX_RUNTIME_FDS||!fs||!fs[f->rdi].used){r=EBADF;break;}auto&d=fs[f->rdi];switch(f->rsi){case F_GETFD:r=(d.flags&FD_CLOEXEC)?FD_CLOEXEC:0;break;case F_SETFD:d.flags=(uint16_t)((d.flags&~FD_CLOEXEC)|((uint16_t)f->rdx&FD_CLOEXEC));r=0;break;case F_GETFL:r=d.flags;break;case F_SETFL:d.flags=(uint16_t)f->rdx;r=0;break;case F_DUPFD:{int n=alloc_fd((uint16_t)f->rdx);if(n<0){r=EMFILE;break;}fs[n]=d;r=n;break;}case 1030 /* F_DUPFD_CLOEXEC */:{int n=alloc_fd((uint16_t)f->rdx);if(n<0){r=EMFILE;break;}fs[n]=d;fs[n].flags=(uint16_t)(fs[n].flags|FD_CLOEXEC);r=n;break;}case 5 /* F_GETLK */:{if(!paging::is_user_range(f->rdx,8,true)){r=-14;break;}*(int16_t*)f->rdx=2 /* F_UNLCK */;r=0;break;}case 6 /* F_SETLK */: case 7 /* F_SETLKW */:r=0;break;default:r=EINVAL;break;}break;}
     case blockos::syscall::SYS_dup:{if(f->rdi>=process::MAX_RUNTIME_FDS||!fs||!fs[f->rdi].used){r=EBADF;break;}int n=alloc_fd();if(n<0){r=ENOMEM;break;}fs[n]=fs[f->rdi];r=n;break;}
     case blockos::syscall::SYS_dup2:{if(f->rdi>=process::MAX_RUNTIME_FDS||!fs||!fs[f->rdi].used||f->rsi>=process::MAX_RUNTIME_FDS){r=EBADF;break;}if(f->rdi==f->rsi){r=f->rsi;break;} if(fs[f->rsi].used&&fs[f->rsi].kind==process::RuntimeFd::UnixSocket){int oi=(int)fs[f->rsi].object-1; fs[f->rsi]={}; socket_release_fd(oi,p,(int)f->rsi);} fs[f->rsi]=fs[f->rdi];r=f->rsi;break;}
     case blockos::syscall::SYS_clock_gettime:{if(!paging::is_user_range(f->rsi,16,true)){r=EFAULT;break;}uint64_t ms=timer_uptime_ms();struct TS{int64_t sec,nsec;}*ts=(TS*)(uintptr_t)f->rsi;ts->sec=(int64_t)(ms/1000);ts->nsec=(int64_t)((ms%1000)*1000000);r=0;break;}
@@ -1097,6 +1153,89 @@ if(x->pml4_owned&&x->pml4&&x->pml4!=(paging::read_cr3()&0x000ffffffffff000ULL)){
         /* The image format carries no exec bits: a regular file that is clearly a program (ELF or #! script) reports execute permission so shell tests such as [ -x ] work. */
         if(!dir&&!dev&&d&&sz>=4&&(pm&0111u)==0&&((d[0]==0x7f&&d[1]=='E'&&d[2]=='L'&&d[3]=='F')||(d[0]=='#'&&d[1]=='!')))pm|=0111u;
         memset((void*)(uintptr_t)f->rsi,0,128);uint64_t*q=(uint64_t*)(uintptr_t)f->rsi;q[0]=1;q[1]=1;q[2]=(dev?0140000u:(dir?0040000u:0100000u))|(pm&07777u);q[7]=d?(uint64_t)sz:0;r=0;break;
+    }
+    case blockos::syscall::SYS_eventfd2:{
+        /* rdi=initval, rsi=flags (EFD_SEMAPHORE=1, EFD_NONBLOCK=O_NONBLOCK, EFD_CLOEXEC) */
+        uint64_t flags=f->rsi;
+        if(flags & ~(uint64_t)(1|04000|02000000)){r=EINVAL;break;}
+        int idx=fdobj::eventfd_create((uint64_t)(uint32_t)f->rdi,(flags&1)!=0);
+        if(idx<0){r=idx;break;}
+        int fd=alloc_fd(); if(fd<0){r=EMFILE;break;}
+        fs=fdtable();
+        uint32_t ff=((flags&04000)?(uint32_t)FD_NONBLOCK:0u)|((flags&02000000)?(uint32_t)FD_CLOEXEC:0u);
+        fs[fd]={true,process::RuntimeFd::EventFd,ff,(uint32_t)idx,nullptr,0,0};
+        r=fd; break;
+    }
+    case blockos::syscall::SYS_timerfd_create:{
+        /* rdi=clockid (CLOCK_REALTIME/MONOTONIC share the uptime clock), rsi=flags */
+        if(f->rdi!=0 && f->rdi!=1){r=EINVAL;break;}
+        uint64_t flags=f->rsi;
+        if(flags & ~(uint64_t)(04000|02000000)){r=EINVAL;break;}
+        int idx=fdobj::timerfd_create_obj();
+        if(idx<0){r=idx;break;}
+        int fd=alloc_fd(); if(fd<0){r=EMFILE;break;}
+        fs=fdtable();
+        uint32_t ff=((flags&04000)?(uint32_t)FD_NONBLOCK:0u)|((flags&02000000)?(uint32_t)FD_CLOEXEC:0u);
+        fs[fd]={true,process::RuntimeFd::TimerFd,ff,(uint32_t)idx,nullptr,0,0};
+        r=fd; break;
+    }
+    case blockos::syscall::SYS_timerfd_settime:{
+        /* rdi=fd, rsi=flags (TFD_TIMER_ABSTIME=1), rdx=const itimerspec*, r10=itimerspec* old (optional) */
+        struct TS{int64_t sec,nsec;};
+        struct ITS{TS interval,value;};
+        if(f->rdi>=process::MAX_RUNTIME_FDS||!fs||!fs[f->rdi].used||fs[f->rdi].kind!=process::RuntimeFd::TimerFd){r=EBADF;break;}
+        if(f->rsi & ~(uint64_t)1){r=EINVAL;break;}
+        if(!paging::is_user_range(f->rdx,sizeof(ITS),false)){r=EFAULT;break;}
+        if(f->r10 && !paging::is_user_range(f->r10,sizeof(ITS),true)){r=EFAULT;break;}
+        const ITS* nv=(const ITS*)(uintptr_t)f->rdx;
+        if(nv->value.nsec<0||nv->value.nsec>=1000000000||nv->interval.nsec<0||nv->interval.nsec>=1000000000){r=EINVAL;break;}
+        uint64_t value_ms=(uint64_t)nv->value.sec*1000ull+(uint64_t)nv->value.nsec/1000000ull;
+        uint64_t interval_ms=(uint64_t)nv->interval.sec*1000ull+(uint64_t)nv->interval.nsec/1000000ull;
+        uint64_t old_v=0, old_i=0;
+        int64_t e=fdobj::timerfd_settime((int)fs[f->rdi].object,(f->rsi&1)!=0,value_ms,interval_ms,
+                                         f->r10?&old_v:nullptr, f->r10?&old_i:nullptr);
+        if(e){r=e;break;}
+        if(f->r10){
+            ITS* ov=(ITS*)(uintptr_t)f->r10;
+            ov->interval.sec=(int64_t)(old_i/1000ull); ov->interval.nsec=(int64_t)((old_i%1000ull)*1000000ull);
+            ov->value.sec=(int64_t)(old_v/1000ull);    ov->value.nsec=(int64_t)((old_v%1000ull)*1000000ull);
+        }
+        r=0; break;
+    }
+    case blockos::syscall::SYS_timerfd_gettime:{
+        /* rdi=fd, rsi=struct itimerspec* (out) */
+        struct TS{int64_t sec,nsec;};
+        struct ITS{TS interval,value;};
+        if(f->rdi>=process::MAX_RUNTIME_FDS||!fs||!fs[f->rdi].used||fs[f->rdi].kind!=process::RuntimeFd::TimerFd){r=EBADF;break;}
+        if(!paging::is_user_range(f->rsi,sizeof(ITS),true)){r=EFAULT;break;}
+        uint64_t v=0, iv=0;
+        int64_t e=fdobj::timerfd_gettime((int)fs[f->rdi].object,&v,&iv);
+        if(e){r=e;break;}
+        ITS* out=(ITS*)(uintptr_t)f->rsi;
+        out->interval.sec=(int64_t)(iv/1000ull); out->interval.nsec=(int64_t)((iv%1000ull)*1000000ull);
+        out->value.sec=(int64_t)(v/1000ull);     out->value.nsec=(int64_t)((v%1000ull)*1000000ull);
+        r=0; break;
+    }
+    case blockos::syscall::SYS_signalfd4:{
+        /* rdi=fd (-1 = new), rsi=const sigset_t* mask, rdx=sizeof(mask) (8), r10=flags */
+        if(f->rdx!=8){r=EINVAL;break;}
+        if(!paging::is_user_range(f->rsi,8,false)){r=EFAULT;break;}
+        uint64_t mask=*(const uint64_t*)(uintptr_t)f->rsi;
+        uint64_t flags=f->r10;
+        if(flags & ~(uint64_t)(04000|02000000)){r=EINVAL;break;}
+        if((int64_t)f->rdi==-1){
+            if(!p){r=ESRCH;break;}
+            int idx=fdobj::signalfd_create(p->pid,mask);
+            if(idx<0){r=idx;break;}
+            int fd=alloc_fd(); if(fd<0){r=EMFILE;break;}
+            fs=fdtable();
+            uint32_t ff=((flags&04000)?(uint32_t)FD_NONBLOCK:0u)|((flags&02000000)?(uint32_t)FD_CLOEXEC:0u);
+            fs[fd]={true,process::RuntimeFd::SignalFd,ff,(uint32_t)idx,nullptr,0,0};
+            r=fd; break;
+        }
+        if(f->rdi>=process::MAX_RUNTIME_FDS||!fs||!fs[f->rdi].used||fs[f->rdi].kind!=process::RuntimeFd::SignalFd){r=EBADF;break;}
+        fdobj::signalfd_set_mask((int)fs[f->rdi].object,mask);
+        r=f->rdi; break;
     }
     default:r=ENOSYS;break;
     }

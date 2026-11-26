@@ -23,6 +23,7 @@ extern "C" void blockos_panic_flush(void);
 /* Last CPU exception, so the boot path can report why a process ended. */
 extern "C" {
 volatile uint64_t blockos_fault_vector = 0;
+volatile uint64_t blockos_fault_seen = 0;   /* set on any CPU exception (vector 0 is #DE) */
 volatile uint64_t blockos_fault_error = 0;
 volatile uint64_t blockos_fault_rip = 0;
 volatile uint64_t blockos_fault_cr2 = 0;
@@ -47,6 +48,7 @@ extern "C" void interrupt_handler_c(InterruptFrame* f){
         if(f->vector==14) __asm__ volatile("mov %%cr2,%0":"=r"(cr2));
         const bool from_user = (f->cs & 3) == 3;
         blockos_fault_vector = f->vector;
+        blockos_fault_seen = 1;
         blockos_fault_error = f->error_code;
         blockos_fault_rip = f->rip;
         blockos_fault_cr2 = cr2;

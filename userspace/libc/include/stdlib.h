@@ -36,6 +36,11 @@ void srand(unsigned int);
 int system(const char *cmd);
 void qsort(void *base, size_t nmemb, size_t size, int (*cmp)(const void *, const void *));
 double strtod(const char *s, char **end);
+float strtof(const char *s, char **end);
+long double strtold(const char *s, char **end);
+long long llabs(long long v);
+long long atoll(const char *s);
+void _Exit(int status);
 double atof(const char *s);
 void srandom(unsigned int seed);
 long random(void);
@@ -64,11 +69,26 @@ void *bsearch(const void *key, const void *base, size_t nmemb, size_t size, int 
 
 #include <alloca.h>
 
+typedef struct { int quot; int rem; } div_t;
+typedef struct { long quot; long rem; } ldiv_t;
+typedef struct { long long quot; long long rem; } lldiv_t;
+div_t div(int numer, int denom);
+ldiv_t ldiv(long numer, long denom);
+lldiv_t lldiv(long long numer, long long denom);
+
 unsigned long long strtoull(const char*, char**, int);
 long long strtoll(const char*, char**, int);
 int clearenv(void);
 char* realpath(const char*, char*);
 
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+char *mkdtemp(char *template);
 #ifdef __cplusplus
 }
 #endif

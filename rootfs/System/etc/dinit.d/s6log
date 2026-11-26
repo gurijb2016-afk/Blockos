@@ -1,0 +1,5 @@
+# s6-log consumes the output of the logprod service and writes /tmp/current.
+type = process
+command = /System/bin/s6-log n2 /tmp
+consumer-of = logprod
+restart = false

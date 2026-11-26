@@ -1,3 +1,6 @@
+#ifdef __cplusplus
+extern "C" {
+#endif
 #pragma once
 #include <stdint.h>
 #include <sys/wait.h>
@@ -48,6 +51,15 @@ typedef int sig_atomic_t;
 #define SIGTSTP 20
 #define SIGTTIN 21
 #define SIGTTOU 22
+#define SIGSTOP 19
+#define SIGCONT 18
+#define NSIG 65
+#define CLD_EXITED 1
+#define CLD_KILLED 2
+#define CLD_DUMPED 3
+#define CLD_TRAPPED 4
+#define CLD_STOPPED 5
+#define CLD_CONTINUED 6
 #define SIGVTALRM 26
 
 int sigemptyset(sigset_t* set);
@@ -62,3 +74,15 @@ int tgkill(int tgid, int tid, int sig);
 sighandler_t signal(int sig, sighandler_t handler);
 int raise(int sig);
 int pthread_sigmask(int how, const sigset_t* set, sigset_t* oldset);
+
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+int sigismember(const sigset_t *set, int signo);
+#ifdef __cplusplus
+}
+#endif

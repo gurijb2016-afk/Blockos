@@ -1,0 +1,7 @@
+# Interactive shell on the console. Restarted if it exits.
+type = process
+command = /bin/sh
+log-type = file
+logfile = /devices/console
+restart = true
+restart-delay = 1
