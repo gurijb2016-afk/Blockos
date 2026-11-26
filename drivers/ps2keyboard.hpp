@@ -15,6 +15,7 @@ class PS2Keyboard
     void init();
     int16_t read_byte_nonblocking();
     static char scancode_to_ascii(uint8_t sc);
+    static char scancode_to_ascii(uint8_t sc, bool shift);
     bool poll(KeyEvent& out);
 
    private:

@@ -66,20 +66,32 @@ static uint32_t queue_mem_size(uint16_t n) {
     return static_cast<uint32_t>(p+sizeof(uint16_t)*2+sizeof(VirtqUsedElem)*n+4095);
 }
 
-static Status submit(void* request,size_t request_len, void* response,size_t response_len) {
-    if (!g.ready || !request || !response || request_len==0 || response_len==0) return Status::InvalidArgument;
-    memset(response,0,response_len);
-    virtqueue_ops::set_descriptor(&g.queue,0,reinterpret_cast<uint64_t>(request),static_cast<uint32_t>(request_len),DESC_F_NEXT,1);
-    virtqueue_ops::set_descriptor(&g.queue,1,reinterpret_cast<uint64_t>(response),static_cast<uint32_t>(response_len),DESC_F_WRITE,0);
-    virtqueue_ops::submit_descriptor(&g.queue,0);
+static Status submit(const void* request, size_t request_len, void* response, size_t response_len) {
+    if (!g.ready || !request || !response || request_len == 0 || response_len == 0)
+        return Status::InvalidArgument;
+    if (request_len > 4096 || response_len > 4096)
+        return Status::InvalidArgument;
+
+    memcpy(g.cmd, request, request_len);
+    memset(g.resp, 0, response_len);
+    virtqueue_ops::set_descriptor(&g.queue, 0, reinterpret_cast<uint64_t>(g.cmd),
+                                  static_cast<uint32_t>(request_len), DESC_F_NEXT, 1);
+    virtqueue_ops::set_descriptor(&g.queue, 1, reinterpret_cast<uint64_t>(g.resp),
+                                  static_cast<uint32_t>(response_len), DESC_F_WRITE, 0);
+    virtqueue_ops::submit_descriptor(&g.queue, 0);
     __asm__ volatile("sfence" ::: "memory");
-    if(!virtio_common::notify_queue(&g.dev,0)) return Status::HardwareError;
-    for(uint32_t i=0;i<1000000;i++) {
-        uint32_t id=0,len=0;
-        if(virtqueue_ops::try_dequeue_used(&g.queue,&id,&len)) {
-            if(id!=0 || len<sizeof(CtrlHdr)) return Status::HardwareError;
-            uint32_t type=reinterpret_cast<Resp*>(response)->h.type;
-            return type==RESP_OK_NODATA || type==RESP_OK_DISPLAY_INFO ? Status::Ok : Status::HardwareError;
+    if (!virtio_common::notify_queue(&g.dev, 0)) return Status::HardwareError;
+
+    for (uint32_t i = 0; i < 1000000; i++) {
+        uint32_t id = 0, len = 0;
+        if (virtqueue_ops::try_dequeue_used(&g.queue, &id, &len)) {
+            __asm__ volatile("lfence" ::: "memory");
+            if (id != 0 || len < sizeof(CtrlHdr)) return Status::HardwareError;
+            memcpy(response, g.resp, response_len);
+            uint32_t type = reinterpret_cast<const Resp*>(response)->h.type;
+            return type == RESP_OK_NODATA || type == RESP_OK_DISPLAY_INFO
+                       ? Status::Ok
+                       : Status::HardwareError;
         }
         __asm__ volatile("pause");
     }
@@ -129,15 +141,20 @@ bool init() {
     uint8_t st=virtio_common::get_device_status(&g.dev);
     virtio_common::set_device_status(&g.dev, static_cast<uint8_t>(st | 0x04));
     if((virtio_common::get_device_status(&g.dev)&0x84)!=0x04) return false;
-    // QEMU's default virtio-gpu mode exposes a 1024x768 scanout.
-    // The actual mode is discovered lazily by the first successful scanout.
-    g.ready=true;
+    g.ready = true;
     DisplayInfo info{};
-    if(set_scanout(0,1024,768)!=Status::Ok) {
-        g.ready=false;
+    uint32_t scanout = 0;
+    uint32_t width = 1024;
+    uint32_t height = 768;
+    if (get_display_info(info) == Status::Ok && info.enabled && info.width > 0 && info.height > 0) {
+        scanout = info.scanout;
+        width = info.width;
+        height = info.height;
+    }
+    if (set_scanout(scanout, width, height) != Status::Ok) {
+        g.ready = false;
         return false;
     }
-    (void)get_display_info(info);
     return true;
 }
 
@@ -145,22 +162,29 @@ bool available(){ return g.ready; }
 
 Status get_display_info(DisplayInfo& out){
     if(!g.ready) return Status::NotFound;
-    DisplayInfoResp r{}; r.h.type=CMD_GET_DISPLAY_INFO; r.h.fence_id=g.fence++;
-    Status s=submit(&r,sizeof(CtrlHdr),g.resp,sizeof(r));
+    CtrlHdr req{}; req.type=CMD_GET_DISPLAY_INFO; req.fence_id=g.fence++;
+    DisplayInfoResp resp{};
+    Status s=submit(&req,sizeof(req),&resp,sizeof(resp));
     if(s!=Status::Ok) return s;
-    const DisplayInfoResp* p=static_cast<const DisplayInfoResp*>(g.resp);
-    for(uint32_t i=0;i<MAX_SCANOUTS;i++) if(p->pmodes[i].enabled) { out={p->pmodes[i].r.width,p->pmodes[i].r.height,i,true}; return Status::Ok; }
+    for(uint32_t i=0;i<MAX_SCANOUTS;i++) {
+        if(resp.pmodes[i].enabled) {
+            out={resp.pmodes[i].r.width,resp.pmodes[i].r.height,i,true};
+            return Status::Ok;
+        }
+    }
     return Status::NotFound;
 }
 
 Status set_scanout(uint32_t scanout,uint32_t width,uint32_t height){
-    if(!g.ready||width==0||height==0||scanout>=MAX_SCANOUTS) return Status::InvalidArgument;
+    if(!g.ready||width==0||height==0||width>16384||height>16384||scanout>=MAX_SCANOUTS)
+        return Status::InvalidArgument;
     size_t bytes=static_cast<size_t>(width)*height*4;
     void* fb=dma::alloc(bytes,4096); if(!fb) return Status::HardwareError;
     memset(fb,0,bytes);
     if(g.framebuffer){
         ResourceUnref u{}; u.h.type=CMD_RESOURCE_UNREF; u.h.fence_id=g.fence++; u.resource_id=g.resource; Resp out{}; (void)submit(&u,sizeof(u),&out,sizeof(out));
         dma::free(g.framebuffer);
+        g.framebuffer=nullptr;
     }
     g.framebuffer=fb; g.framebuffer_bytes=bytes; g.width=width; g.height=height; g.scanout=scanout;
     Status s=create_resource(); if(s!=Status::Ok) return s;
