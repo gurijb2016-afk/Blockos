@@ -22,11 +22,38 @@ void bb_draw_rect(uint8_t* buf, uint32_t width, uint32_t x, uint32_t y, uint32_t
     }
 }
 
+static inline void fast_copy_dwords(void* dst, const void* src, size_t dwords) {
+    size_t qwords = dwords >> 1;
+    void* d = dst;
+    const void* s = src;
+    if (qwords) {
+        __asm__ volatile(
+            "rep movsq"
+            : "+D"(d), "+S"(s), "+c"(qwords)
+            :
+            : "memory"
+        );
+    }
+    if (dwords & 1u) {
+        *reinterpret_cast<uint32_t*>(d) = *reinterpret_cast<const uint32_t*>(s);
+    }
+}
+
 void bb_clear(uint8_t* buf, uint32_t width, uint32_t height, uint32_t color) {
-    for (uint32_t y = 0; y < height; ++y) {
-        for (uint32_t x = 0; x < width; ++x) {
-            bb_put_pixel(buf, width, x, y, color);
-        }
+    size_t pixels = static_cast<size_t>(width) * static_cast<size_t>(height);
+    uint64_t pair = (static_cast<uint64_t>(color) << 32) | static_cast<uint64_t>(color);
+    size_t qwords = pixels >> 1;
+    void* d = buf;
+    if (qwords) {
+        __asm__ volatile(
+            "rep stosq"
+            : "+D"(d), "+c"(qwords)
+            : "a"(pair)
+            : "memory"
+        );
+    }
+    if (pixels & 1u) {
+        *reinterpret_cast<uint32_t*>(d) = color;
     }
 }
 
@@ -48,11 +75,19 @@ void bb_draw_text(uint8_t* buf, uint32_t width, uint32_t x, uint32_t y, const ch
 }
 
 void bb_blit_to_fb(Framebuffer* fb, const uint8_t* backbuf) {
+    if (fb->PixelsPerPixel == 4 && fb->PixelsPerScanLine == fb->Width) {
+        fast_copy_dwords(fb->Base, backbuf, static_cast<size_t>(fb->Width) * fb->Height);
+        return;
+    }
     // fb->PixelsPerScanLine may be >= fb->Width. Copy row by row.
-    for (uint32_t row=0; row<fb->Height; ++row) {
+    for (uint32_t row = 0; row < fb->Height; ++row) {
         uint8_t *dest = fb->Base + (row * fb->PixelsPerScanLine) * fb->PixelsPerPixel;
         const uint8_t *src = backbuf + (row * fb->Width) * 4;
-        memcpy(dest, src, fb->Width * 4);
+        if (fb->PixelsPerPixel == 4) {
+            fast_copy_dwords(dest, src, fb->Width);
+        } else {
+            memcpy(dest, src, fb->Width * 4);
+        }
     }
 }
 
@@ -60,9 +95,14 @@ void bb_blit_region_to_fb(Framebuffer* fb, const uint8_t* backbuf, uint32_t x, u
     if (x >= fb->Width || y >= fb->Height) return;
     uint32_t maxx = (x + w > fb->Width) ? fb->Width : x + w;
     uint32_t maxy = (y + h > fb->Height) ? fb->Height : y + h;
+    uint32_t cols = maxx - x;
     for (uint32_t row = y; row < maxy; ++row) {
         uint8_t* dest = fb->Base + (row * fb->PixelsPerScanLine) * fb->PixelsPerPixel + x * 4;
         const uint8_t* src = backbuf + (row * fb->Width + x) * 4;
-        memcpy(dest, src, (maxx - x) * 4);
+        if (fb->PixelsPerPixel == 4) {
+            fast_copy_dwords(dest, src, cols);
+        } else {
+            memcpy(dest, src, cols * 4);
+        }
     }
 }
