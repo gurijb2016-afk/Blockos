@@ -146,9 +146,15 @@ static inline void bb_fill_rect(int x, int y, int w, int h, uint32_t col) {
     int y0 = y < 0 ? 0 : y;
     int x1 = x + w > (int)g_fb_w ? (int)g_fb_w : x + w;
     int y1 = y + h > (int)g_fb_h ? (int)g_fb_h : y + h;
+    if (x0 >= x1 || y0 >= y1) return;
+    size_t count = (size_t)(x1 - x0);
+    uint64_t pair = ((uint64_t)col << 32) | (uint64_t)col;
     for (int yy = y0; yy < y1; ++yy) {
         uint32_t* row = g_back + (size_t)yy * g_fb_w + x0;
-        for (int xx = x0; xx < x1; ++xx) *row++ = col;
+        size_t q = count >> 1;
+        void* dst = row;
+        if (q) __asm__ volatile("rep stosq" : "+D"(dst), "+c"(q) : "a"(pair) : "memory");
+        if (count & 1u) *(uint32_t*)dst = col;
     }
 }
 
@@ -245,12 +251,16 @@ static void draw_cursor(int cx, int cy) {
 static void swap_buffers(void) {
     if (!g_fb || !g_back) return;
     if (g_fb_stride == g_fb_w) {
-        memcpy(g_fb, g_back, (size_t)g_fb_w * (size_t)g_fb_h * 4u);
+        size_t qwords = ((size_t)g_fb_w * (size_t)g_fb_h) / 2u;
+        void* dst = g_fb;
+        const void* src = g_back;
+        __asm__ volatile("rep movsq" : "+D"(dst), "+S"(src), "+c"(qwords) :: "memory");
     } else {
         for (uint32_t y = 0; y < g_fb_h; ++y) {
-            memcpy(g_fb + (size_t)y * g_fb_stride,
-                   g_back + (size_t)y * g_fb_w,
-                   (size_t)g_fb_w * 4u);
+            size_t qwords = (size_t)g_fb_w / 2u;
+            void* dst = g_fb + (size_t)y * g_fb_stride;
+            const void* src = g_back + (size_t)y * g_fb_w;
+            __asm__ volatile("rep movsq" : "+D"(dst), "+S"(src), "+c"(qwords) :: "memory");
         }
     }
 }
@@ -786,16 +796,29 @@ static void handle_mouse_button(int mx, int my, uint32_t prev_btn, uint32_t cur_
 }
 
 static void poll_input(int input_fd) {
-    struct BlockOSInputEvent evs[32];
+    struct BlockOSInputEvent evs[64];
     ssize_t nbytes = read(input_fd, evs, sizeof(evs));
     if (nbytes <= 0) return;
     size_t count = (size_t)nbytes / sizeof(evs[0]);
 
     for (size_t i = 0; i < count; ++i) {
-        if (evs[i].type == 1u) { /* Mouse */
-            int mult = (int)g_mouse_speed;
-            int nx = g_mouse_x + evs[i].dx * mult;
-            int ny = g_mouse_y + evs[i].dy * mult;
+        if (evs[i].type == 1u || evs[i].type == 3u) { /* Relative (1) or Absolute Tablet (3) Mouse */
+            int nx, ny;
+            if (evs[i].type == 3u) {
+                /* Absolute coordinates in 0..32767 -> exact 1:1 pixel sync with host cursor */
+                int32_t ax = evs[i].dx;
+                int32_t ay = evs[i].dy;
+                if (ax < 0) ax = 0;
+                if (ay < 0) ay = 0;
+                if (ax > 32767) ax = 32767;
+                if (ay > 32767) ay = 32767;
+                nx = (int)(((int64_t)ax * (int64_t)(g_fb_w - 1)) / 32767);
+                ny = (int)(((int64_t)ay * (int64_t)(g_fb_h - 1)) / 32767);
+            } else {
+                int mult = (int)g_mouse_speed;
+                nx = g_mouse_x + evs[i].dx * mult;
+                ny = g_mouse_y + evs[i].dy * mult;
+            }
             if (nx < 0) nx = 0;
             if (ny < 0) ny = 0;
             if (nx >= (int)g_fb_w) nx = (int)g_fb_w - 1;
@@ -918,7 +941,7 @@ int main(void) {
             g_dirty = 1;
         }
         if (g_dirty) compose_frame();
-        x11_sleep_ms(10);
+        x11_sleep_ms(4);
     }
     return 0;
 }

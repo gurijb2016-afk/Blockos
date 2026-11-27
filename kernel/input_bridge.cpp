@@ -57,6 +57,18 @@ void push_mouse_locked(int32_t dx, int32_t dy, int32_t wheel, uint32_t buttons) 
     e.buttons = buttons;
     push_locked(e);
 }
+
+void push_mouse_abs_locked(int32_t abs_x, int32_t abs_y, int32_t wheel, uint32_t buttons) {
+    Event e{};
+    e.magic = MAGIC;
+    e.version = VERSION;
+    e.type = EVENT_MOUSE_ABS;
+    e.dx = abs_x;
+    e.dy = abs_y;
+    e.wheel = wheel;
+    e.buttons = buttons;
+    push_locked(e);
+}
 } // namespace
 
 void init() {
@@ -107,29 +119,41 @@ void poll_hardware() {
         }
 
         int32_t v_dx = 0, v_dy = 0, v_wheel = 0;
+        static int32_t v_abs_x = 0, v_abs_y = 0;
         static uint32_t v_buttons = 0;
-        bool v_motion = false;
+        bool v_rel = false;
+        bool v_abs = false;
+        bool v_btn = false;
         VirtioInputEvent ve{};
         while (virtio_input::poll(&ve)) {
             if (ve.type == 1) { // EV_KEY
                 if (ve.code >= 0x110 && ve.code <= 0x112) {
                     uint32_t bit = 1u << (ve.code - 0x110);
                     if (ve.value) v_buttons |= bit; else v_buttons &= ~bit;
-                    v_motion = true;
+                    v_btn = true;
                 } else if (ve.code > 0 && ve.code < 0x80) {
                     push_keyboard_locked(ve.code, ve.value != 0, false);
                 }
             } else if (ve.type == 2) { // EV_REL
-                if (ve.code == 0) { v_dx += ve.value; v_motion = true; }
-                else if (ve.code == 1) { v_dy += ve.value; v_motion = true; }
-                else if (ve.code == 8) { v_wheel += ve.value; v_motion = true; }
-            } else if (ve.type == 0 && v_motion) { // EV_SYN
-                push_mouse_locked(v_dx, v_dy, v_wheel, v_buttons);
-                v_dx = v_dy = v_wheel = 0;
-                v_motion = false;
+                if (ve.code == 0) { v_dx += ve.value; v_rel = true; }
+                else if (ve.code == 1) { v_dy += ve.value; v_rel = true; }
+                else if (ve.code == 8) { v_wheel += ve.value; v_rel = true; }
+            } else if (ve.type == 3) { // EV_ABS (virtio-tablet-pci: 0..32767)
+                if (ve.code == 0) { v_abs_x = ve.value; v_abs = true; }
+                else if (ve.code == 1) { v_abs_y = ve.value; v_abs = true; }
+            } else if (ve.type == 0) { // EV_SYN
+                if (v_abs) {
+                    push_mouse_abs_locked(v_abs_x, v_abs_y, v_wheel, v_buttons);
+                    v_wheel = 0; v_abs = false; v_btn = false;
+                } else if (v_rel || v_btn) {
+                    push_mouse_locked(v_dx, v_dy, v_wheel, v_buttons);
+                    v_dx = v_dy = v_wheel = 0; v_rel = false; v_btn = false;
+                }
             }
         }
-        if (v_motion) {
+        if (v_abs) {
+            push_mouse_abs_locked(v_abs_x, v_abs_y, v_wheel, v_buttons);
+        } else if (v_rel || v_btn) {
             push_mouse_locked(v_dx, v_dy, v_wheel, v_buttons);
         }
     }
@@ -144,6 +168,11 @@ void push_keyboard(uint32_t scancode, bool pressed, bool extended) {
 void push_mouse(int32_t dx, int32_t dy, int32_t wheel, uint32_t buttons) {
     Blockos::ScopedLock guard(input_lock);
     push_mouse_locked(dx, dy, wheel, buttons);
+}
+
+void push_mouse_abs(int32_t abs_x, int32_t abs_y, int32_t wheel, uint32_t buttons) {
+    Blockos::ScopedLock guard(input_lock);
+    push_mouse_abs_locked(abs_x, abs_y, wheel, buttons);
 }
 
 size_t read(Event* out, size_t max_events) {
