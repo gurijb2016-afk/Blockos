@@ -569,9 +569,18 @@ static void route_keyboard_event_to_tty(
     }
 }
 
+static volatile bool g_display_owned = false;
+extern "C" void blockos_display_claim(void) { g_display_owned = true; }
+extern "C" void blockos_display_release(void) { g_display_owned = false; }
+
 static void service_tty_input()
 {
     blockos::input::poll_hardware();
+
+    // When a userspace X11 display server owns /devices/display, leave
+    // keyboard & mouse events in blockos::input for /devices/x11-input!
+    if (g_display_owned)
+        return;
 
     blockos::input::Event events[32]{};
 
@@ -638,8 +647,6 @@ AtaPio& ata_fs_disk()
 
 /* Set once a userspace process maps /devices/display: the console must not
  * repaint the framebuffer over the X server's pixels. Cleared on panic/fault. */
-static volatile bool g_display_owned = false;
-extern "C" void blockos_display_claim(void) { g_display_owned = true; }
 
 static void flush_console()
 {
@@ -1562,6 +1569,7 @@ extern "C" EFI_STATUS efi_main(
             32u
         };
 
+        vfs::create_directory("/system");
         vfs::write_file(
             "/system/display.info",
             reinterpret_cast<const uint8_t*>(&dinfo),

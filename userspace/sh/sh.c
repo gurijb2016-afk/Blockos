@@ -120,6 +120,7 @@ static void cmd_help(void) {
     out("  free                 Show system & kernel heap memory (/proc/meminfo)\n");
     out("  cpu                  Show processor details (/proc/cpuinfo)\n");
     out("  pci                  List discovered PCI/PCIe devices (/proc/pci)\n");
+    out("  startx               Launch the BlockOS X11 graphical desktop (:0)\n");
     out("  clear                Clear the terminal screen\n");
     out("  reboot               Reboot the machine\n");
     out("  version              Show shell and OS version\n");
@@ -395,6 +396,11 @@ static void run(char* line) {
     if (seq(line, "free") || seq(line, "mem")) { dump_file("/proc/meminfo"); return; }
     if (seq(line, "cpu")) { dump_file("/proc/cpuinfo"); return; }
     if (seq(line, "pci")) { dump_file("/proc/pci"); return; }
+    if (seq(line, "startx")) {
+        char xcmd[] = "/bin/X";
+        run_external(xcmd);
+        return;
+    }
     if (seq(line, "reboot")) {
         out("Rebooting BlockOS...\n");
         sc3(SYS_BLOCKOS_REBOOT, 0, 0, 0);

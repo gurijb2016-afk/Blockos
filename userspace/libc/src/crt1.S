@@ -24,12 +24,15 @@ _start:
     mov %r14, %rdi                   /* __blockos_set_environ(envp) */
     call __blockos_set_environ
     /* This toolchain's crtbegin registers .eh_frame from .init, which crt1
-     * never runs, so register it here or C++ exceptions cannot unwind.
-     * __blockos_eh_frame_begin sits at the start of .eh_frame (crt1 is linked
-     * first and contributes nothing to that section). */
+     * never runs, so register it here when libgcc_eh is linked (weak for pure C). */
+    .weak __register_frame_info
+    lea __register_frame_info(%rip), %rax
+    test %rax, %rax
+    jz .Lskip_eh_reg
     lea __blockos_eh_frame_begin(%rip), %rdi
     lea __blockos_eh_object(%rip), %rsi
-    call __register_frame_info
+    call *%rax
+.Lskip_eh_reg:
     /* Run C++ static constructors (.init_array) before main(). */
     lea __init_array_start(%rip), %r15
     lea __init_array_end(%rip), %rbx

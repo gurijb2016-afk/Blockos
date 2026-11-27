@@ -471,12 +471,7 @@ static int64_t do_mmap(uint64_t addr,uint64_t len,uint64_t prot,uint64_t flags,u
             return (int64_t)addr;
         }
     }
-    uint64_t pflags=4; if(prot&2)pflags|=2; if(!(prot&4))pflags|=1ULL<<63;
-    /* Map writable while the kernel fills the pages: the kernel writes them with
-     * memset/memcpy, and a write to a read-only page is a kernel-mode page fault,
-     * which halts the machine. The requested protection is applied after the fill. */
-    if(!paging::map_user_range(p->pml4,addr,(size_t)rounded,(pflags|4)|2))return ENOMEM;
-    memset((void*)(uintptr_t)addr,0,(size_t)rounded);
+    /* Handle device-backed mappings BEFORE allocating anonymous RAM pages! */
     int64_t fd=(int64_t)fd_raw;
     auto* fs=fdtable();
     bool device_backed=!(flags&MAP_ANONYMOUS)&&fd>=0&&fd<(int64_t)process::MAX_RUNTIME_FDS&&fs&&fs[fd].used&&fs[fd].kind==process::RuntimeFd::Device;
@@ -489,6 +484,12 @@ static int64_t do_mmap(uint64_t addr,uint64_t len,uint64_t prot,uint64_t flags,u
         }
         return (int64_t)addr;
     }
+    uint64_t pflags=4; if(prot&2)pflags|=2; if(!(prot&4))pflags|=1ULL<<63;
+    /* Map writable while the kernel fills the pages: the kernel writes them with
+     * memset/memcpy, and a write to a read-only page is a kernel-mode page fault,
+     * which halts the machine. The requested protection is applied after the fill. */
+    if(!paging::map_user_range(p->pml4,addr,(size_t)rounded,(pflags|4)|2))return ENOMEM;
+    memset((void*)(uintptr_t)addr,0,(size_t)rounded);
     bool file_backed=!(flags&MAP_ANONYMOUS)&&fd>=0&&fd<(int64_t)process::MAX_RUNTIME_FDS&&fs&&fs[fd].used&&fs[fd].kind==process::RuntimeFd::File;
     if(file_backed){ auto &f=fs[fd]; uint64_t avail=offset<f.size?f.size-offset:0; uint64_t n=rounded<avail?rounded:avail; if(n)memcpy((void*)(uintptr_t)addr,f.data+offset,(size_t)n); }
     if(!(pflags&2)) paging::protect_user_range(p->pml4,addr,(size_t)rounded,pflags);

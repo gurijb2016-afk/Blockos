@@ -19,6 +19,7 @@ struct FILE {
     off_t offset;
     unsigned char ungot_has;   /* one-character pushback for ungetc() */
     unsigned char ungot_ch;
+    volatile unsigned int lock;
 };
 
 #define EOF (-1)
