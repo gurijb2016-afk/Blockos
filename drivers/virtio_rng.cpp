@@ -87,7 +87,7 @@ bool init()
         return false;
     }
 
-    g_queue_size = max_q > QUEUE_SIZE_REQUESTED ? QUEUE_SIZE_REQUESTED : max_q;
+    g_queue_size = (!g_handle.modern) ? max_q : (max_q > QUEUE_SIZE_REQUESTED ? QUEUE_SIZE_REQUESTED : max_q);
     const size_t mem_bytes = queue_memory_size(g_queue_size);
     g_queue_mem = dma::alloc(mem_bytes, 4096);
     if (!g_queue_mem) {

@@ -11,6 +11,8 @@
 #include "hardware_inventory.hpp"
 #include "virtio_input.hpp"
 #include "virtio_rng.hpp"
+#include "virtio_common.hpp"
+#include "gpu/virtio_gpu.hpp"
 #include "virtio_pci.hpp"
 #include "serial.hpp"
 
@@ -62,6 +64,10 @@ static void probe_input_entropy_serial()
     virtio_pci::scan();
     g_report.virtio_input = virtio_input::init();
     g_report.virtio_rng = virtio_rng::init();
+    // Do not reset VirtIO-GPU before ExitBootServices(): OVMF's VirtioGpuDxe
+    // may still own the device for UEFI ConOut/GOP. Just check presence here.
+    virtio_common::DeviceHandle gpu_probe{};
+    g_report.virtio_gpu = virtio_common::probe_device(virtio_common::DeviceType::GPU, &gpu_probe);
     g_report.serial = serial::init();
 }
 } // namespace

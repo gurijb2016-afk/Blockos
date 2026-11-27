@@ -21,6 +21,7 @@ struct Report {
     bool hda;
     bool virtio_input;
     bool virtio_rng;
+    bool virtio_gpu;
     bool serial;
 };
 

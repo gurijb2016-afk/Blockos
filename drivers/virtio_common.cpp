@@ -43,14 +43,15 @@ constexpr uint8_t VIRTIO_PCI_CAP_NOTIFY_CFG = 2;
 constexpr uint8_t VIRTIO_PCI_CAP_ISR_CFG = 3;
 constexpr uint8_t VIRTIO_PCI_CAP_DEVICE_CFG = 4;
 
+// VirtIO 0.9.5 / 1.0 Legacy PCI I/O header offsets (Section 4.1.4.8)
 constexpr uint16_t LEG_HOST_FEATURES = 0x00;
 constexpr uint16_t LEG_GUEST_FEATURES = 0x04;
-constexpr uint16_t LEG_GUEST_PAGE_SIZE = 0x08;
-constexpr uint16_t LEG_QUEUE_SELECT = 0x0C;
-constexpr uint16_t LEG_QUEUE_SIZE = 0x0E;
-constexpr uint16_t LEG_QUEUE_PFN = 0x10;
+constexpr uint16_t LEG_QUEUE_PFN = 0x08;
+constexpr uint16_t LEG_QUEUE_SIZE = 0x0C;
+constexpr uint16_t LEG_QUEUE_SELECT = 0x0E;
 constexpr uint16_t LEG_QUEUE_NOTIFY = 0x10;
 constexpr uint16_t LEG_STATUS = 0x12;
+constexpr uint16_t LEG_ISR = 0x13;
 constexpr uint16_t LEG_CONFIG = 0x14;
 
 constexpr uint16_t MOD_DEVICE_FEATURE_SELECT = 0x00;
@@ -243,8 +244,9 @@ static bool discover_capabilities(virtio_common::DeviceHandle* h)
     if (!h)
         return false;
 
-    const uint8_t status = static_cast<uint8_t>(pci_cfg_read16(h->bus, h->slot, h->func, 0x06) >> 8);
-    if ((status & 0x10) == 0)
+    // PCI Status Register (offset 0x06) bit 4 = Capabilities List present.
+    const uint16_t status = pci_cfg_read16(h->bus, h->slot, h->func, 0x06);
+    if ((status & 0x0010u) == 0)
         return false;
 
     uint8_t cap = pci_cfg_read8(h->bus, h->slot, h->func, 0x34);
@@ -296,7 +298,8 @@ static bool discover_capabilities(virtio_common::DeviceHandle* h)
 
     h->notify_off_multiplier = notify_mult;
 
-    return h->common_cfg != 0 && h->notify_cfg != 0 && h->device_cfg != 0;
+    // DEVICE_CFG is optional per VirtIO 1.0 (e.g., virtio-rng has no device config).
+    return h->common_cfg != 0 && h->notify_cfg != 0;
 }
 
 static bool find_device_ids(virtio_common::DeviceType type, uint16_t& legacy_id, uint16_t& modern_id)
@@ -371,14 +374,14 @@ bool probe_device(DeviceType type, DeviceHandle* h)
                 h->vendor_id = vendor;
                 h->irq = pci_cfg_read8(b, s, f, 0x3C);
 
-                if (device == modern_id) {
-                    h->modern = discover_capabilities(h);
-                    if (h->modern) {
-                        h->transport = Transport::PCI_MODERN;
-                        h->mmio = true;
-                        h->bar0 = h->common_cfg;
-                        return true;
-                    }
+                // Modern and transitional VirtIO PCI devices expose VirtIO 1.0
+                // vendor capabilities; prefer modern transport when available.
+                h->modern = discover_capabilities(h);
+                if (h->modern) {
+                    h->transport = Transport::PCI_MODERN;
+                    h->mmio = true;
+                    h->bar0 = h->common_cfg;
+                    return true;
                 }
 
                 // Transitional/legacy transport: prefer an I/O BAR if present,
@@ -499,11 +502,7 @@ bool device_init(DeviceHandle* h, uint64_t wanted_features)
     const uint32_t agreed = static_cast<uint32_t>(h->host_features & static_cast<uint64_t>(wanted_features));
     write_transport32(h, LEG_GUEST_FEATURES, agreed);
     h->negotiated_features = agreed;
-    write_transport32(h, LEG_GUEST_PAGE_SIZE, 4096);
-
-    uint8_t status = get_device_status(h);
-    status |= STATUS_FEATURES_OK;
-    set_device_status(h, status);
+    // Legacy VirtIO PCI (0.9.5) does not have FEATURES_OK or a Guest Page Size register.
     return (get_device_status(h) & STATUS_FAILED) == 0;
 }
 
@@ -560,12 +559,13 @@ bool setup_queue(
         return true;
     }
 
+    // Legacy VirtIO PCI queue size is read-only (fixed to max_size by the device).
     write_transport16(h, LEG_QUEUE_SELECT, queue_index);
-    write_transport16(h, LEG_QUEUE_SIZE, static_cast<uint16_t>(qsize));
-    VirtQueueView view = virtqueue_ops::view_from_mem(memory, qsize);
+    VirtQueueView view = virtqueue_ops::view_from_mem(memory, max_size);
     virtqueue_ops::init_rings(&view);
+    barrier();
     write_transport32(h, LEG_QUEUE_PFN, static_cast<uint32_t>(address >> 12));
-    h->queue_sizes[queue_index < 8 ? queue_index : 0] = static_cast<uint16_t>(qsize);
+    h->queue_sizes[queue_index < 8 ? queue_index : 0] = max_size;
     *out_view = view;
     return true;
 }
