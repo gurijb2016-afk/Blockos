@@ -66,6 +66,15 @@ void PS2Mouse::init()
         ps2_wait_output_full();
         if (inb(0x64) & 1) (void) inb(0x60);
     }
+    ps2_send_mouse(0xF6); // set default settings
+    ps2_wait_output_full();
+    if (inb(0x64) & 1) (void) inb(0x60);
+    ps2_send_mouse(0xF3); // set sample rate
+    ps2_wait_output_full();
+    if (inb(0x64) & 1) (void) inb(0x60);
+    ps2_send_mouse(200);  // 200 samples/sec for smooth pointer tracking
+    ps2_wait_output_full();
+    if (inb(0x64) & 1) (void) inb(0x60);
     ps2_send_mouse(0xF4); // enable data reporting
     ps2_wait_output_full();
     if (inb(0x64) & 1) (void) inb(0x60); // consume 0xFA ACK so it doesn't stall keyboard/mouse reads

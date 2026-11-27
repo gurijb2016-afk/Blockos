@@ -121,6 +121,7 @@ void poll_hardware() {
         int32_t v_dx = 0, v_dy = 0, v_wheel = 0;
         static int32_t v_abs_x = 0, v_abs_y = 0;
         static uint32_t v_buttons = 0;
+        static bool v_have_abs = false;
         bool v_rel = false;
         bool v_abs = false;
         bool v_btn = false;
@@ -139,10 +140,10 @@ void poll_hardware() {
                 else if (ve.code == 1) { v_dy += ve.value; v_rel = true; }
                 else if (ve.code == 8) { v_wheel += ve.value; v_rel = true; }
             } else if (ve.type == 3) { // EV_ABS (virtio-tablet-pci: 0..32767)
-                if (ve.code == 0) { v_abs_x = ve.value; v_abs = true; }
-                else if (ve.code == 1) { v_abs_y = ve.value; v_abs = true; }
+                if (ve.code == 0) { v_abs_x = ve.value; v_abs = true; v_have_abs = true; }
+                else if (ve.code == 1) { v_abs_y = ve.value; v_abs = true; v_have_abs = true; }
             } else if (ve.type == 0) { // EV_SYN
-                if (v_abs) {
+                if (v_abs || (v_btn && v_have_abs)) {
                     push_mouse_abs_locked(v_abs_x, v_abs_y, v_wheel, v_buttons);
                     v_wheel = 0; v_abs = false; v_btn = false;
                 } else if (v_rel || v_btn) {
@@ -151,7 +152,7 @@ void poll_hardware() {
                 }
             }
         }
-        if (v_abs) {
+        if (v_abs || (v_btn && v_have_abs)) {
             push_mouse_abs_locked(v_abs_x, v_abs_y, v_wheel, v_buttons);
         } else if (v_rel || v_btn) {
             push_mouse_locked(v_dx, v_dy, v_wheel, v_buttons);
