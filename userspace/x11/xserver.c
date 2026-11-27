@@ -376,8 +376,9 @@ static void compose_frame(void) {
     /* 1. Desktop background */
     bb_fill_rect(0, 0, (int)g_fb_w, (int)g_fb_h - TASKBAR_H, g_desktop_bg);
 
-    /* Subtle desktop watermark */
+    /* Subtle desktop watermark & hint */
     bb_draw_text(16, 14, "BlockOS X11 Session (:0)", 0x00526D82u);
+    bb_draw_text(16, 30, "Use the taskbar below to open Settings, Files, or Terminal", 0x00415A6Cu);
 
     /* 2. Composite mapped X11 client windows in Z-order */
     for (int zi = 0; zi < g_zcount; ++zi) {
@@ -907,11 +908,8 @@ int main(void) {
         return 1;
     }
 
-    /* Spawn default X11 apps BEFORE mapping the 4 MB framebuffer + 4 MB backbuffer
-     * so fork() does not have to clone 8 MB of display buffers per child. */
-    spawn_x11_app("/bin/x11_settings");
-    spawn_x11_app("/bin/x11_files");
-    spawn_x11_app("/bin/x11_terminal");
+    /* Start with a clean desktop — apps are launched manually via the taskbar
+     * buttons (Settings, Files, Terminal). */
 
     void* mapped = mmap(NULL, (size_t)dinfo.framebuffer_size, PROT_READ | PROT_WRITE,
                         MAP_SHARED, disp_fd, 0);

@@ -175,6 +175,95 @@ static void term_uname(const char* arg) {
     }
 }
 
+static void extract_proc_field(const char* buf, const char* key, char* out, size_t cap) {
+    const char* p = strstr(buf, key);
+    if (!p) return;
+    p += strlen(key);
+    while (*p == ' ' || *p == '\t' || *p == ':') ++p;
+    size_t i = 0;
+    while (p[i] && p[i] != '\n' && p[i] != '\r' && i + 1 < cap) {
+        out[i] = p[i];
+        ++i;
+    }
+    out[i] = '\0';
+}
+
+static void term_sysinfo(X11Conn* c) {
+    char cpu_model[48] = "x86_64 Processor";
+    char mem_total[32] = "Unknown";
+    char mem_free[32]  = "Unknown";
+    char os_ver[48]    = "BlockOS 1.0 x86_64";
+    int pci_count = 0;
+    char buf[2048];
+    int fd;
+    ssize_t n;
+
+    fd = open("/proc/version", O_RDONLY);
+    if (fd >= 0) {
+        n = read(fd, buf, sizeof(buf) - 1);
+        close(fd);
+        if (n > 0) {
+            buf[n] = '\0';
+            char* nl = strchr(buf, '\n');
+            if (nl) *nl = '\0';
+            strncpy(os_ver, buf, sizeof(os_ver) - 1);
+        }
+    }
+    fd = open("/proc/cpuinfo", O_RDONLY);
+    if (fd >= 0) {
+        n = read(fd, buf, sizeof(buf) - 1);
+        close(fd);
+        if (n > 0) {
+            buf[n] = '\0';
+            extract_proc_field(buf, "model name", cpu_model, sizeof(cpu_model));
+        }
+    }
+    fd = open("/proc/meminfo", O_RDONLY);
+    if (fd >= 0) {
+        n = read(fd, buf, sizeof(buf) - 1);
+        close(fd);
+        if (n > 0) {
+            buf[n] = '\0';
+            extract_proc_field(buf, "MemTotal:", mem_total, sizeof(mem_total));
+            extract_proc_field(buf, "MemFree:", mem_free, sizeof(mem_free));
+        }
+    }
+    fd = open("/proc/pci", O_RDONLY);
+    if (fd >= 0) {
+        n = read(fd, buf, sizeof(buf) - 1);
+        close(fd);
+        if (n > 0) {
+            buf[n] = '\0';
+            int lines = 0;
+            for (ssize_t i = 0; i < n; ++i) if (buf[i] == '\n') ++lines;
+            pci_count = lines > 1 ? lines - 1 : 0;
+        }
+    }
+
+    struct timespec ts;
+    uint32_t sec = (clock_gettime(0, &ts) == 0) ? (uint32_t)ts.tv_sec : 0;
+    char line[96];
+
+    term_push_line("  +-------+   BlockOS Live System Information");
+    snprintf(line, sizeof(line), "  | [] [] |   OS:      %s", os_ver);
+    term_push_line(line);
+    snprintf(line, sizeof(line), "  | []=== |   Kernel:  BlockOS UEFI x86_64");
+    term_push_line(line);
+    snprintf(line, sizeof(line), "  | [] [] |   CPU:     %s", cpu_model);
+    term_push_line(line);
+    snprintf(line, sizeof(line), "  +-------+   Memory:  %s total (%s free)", mem_total, mem_free);
+    term_push_line(line);
+    snprintf(line, sizeof(line), "   BLOCKOS    Display: %ux%u (32bpp X11 :0)",
+             c ? c->screen_w : 0, c ? c->screen_h : 0);
+    term_push_line(line);
+    snprintf(line, sizeof(line), "              PCI Bus: %d devices | Uptime: %um %02us",
+             pci_count, sec / 60u, sec % 60u);
+    term_push_line(line);
+    term_push_line("");
+}
+
+static X11Conn* g_conn = NULL;
+
 static void exec_command(char* cmd) {
     while (*cmd == ' ') ++cmd;
     size_t len = strlen(cmd);
@@ -200,6 +289,7 @@ static void exec_command(char* cmd) {
         term_push_line("  free | mem           Show memory stats (/proc/meminfo)");
         term_push_line("  cpu                  Show CPU details (/proc/cpuinfo)");
         term_push_line("  pci                  List PCI/PCIe devices (/proc/pci)");
+        term_push_line("  sysinfo | neofetch   Show BlockOS logo and live hardware info");
         term_push_line("  uptime               Show kernel uptime (/proc/uptime)");
         term_push_line("  version              Show OS and terminal version");
         term_push_line("  clear                Clear terminal screen");
@@ -223,6 +313,10 @@ static void exec_command(char* cmd) {
     if (strcmp(cmd, "free") == 0 || strcmp(cmd, "mem") == 0) { term_dump_file("/proc/meminfo"); return; }
     if (strcmp(cmd, "cpu") == 0)    { term_dump_file("/proc/cpuinfo"); return; }
     if (strcmp(cmd, "pci") == 0)    { term_dump_file("/proc/pci");     return; }
+    if (strcmp(cmd, "sysinfo") == 0 || strcmp(cmd, "neofetch") == 0 || strcmp(cmd, "fetch") == 0) {
+        term_sysinfo(g_conn);
+        return;
+    }
     if (strcmp(cmd, "uptime") == 0) { term_dump_file("/proc/uptime");  return; }
     if (strcmp(cmd, "reboot") == 0) {
         term_push_line("Rebooting BlockOS...");
@@ -350,8 +444,10 @@ static void draw_term(X11Conn* c, uint32_t win, uint32_t gc, int cursor_on) {
 int main(void) {
     X11Conn c;
     if (x11_connect(&c, NULL) < 0) return 1;
+    g_conn = &c;
 
-    term_push_line("BlockOS X11 Terminal - type 'help' for all shell commands");
+    term_sysinfo(&c);
+    term_push_line("Type 'help' for all commands, or 'sysinfo' to refresh hardware info.");
     uint32_t win = x11_create_window(&c, 220, 340, WIN_W, WIN_H, 0x000D1117u,
                                      X_ExposureMask | X_KeyPressMask | X_ButtonPressMask);
     x11_set_title(&c, win, "Terminal");
