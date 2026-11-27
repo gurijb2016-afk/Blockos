@@ -2,6 +2,7 @@
 #include <string.h>
 #include "ps2keyboard.hpp"
 #include "ps2mouse.hpp"
+#include "virtio_input.hpp"
 
 namespace blockos::input {
 namespace {
@@ -45,6 +46,32 @@ void poll_hardware() {
             push_mouse(dx, -dy, 0, buttons);
             mouse_packet_pos = 0;
         }
+    }
+    int32_t v_dx = 0, v_dy = 0, v_wheel = 0;
+    static uint32_t v_buttons = 0;
+    bool v_motion = false;
+    VirtioInputEvent ve{};
+    while (virtio_input::poll(&ve)) {
+        if (ve.type == 1) { // EV_KEY
+            if (ve.code >= 0x110 && ve.code <= 0x112) {
+                uint32_t bit = 1u << (ve.code - 0x110);
+                if (ve.value) v_buttons |= bit; else v_buttons &= ~bit;
+                v_motion = true;
+            } else if (ve.code > 0 && ve.code < 0x80) {
+                push_keyboard(ve.code, ve.value != 0, false);
+            }
+        } else if (ve.type == 2) { // EV_REL
+            if (ve.code == 0) { v_dx += ve.value; v_motion = true; }
+            else if (ve.code == 1) { v_dy += ve.value; v_motion = true; }
+            else if (ve.code == 8) { v_wheel += ve.value; v_motion = true; }
+        } else if (ve.type == 0 && v_motion) { // EV_SYN
+            push_mouse(v_dx, v_dy, v_wheel, v_buttons);
+            v_dx = v_dy = v_wheel = 0;
+            v_motion = false;
+        }
+    }
+    if (v_motion) {
+        push_mouse(v_dx, v_dy, v_wheel, v_buttons);
     }
 }
 
