@@ -1228,6 +1228,12 @@ extern "C" EFI_STATUS efi_main(
         return EFI_ABORTED;
     }
 
+    // Initialize the kernel heap/DMA allocator before probing hardware backends
+    // so DMA-backed drivers (VirtIO, HDA, NIC, xHCI) can allocate queues cleanly.
+    allocator::init(
+        heapbuf,
+        heap_size);
+
     // Discover PCIe ECAM from ACPI MCFG before leaving firmware services.
     configure_pci_ecam(SystemTable);
 
@@ -1285,13 +1291,9 @@ extern "C" EFI_STATUS efi_main(
 
     /*
      * ========================================================
-     * Allocator
+     * Allocator (already initialized before pre_exit_bootstrap)
      * ========================================================
      */
-
-    allocator::init(
-        heapbuf,
-        heap_size);
 
 #ifdef BLOCKOS_SERVER_MODE
     // Initialize hardware while UEFI console/boot services are still live.
