@@ -1644,11 +1644,14 @@ extern "C" EFI_STATUS efi_main(
     {
         auto emit_boot_check = [](const char* text, void*) {
             if (!text) return;
-            size_t len = strlen(text);
-            console_sink(text, len, nullptr);
+            if (g_console_sink) {
+                for (size_t i = 0; text[i]; ++i)
+                    g_console_sink->putc(text[i]);
+            }
             serial::write_string(text);
         };
         blockos_hw::print_boot_checklist(emit_boot_check, nullptr);
+        flush_console();
     }
 
     /*

@@ -483,8 +483,30 @@ public:
         const auto* bytes =
             static_cast<const char*>(data);
 
-        for (std::size_t i = 0; i < len; ++i)
-            output_char_locked(bytes[i]);
+        const bool onlcr = (termios_.oflag & OFLAG_OPOST) && (termios_.oflag & OFLAG_ONLCR);
+        char batch[256];
+        std::size_t pos = 0;
+
+        for (std::size_t i = 0; i < len; ++i) {
+            char c = bytes[i];
+            if (c == '\n' && onlcr) {
+                if (pos + 2 > sizeof(batch)) {
+                    output_raw_locked(batch, pos);
+                    pos = 0;
+                }
+                batch[pos++] = '\r';
+                batch[pos++] = '\n';
+            } else {
+                if (pos + 1 > sizeof(batch)) {
+                    output_raw_locked(batch, pos);
+                    pos = 0;
+                }
+                batch[pos++] = c;
+            }
+        }
+        if (pos > 0) {
+            output_raw_locked(batch, pos);
+        }
 
         return static_cast<std::int64_t>(len);
     }
@@ -621,6 +643,17 @@ public:
 
             termios_ =
                 *static_cast<const Termios*>(arg);
+
+            // If canonical mode was just turned off, flush any characters
+            // already buffered in line_[] into input_ so early keypresses aren't lost.
+            if (!(termios_.lflag & LFLAG_ICANON) && line_len_ > 0) {
+                for (std::size_t i = 0; i < line_len_; ++i) {
+                    (void)input_.push(static_cast<std::uint8_t>(line_[i]));
+                }
+                line_len_ = 0;
+                line_[0] = '\0';
+                line_ready_ = false;
+            }
 
             return TTY_OK;
 

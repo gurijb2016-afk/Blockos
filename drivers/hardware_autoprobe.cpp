@@ -138,28 +138,38 @@ static void probe_input_entropy_serial()
     g_report.st_cpu_rdrand = cpu_supports_rdrand() ? ProbeStatus::Ok : ProbeStatus::NotAvailable;
 }
 
+static void append_str(char* buf, size_t cap, size_t& pos, const char* s)
+{
+    if (!s) return;
+    while (*s && pos + 1 < cap) buf[pos++] = *s++;
+    buf[pos] = '\0';
+}
+
 static void emit_line(void (*emit)(const char*, void*), void* ctx,
                       ProbeStatus st, const char* label, const char* detail = nullptr)
 {
+    char line[160]{};
+    size_t pos = 0;
     switch (st) {
         case ProbeStatus::Ok:
-            emit("[\x1b[32m  OK  \x1b[0m] ", ctx);
+            append_str(line, sizeof(line), pos, "[\x1b[32m  OK  \x1b[0m] ");
             break;
         case ProbeStatus::Failed:
-            emit("[\x1b[31m FAIL \x1b[0m] ", ctx);
+            append_str(line, sizeof(line), pos, "[\x1b[31m FAIL \x1b[0m] ");
             break;
         case ProbeStatus::NotAvailable:
         default:
-            emit("[\x1b[33m N/A  \x1b[0m] ", ctx);
+            append_str(line, sizeof(line), pos, "[\x1b[33m N/A  \x1b[0m] ");
             break;
     }
-    emit(label, ctx);
+    append_str(line, sizeof(line), pos, label);
     if (detail && *detail) {
-        emit(" (", ctx);
-        emit(detail, ctx);
-        emit(")", ctx);
+        append_str(line, sizeof(line), pos, " (");
+        append_str(line, sizeof(line), pos, detail);
+        append_str(line, sizeof(line), pos, ")");
     }
-    emit("\n", ctx);
+    append_str(line, sizeof(line), pos, "\n");
+    emit(line, ctx);
 }
 
 static void uint_to_dec(uint32_t v, char* out, size_t cap)

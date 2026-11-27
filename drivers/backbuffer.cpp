@@ -12,13 +12,50 @@ void bb_put_pixel(uint8_t* buf, uint32_t width, uint32_t x, uint32_t y, uint32_t
     memcpy(p, &color, 4);
 }
 
+static inline void fast_fill_dwords(void* dst, uint32_t color, size_t dwords) {
+    uint64_t pair = (static_cast<uint64_t>(color) << 32) | static_cast<uint64_t>(color);
+    size_t qwords = dwords >> 1;
+    void* d = dst;
+    if (qwords) {
+        __asm__ volatile(
+            "rep stosq"
+            : "+D"(d), "+c"(qwords)
+            : "a"(pair)
+            : "memory"
+        );
+    }
+    if (dwords & 1u) {
+        *reinterpret_cast<uint32_t*>(d) = color;
+    }
+}
+
 void bb_draw_rect(uint8_t* buf, uint32_t width, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t color) {
+    if (x >= width || w == 0 || h == 0) return;
+    uint32_t cols = (x + w > width) ? (width - x) : w;
     for (uint32_t yy = y; yy < y + h; ++yy) {
-        if (yy >= 0xFFFFFFFF) break; // defensive
-        for (uint32_t xx = x; xx < x + w; ++xx) {
-            if (xx >= width) break;
-            bb_put_pixel(buf, width, xx, yy, color);
+        uint8_t* row_ptr = buf + (static_cast<size_t>(yy) * width + x) * 4;
+        fast_fill_dwords(row_ptr, color, cols);
+    }
+}
+
+void bb_clear(uint8_t* buf, uint32_t width, uint32_t height, uint32_t color) {
+    fast_fill_dwords(buf, color, static_cast<size_t>(width) * static_cast<size_t>(height));
+}
+
+void bb_draw_char(uint8_t* buf, uint32_t width, uint32_t x, uint32_t y, char c, uint32_t color) {
+    if ((unsigned char)c >= 128) return;
+    const unsigned char *glyph = font8x8_basic[(unsigned char)c];
+    for (int row=0; row<8; ++row) {
+        unsigned char bits = glyph[row];
+        for (int col=0; col<8; ++col) {
+            if (bits & (1<<col)) bb_put_pixel(buf, width, x+col, y+row, color);
         }
+    }
+}
+
+void bb_draw_text(uint8_t* buf, uint32_t width, uint32_t x, uint32_t y, const char* text, uint32_t color) {
+    for (size_t i=0; text[i]; ++i) {
+        bb_draw_char(buf, width, x + (int)i*8, y, text[i], color);
     }
 }
 
@@ -36,41 +73,6 @@ static inline void fast_copy_dwords(void* dst, const void* src, size_t dwords) {
     }
     if (dwords & 1u) {
         *reinterpret_cast<uint32_t*>(d) = *reinterpret_cast<const uint32_t*>(s);
-    }
-}
-
-void bb_clear(uint8_t* buf, uint32_t width, uint32_t height, uint32_t color) {
-    size_t pixels = static_cast<size_t>(width) * static_cast<size_t>(height);
-    uint64_t pair = (static_cast<uint64_t>(color) << 32) | static_cast<uint64_t>(color);
-    size_t qwords = pixels >> 1;
-    void* d = buf;
-    if (qwords) {
-        __asm__ volatile(
-            "rep stosq"
-            : "+D"(d), "+c"(qwords)
-            : "a"(pair)
-            : "memory"
-        );
-    }
-    if (pixels & 1u) {
-        *reinterpret_cast<uint32_t*>(d) = color;
-    }
-}
-
-void bb_draw_char(uint8_t* buf, uint32_t width, uint32_t x, uint32_t y, char c, uint32_t color) {
-    if ((unsigned char)c >= 128) return;
-    const unsigned char *glyph = font8x8_basic[(unsigned char)c];
-    for (int row=0; row<8; ++row) {
-        unsigned char bits = glyph[row];
-        for (int col=0; col<8; ++col) {
-            if (bits & (1<<col)) bb_put_pixel(buf, width, x+col, y+row, color);
-        }
-    }
-}
-
-void bb_draw_text(uint8_t* buf, uint32_t width, uint32_t x, uint32_t y, const char* text, uint32_t color) {
-    for (size_t i=0; text[i]; ++i) {
-        bb_draw_char(buf, width, x + (int)i*8, y, text[i], color);
     }
 }
 
