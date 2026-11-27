@@ -1319,7 +1319,7 @@ if(x->pml4_owned&&x->pml4&&x->pml4!=(paging::read_cr3()&0x000ffffffffff000ULL)){
         size_t n=strlen(target); if(n>(size_t)f->rdx)n=(size_t)f->rdx; memcpy((void*)(uintptr_t)f->rsi,target,n); r=(int64_t)n; break;
     }
     case blockos::syscall::SYS_rmdir: {
-        char path[256]; if(!copy_user_string(f->rdi,path,sizeof(path))){r=EFAULT;break;} r=vfs::remove_file(path)?0:ENOTEMPTY; break;
+        char path[256]; if(!copy_user_string(f->rdi,path,sizeof(path))){r=EFAULT;break;} char abs[256]; if(!resolve_path_for_process(p,path,abs,sizeof(abs))){r=ENAMETOOLONG;break;} r=vfs::remove_file(abs)?0:ENOTEMPTY; break;
     }
     case blockos::syscall::SYS_fork:
     case blockos::syscall::SYS_vfork: {

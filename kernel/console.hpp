@@ -6,8 +6,8 @@
 class Console
 {
    public:
-    static constexpr size_t ROWS = 24;
-    static constexpr size_t COLS = 80;
+    static constexpr size_t ROWS = 72;
+    static constexpr size_t COLS = 120;
 
     // Retained lines, including those scrolled off the top of the view
     static constexpr size_t SCROLLBACK = 512;

@@ -408,3 +408,16 @@ bool paging::install_kernel_identity_map(uint64_t max_phys) {
     switch_pml4((uint64_t)(uintptr_t)pml4);
     return true;
 }
+
+bool paging::map_mmio_range(uint64_t phys_base, size_t len) {
+    if (!phys_base || !len) return false;
+    uint64_t cr3 = read_cr3();
+    if (!cr3) return false;
+    uint64_t start = phys_base & PAGE_MASK;
+    uint64_t end = (phys_base + len + 0xFFFULL) & PAGE_MASK;
+    for (uint64_t p = start; p < end; p += 0x1000ULL) {
+        if (!map_4k(cr3, p, p, PTE_WRITABLE | PTE_PWT | PTE_PCD))
+            return false;
+    }
+    return true;
+}

@@ -109,10 +109,11 @@ static void probe_network()
 
 static void probe_usb_audio()
 {
-    usb::xhci::Controller xhci{};
-    if (usb::xhci::probe(&xhci)) {
-        if (usb::xhci::reset(&xhci) && usb::xhci::run(&xhci))
-            g_report.xhci = true;
+    static usb::xhci::Controller g_xhci{};
+    if (usb::xhci::probe(&g_xhci)) {
+        // Only probe and take legacy ownership before ExitBootServices; full
+        // reset+initialize runs post-exit so OVMF's XhciDxe timer is untouched.
+        g_report.xhci = true;
     }
     g_report.hda = audio::init();
 

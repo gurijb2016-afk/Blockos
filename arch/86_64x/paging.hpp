@@ -5,6 +5,7 @@
 namespace paging {
 bool init_paging();
 bool install_kernel_identity_map(uint64_t max_phys);
+bool map_mmio_range(uint64_t phys_base, size_t len);
 void* alloc_page();
 uint64_t create_pml4();
 uint64_t create_user_pml4();

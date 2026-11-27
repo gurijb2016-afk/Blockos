@@ -15,6 +15,7 @@ extern uint64_t g_alias_first_va;
 #include "drivers/ata_devices.hpp"
 #include "drivers/acpi.hpp"
 #include "drivers/pci.hpp"
+#include "drivers/pci_subsystem.hpp"
 #include "events.hpp"
 #include "font8x8.h"
 #include "fs/fat32.hpp"
@@ -29,6 +30,7 @@ extern uint64_t g_alias_first_va;
 #include "drivers/dhcp_dns_stack.hpp"
 #include "drivers/virtio_blk.hpp"
 #include "drivers/nvme.hpp"
+#include "drivers/ahci.hpp"
 #include "drivers/audio.hpp"
 #include "drivers/power.hpp"
 #include "drivers/serial.hpp"
@@ -61,7 +63,8 @@ extern "C"
 
 static inline void early_serial_out(char c)
 {
-    asm volatile("outb %0, $0x3F8" : : "a"(c));
+    uint16_t port = 0x3F8;
+    asm volatile("outb %0, %1" : : "a"(c), "Nd"(port));
 }
 
 static void early_serial_str(const char* s)
@@ -693,21 +696,24 @@ __attribute__((unused)) static void trace(Console& out, const char* message)
 
 static void init_block_devices(Console& out)
 {
-    if (!g_ata_boot.init(AtaPio::Bus::Primary, AtaPio::Drive::Master))
+    const bool modern_storage =
+        virtio_blk::is_ready() || nvme::available() || ahci::available();
+
+    if (!g_ata_boot.init(AtaPio::Bus::Primary, AtaPio::Drive::Master) && !modern_storage)
     {
         out.print("ata0: ");
         out.print(AtaPio::error_name(g_ata_boot.error_at(0)));
         out.newline();
     }
 
-    if (!g_ata_data.init(AtaPio::Bus::Primary, AtaPio::Drive::Slave))
+    if (!g_ata_data.init(AtaPio::Bus::Primary, AtaPio::Drive::Slave) && !modern_storage)
     {
         out.print("ata1: ");
         out.print(AtaPio::error_name(g_ata_data.error_at(0)));
         out.newline();
     }
 
-    if (!g_ata_fs.init(AtaPio::Bus::Secondary, AtaPio::Drive::Master))
+    if (!g_ata_fs.init(AtaPio::Bus::Secondary, AtaPio::Drive::Master) && !modern_storage)
     {
         out.print("ata2: ");
         out.print(AtaPio::error_name(g_ata_fs.error_at(0)));
@@ -1275,6 +1281,30 @@ extern "C" EFI_STATUS efi_main(
             &descSize,
             &descVersion);
 
+    if (status == EFI_BUFFER_TOO_SMALL)
+    {
+        mapSize += descSize * 20;
+        status =
+            (EFI_STATUS) uefi_call_wrapper(
+                (void*) BS->AllocatePool,
+                3,
+                EfiLoaderData,
+                mapSize,
+                &memMap);
+        if (!EFI_ERROR(status))
+        {
+            status =
+                (EFI_STATUS) uefi_call_wrapper(
+                    (void*) BS->GetMemoryMap,
+                    5,
+                    &mapSize,
+                    (EFI_MEMORY_DESCRIPTOR*)memMap,
+                    &mapKey,
+                    &descSize,
+                    &descVersion);
+        }
+    }
+
     if (EFI_ERROR(status))
     {
         Print(
@@ -1368,6 +1398,20 @@ extern "C" EFI_STATUS efi_main(
             if (end > kernel_max_phys)
                 kernel_max_phys = end;
         }
+        for (uint32_t i = 0; i < pci_bus_manager.device_count(); ++i)
+        {
+            const PciDevice* d = pci_bus_manager.device_at(i);
+            if (!d || !d->is_valid) continue;
+            for (int b = 0; b < 6; ++b)
+            {
+                if (d->bar[b] >= 0x100000000ULL)
+                {
+                    uint64_t bar_end = d->bar[b] + (16ULL << 20);
+                    if (bar_end > kernel_max_phys && bar_end <= (64ULL << 30))
+                        kernel_max_phys = bar_end;
+                }
+            }
+        }
     }
 
     if (kernel_max_phys > (64ULL << 30))
@@ -1382,6 +1426,28 @@ extern "C" EFI_STATUS efi_main(
 
     if (EFI_ERROR(status))
     {
+        status =
+            (EFI_STATUS) uefi_call_wrapper(
+                (void*) BS->GetMemoryMap,
+                5,
+                &mapSize,
+                (EFI_MEMORY_DESCRIPTOR*)memMap,
+                &mapKey,
+                &descSize,
+                &descVersion);
+        if (!EFI_ERROR(status))
+        {
+            status =
+                (EFI_STATUS) uefi_call_wrapper(
+                    (void*) BS->ExitBootServices,
+                    2,
+                    ImageHandle,
+                    mapKey);
+        }
+    }
+
+    if (EFI_ERROR(status))
+    {
         return EFI_ABORTED;
     }
 
@@ -1389,6 +1455,20 @@ extern "C" EFI_STATUS efi_main(
     if (!paging::install_kernel_identity_map(kernel_max_phys))
     {
         for (;;) { __asm__ volatile("cli; hlt"); }
+    }
+
+    // Identity-map any 64-bit PCI MMIO BARs located above 4 GB (e.g. OVMF maps
+    // NVMe and xHCI MMIO around 0x80000000000 on q35) so post-ExitBootServices
+    // MMIO accesses to NVMe, xHCI, and other 64-bit BARs never page-fault.
+    for (uint32_t i = 0; i < pci_bus_manager.device_count(); ++i)
+    {
+        const PciDevice* d = pci_bus_manager.device_at(i);
+        if (!d || !d->is_valid) continue;
+        for (int b = 0; b < 6; ++b)
+        {
+            if (d->bar[b] >= 0x100000000ULL)
+                (void)paging::map_mmio_range(d->bar[b], 64 * 1024);
+        }
     }
 
     /*
@@ -1422,7 +1502,7 @@ extern "C" EFI_STATUS efi_main(
     /* Create the framebuffer console before any fatal boot checks below.
      * boot_error_halt() needs a live Console reference, and the VFS mount
      * can fail before userspace or TTY initialization is complete. */
-    Console console;
+    static Console console;
 
     if (have_gop)
     {
@@ -1533,36 +1613,62 @@ extern "C" EFI_STATUS efi_main(
         console);
 #endif
 
+    // Register detected hardware device nodes in /devices/ and populate /proc/
+    {
+        vfs::create_directory("/devices");
+        const auto& hwr = blockos_hw::last_report();
+        if (virtio_blk::is_ready()) {
+            vfs::DeviceNodeInfo di{};
+            di.type = vfs::DEVICE_DISK;
+            di.device_id = 0;
+            di.size = virtio_blk::capacity_sectors() * 512ULL;
+            vfs::create_device_node("/devices/virtio-blk0", di);
+        }
+        if (nvme::available()) {
+            uint64_t blocks = 0;
+            uint32_t bsz = 512;
+            (void)nvme::identify_namespace(1, blocks, bsz);
+            vfs::DeviceNodeInfo di{};
+            di.type = vfs::DEVICE_DISK;
+            di.device_id = 1;
+            di.size = blocks * static_cast<uint64_t>(bsz ? bsz : 512u);
+            vfs::create_device_node("/devices/nvme0", di);
+        }
+        if (ahci::available()) {
+            vfs::DeviceNodeInfo di{};
+            di.type = vfs::DEVICE_DISK;
+            di.device_id = 2;
+            di.size = 0;
+            vfs::create_device_node("/devices/ahci0", di);
+        }
+        if (hwr.virtio_net || hwr.native_net || blockos::net::is_initialized()) {
+            vfs::DeviceNodeInfo di{};
+            di.type = vfs::DEVICE_NETWORK;
+            di.device_id = 0;
+            vfs::create_device_node("/devices/net0", di);
+        }
+        if (audio::is_ready() || hwr.hda) {
+            vfs::DeviceNodeInfo di{};
+            di.type = vfs::DEVICE_AUDIO;
+            di.device_id = 0;
+            vfs::create_device_node("/devices/audio0", di);
+        }
+        if (hwr.xhci) {
+            vfs::DeviceNodeInfo di{};
+            di.type = vfs::DEVICE_USB;
+            di.device_id = 0;
+            vfs::create_device_node("/devices/xhci0", di);
+        }
+        if (hwr.serial) {
+            vfs::DeviceNodeInfo di{};
+            di.type = vfs::DEVICE_CONSOLE;
+            di.device_id = 1;
+            vfs::create_device_node("/devices/ttyS0", di);
+        }
+        blockos::proc::init();
+    }
+
 #ifdef BLOCKOS_SERVER_MODE
-    // Runtime server path: expose the already-initialized VirtIO disk and
-    // obtain an OCI/LAN address by DHCP without using UEFI console services.
-    if (virtio_blk::is_ready())
-    {
-        vfs::DeviceNodeInfo di{};
-        di.type = vfs::DEVICE_DISK;
-        di.device_id = 0;
-        di.size = virtio_blk::capacity_sectors() * 512ULL;
-        vfs::create_device_node("/devices/virtio-blk0", di);
-    }
-
-    if (nvme::is_ready())
-    {
-        vfs::DeviceNodeInfo nvme_di{};
-        nvme_di.type = vfs::DEVICE_DISK;
-        nvme_di.device_id = 1;
-        nvme_di.size = nvme::capacity_sectors() * 512ULL;
-        vfs::create_device_node("/devices/nvme0", nvme_di);
-    }
-
-    if (audio::is_ready())
-    {
-        vfs::DeviceNodeInfo audio_di{};
-        audio_di.type = vfs::DEVICE_GENERIC;
-        audio_di.device_id = 0;
-        audio_di.size = 0;
-        vfs::create_device_node("/devices/audio0", audio_di);
-    }
-
     if (blockos::net::is_initialized())
         dynamic_net_stack.configure(1500000);
 #else
@@ -1704,6 +1810,8 @@ extern "C" EFI_STATUS efi_main(
             console,
             "process::create failed for /bin/sh");
     }
+
+    blockos::proc::refresh(shell_process);
 
     /*
      * Enter ring3 and run /bin/sh as the first userspace process.
