@@ -109,14 +109,48 @@ static int      g_drag_win = -1;
 static int      g_drag_ox = 0, g_drag_oy = 0;
 
 static int      g_mouse_x = 320, g_mouse_y = 240;
+static int      g_cur_x = 320, g_cur_y = 240;
+static int      g_cur_drawn = 0;
 static uint32_t g_mouse_buttons = 0;
 static uint32_t g_mouse_speed = 1; /* 1, 2, or 3 */
 
 static uint32_t g_desktop_bg     = 0x001B2A38u;
 static uint32_t g_accent_color   = 0x002B6CB0u;
 static uint32_t g_taskbar_bg     = 0x00141C26u;
-static int      g_dirty          = 1;
+static int      g_dirty_full     = 1;
+static int      g_dirty_clock    = 0;
+static int      g_dirty_cursor   = 0;
+static int      g_win_dirty      = 0;
+static int      g_win_dirty_idx  = -1;
+static int      g_wx0 = 0, g_wy0 = 0, g_wx1 = 0, g_wy1 = 0;
 static int      g_shift_down     = 0;
+
+static inline void mark_win_dirty(int wi, int rx, int ry, int rw, int rh) {
+    if (wi < 0 || wi >= MAX_WINDOWS || !g_wins[wi].used || !g_wins[wi].mapped) return;
+    if (g_dirty_full) return;
+    /* Fast partial-rect path is guaranteed Z-order exact for the topmost window */
+    if (g_zcount <= 0 || g_zorder[g_zcount - 1] != wi) {
+        g_dirty_full = 1;
+        return;
+    }
+    int x0 = rx < 0 ? 0 : rx;
+    int y0 = ry < 0 ? 0 : ry;
+    int x1 = rx + rw > g_wins[wi].w ? g_wins[wi].w : rx + rw;
+    int y1 = ry + rh > g_wins[wi].h ? g_wins[wi].h : ry + rh;
+    if (x0 >= x1 || y0 >= y1) return;
+    if (!g_win_dirty) {
+        g_win_dirty = 1;
+        g_win_dirty_idx = wi;
+        g_wx0 = x0; g_wy0 = y0; g_wx1 = x1; g_wy1 = y1;
+    } else if (g_win_dirty_idx == wi) {
+        if (x0 < g_wx0) g_wx0 = x0;
+        if (y0 < g_wy0) g_wy0 = y0;
+        if (x1 > g_wx1) g_wx1 = x1;
+        if (y1 > g_wy1) g_wy1 = y1;
+    } else {
+        g_dirty_full = 1;
+    }
+}
 
 /* US Set-1 scancode to ASCII lookup */
 static const char kScanBase[128] = {
@@ -191,33 +225,65 @@ static void win_fill_rect(XWin* w, int x, int y, int rw, int rh, uint32_t col) {
     int y0 = y < 0 ? 0 : y;
     int x1 = x + rw > w->w ? w->w : x + rw;
     int y1 = y + rh > w->h ? w->h : y + rh;
+    if (x0 >= x1 || y0 >= y1) return;
+    size_t count = (size_t)(x1 - x0);
+    uint64_t pair = ((uint64_t)col << 32) | (uint64_t)col;
     for (int yy = y0; yy < y1; ++yy) {
-        uint32_t* row = w->pixels + (size_t)yy * (size_t)w->w + x0;
-        for (int xx = x0; xx < x1; ++xx) *row++ = col;
+        void* dst = w->pixels + (size_t)yy * (size_t)w->w + x0;
+        size_t q = count >> 1;
+        if (q) __asm__ volatile("rep stosq" : "+D"(dst), "+c"(q) : "a"(pair) : "memory");
+        if (count & 1u) *(uint32_t*)dst = col;
     }
 }
 
 static void win_draw_text(XWin* w, int x, int y, const char* s, size_t len, uint32_t fg, uint32_t bg) {
     if (!w || !w->pixels || !s) return;
+    int opaque = (bg != 0xFFFFFFFFu);
     for (size_t i = 0; i < len; ++i, x += 8) {
+        if (x + 8 <= 0 || x >= w->w) continue;
         unsigned char ch = (unsigned char)s[i];
         if (ch >= 128) ch = '?';
+        int unclipped = (x >= 0 && x + 8 <= w->w);
         for (int r = 0; r < 8; ++r) {
             int py = y + r;
             if (py < 0 || py >= w->h) continue;
             unsigned char bits = font8x8_basic[ch][r];
             uint32_t* row = w->pixels + (size_t)py * (size_t)w->w;
-            for (int c = 0; c < 8; ++c) {
-                int px = x + c;
-                if (px < 0 || px >= w->w) continue;
-                if (bits & (1u << c)) row[px] = fg;
-                else if (bg != 0xFFFFFFFFu) row[px] = bg;
+            if (unclipped) {
+                uint32_t* dst = row + x;
+                if (opaque) {
+                    dst[0] = (bits & 0x01u) ? fg : bg;
+                    dst[1] = (bits & 0x02u) ? fg : bg;
+                    dst[2] = (bits & 0x04u) ? fg : bg;
+                    dst[3] = (bits & 0x08u) ? fg : bg;
+                    dst[4] = (bits & 0x10u) ? fg : bg;
+                    dst[5] = (bits & 0x20u) ? fg : bg;
+                    dst[6] = (bits & 0x40u) ? fg : bg;
+                    dst[7] = (bits & 0x80u) ? fg : bg;
+                } else {
+                    if (bits & 0x01u) dst[0] = fg;
+                    if (bits & 0x02u) dst[1] = fg;
+                    if (bits & 0x04u) dst[2] = fg;
+                    if (bits & 0x08u) dst[3] = fg;
+                    if (bits & 0x10u) dst[4] = fg;
+                    if (bits & 0x20u) dst[5] = fg;
+                    if (bits & 0x40u) dst[6] = fg;
+                    if (bits & 0x80u) dst[7] = fg;
+                }
+            } else {
+                for (int c = 0; c < 8; ++c) {
+                    int px = x + c;
+                    if (px < 0 || px >= w->w) continue;
+                    if (bits & (1u << c)) row[px] = fg;
+                    else if (opaque) row[px] = bg;
+                }
             }
         }
     }
 }
 
-static void draw_cursor(int cx, int cy) {
+static void draw_cursor_to_fb(int cx, int cy) {
+    if (!g_fb) return;
     static const char* const kCursor[14] = {
         "X             ",
         "XX            ",
@@ -237,7 +303,7 @@ static void draw_cursor(int cx, int cy) {
     for (int r = 0; r < 14; ++r) {
         int py = cy + r;
         if (py < 0 || py >= (int)g_fb_h) continue;
-        uint32_t* row = g_back + (size_t)py * g_fb_w;
+        uint32_t* row = g_fb + (size_t)py * g_fb_stride;
         for (int c = 0; c < 14; ++c) {
             int px = cx + c;
             if (px < 0 || px >= (int)g_fb_w) continue;
@@ -248,20 +314,31 @@ static void draw_cursor(int cx, int cy) {
     }
 }
 
-static void swap_buffers(void) {
-    if (!g_fb || !g_back) return;
-    if (g_fb_stride == g_fb_w) {
-        size_t qwords = ((size_t)g_fb_w * (size_t)g_fb_h) / 2u;
-        void* dst = g_fb;
-        const void* src = g_back;
+static void swap_rect(int x, int y, int w, int h) {
+    if (!g_fb || !g_back || w <= 0 || h <= 0) return;
+    int x0 = x < 0 ? 0 : x;
+    int y0 = y < 0 ? 0 : y;
+    int x1 = x + w > (int)g_fb_w ? (int)g_fb_w : x + w;
+    int y1 = y + h > (int)g_fb_h ? (int)g_fb_h : y + h;
+    if (x0 >= x1 || y0 >= y1) return;
+
+    if (x0 == 0 && x1 == (int)g_fb_w && g_fb_stride == g_fb_w) {
+        size_t qwords = ((size_t)g_fb_w * (size_t)(y1 - y0)) / 2u;
+        void* dst = g_fb + (size_t)y0 * g_fb_stride;
+        const void* src = g_back + (size_t)y0 * g_fb_w;
         __asm__ volatile("rep movsq" : "+D"(dst), "+S"(src), "+c"(qwords) :: "memory");
-    } else {
-        for (uint32_t y = 0; y < g_fb_h; ++y) {
-            size_t qwords = (size_t)g_fb_w / 2u;
-            void* dst = g_fb + (size_t)y * g_fb_stride;
-            const void* src = g_back + (size_t)y * g_fb_w;
-            __asm__ volatile("rep movsq" : "+D"(dst), "+S"(src), "+c"(qwords) :: "memory");
-        }
+        return;
+    }
+
+    size_t count = (size_t)(x1 - x0);
+    for (int yy = y0; yy < y1; ++yy) {
+        uint32_t* dst32 = g_fb + (size_t)yy * g_fb_stride + x0;
+        const uint32_t* src32 = g_back + (size_t)yy * g_fb_w + x0;
+        size_t qwords = count >> 1;
+        void* dst = dst32;
+        const void* src = src32;
+        if (qwords) __asm__ volatile("rep movsq" : "+D"(dst), "+S"(src), "+c"(qwords) :: "memory");
+        if (count & 1u) *(uint32_t*)dst = *(const uint32_t*)src;
     }
 }
 
@@ -278,7 +355,7 @@ static void zorder_raise(int idx) {
     zorder_remove(idx);
     if (g_zcount < MAX_WINDOWS) g_zorder[g_zcount++] = idx;
     g_focused_win = idx;
-    g_dirty = 1;
+    g_dirty_full = 1;
 }
 
 static int find_win_by_id(uint32_t id) {
@@ -327,7 +404,7 @@ static void destroy_window_idx(int idx) {
         g_focused_win = (g_zcount > 0) ? g_zorder[g_zcount - 1] : -1;
     }
     if (g_drag_win == idx) g_drag_win = -1;
-    g_dirty = 1;
+    g_dirty_full = 1;
 }
 
 static void close_client(int cidx) {
@@ -339,7 +416,7 @@ static void close_client(int cidx) {
     close(g_clients[cidx].fd);
     memset(&g_clients[cidx], 0, sizeof(g_clients[cidx]));
     g_clients[cidx].fd = -1;
-    g_dirty = 1;
+    g_dirty_full = 1;
 }
 
 static long sys_vfork(void) {
@@ -372,7 +449,23 @@ static void handle_taskbar_click(int mx) {
     }
 }
 
-static void compose_frame(void) {
+static void draw_taskbar_clock(void) {
+    int ty = (int)g_fb_h - TASKBAR_H;
+    int clock_w = 220;
+    int clock_x = (int)g_fb_w - clock_w;
+    if (clock_x < 304) clock_x = 304;
+    bb_fill_rect(clock_x, ty + 1, (int)g_fb_w - clock_x, TASKBAR_H - 1, g_taskbar_bg);
+
+    uint32_t sec = now_ms() / 1000u;
+    uint32_t mins = sec / 60u;
+    uint32_t rem = sec % 60u;
+    char status[64];
+    snprintf(status, sizeof(status), "X11 :0 | Up %u:%02u", mins, rem);
+    int sx = (int)g_fb_w - (int)strlen(status) * 8 - 12;
+    bb_draw_text(sx, ty + 10, status, 0x00CBD5E0u);
+}
+
+static void compose_full_to_back(void) {
     /* 1. Desktop background */
     bb_fill_rect(0, 0, (int)g_fb_w, (int)g_fb_h - TASKBAR_H, g_desktop_bg);
 
@@ -442,19 +535,85 @@ static void compose_frame(void) {
     bb_draw_text(216, ty + 10, "Terminal", 0x00FFFFFFu);
 
     /* Uptime / status indicator on the right */
-    uint32_t sec = now_ms() / 1000u;
-    uint32_t mins = sec / 60u;
-    uint32_t rem = sec % 60u;
-    char status[64];
-    snprintf(status, sizeof(status), "X11 :0 | Up %u:%02u", mins, rem);
-    int sx = (int)g_fb_w - (int)strlen(status) * 8 - 12;
-    bb_draw_text(sx, ty + 10, status, 0x00CBD5E0u);
+    draw_taskbar_clock();
+}
 
-    /* 4. Software cursor drawn last */
-    draw_cursor(g_mouse_x, g_mouse_y);
+static inline int rects_overlap(int ax, int ay, int aw, int ah, int bx, int by, int bw, int bh) {
+    return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+}
 
-    swap_buffers();
-    g_dirty = 0;
+static void present_frame(void) {
+    if (g_dirty_full) {
+        compose_full_to_back();
+        swap_rect(0, 0, (int)g_fb_w, (int)g_fb_h);
+        draw_cursor_to_fb(g_mouse_x, g_mouse_y);
+        g_cur_x = g_mouse_x;
+        g_cur_y = g_mouse_y;
+        g_cur_drawn = 1;
+        g_dirty_full = 0;
+        g_win_dirty = 0;
+        g_dirty_clock = 0;
+        g_dirty_cursor = 0;
+        return;
+    }
+
+    int need_cursor = 0;
+    if (g_dirty_cursor || !g_cur_drawn || g_mouse_x != g_cur_x || g_mouse_y != g_cur_y) {
+        if (g_cur_drawn) {
+            swap_rect(g_cur_x, g_cur_y, 14, 14);
+        }
+        need_cursor = 1;
+        g_dirty_cursor = 0;
+    }
+
+    if (g_win_dirty && g_win_dirty_idx >= 0 && g_win_dirty_idx < MAX_WINDOWS) {
+        XWin* w = &g_wins[g_win_dirty_idx];
+        if (w->used && w->mapped && w->pixels) {
+            int dst_x0 = w->x + 1;
+            int dst_y0 = w->y + TITLEBAR_H + 1;
+            int sx0 = dst_x0 + g_wx0;
+            int sy0 = dst_y0 + g_wy0;
+            int sx1 = dst_x0 + g_wx1;
+            int sy1 = dst_y0 + g_wy1;
+            if (sx0 < 0) sx0 = 0;
+            if (sy0 < 0) sy0 = 0;
+            if (sx1 > (int)g_fb_w) sx1 = (int)g_fb_w;
+            if (sy1 > (int)g_fb_h - TASKBAR_H) sy1 = (int)g_fb_h - TASKBAR_H;
+            if (sx0 < sx1 && sy0 < sy1) {
+                int c0 = sx0 - dst_x0;
+                size_t row_bytes = (size_t)(sx1 - sx0) * 4u;
+                for (int py = sy0; py < sy1; ++py) {
+                    int r = py - dst_y0;
+                    memcpy(g_back + (size_t)py * g_fb_w + sx0,
+                           w->pixels + (size_t)r * (size_t)w->w + c0,
+                           row_bytes);
+                }
+                swap_rect(sx0, sy0, sx1 - sx0, sy1 - sy0);
+                if (rects_overlap(g_mouse_x, g_mouse_y, 14, 14, sx0, sy0, sx1 - sx0, sy1 - sy0))
+                    need_cursor = 1;
+            }
+        }
+        g_win_dirty = 0;
+    }
+
+    if (g_dirty_clock) {
+        int ty = (int)g_fb_h - TASKBAR_H;
+        int clock_x = (int)g_fb_w - 220;
+        if (clock_x < 304) clock_x = 304;
+        int clock_w = (int)g_fb_w - clock_x;
+        draw_taskbar_clock();
+        swap_rect(clock_x, ty + 1, clock_w, TASKBAR_H - 1);
+        if (rects_overlap(g_mouse_x, g_mouse_y, 14, 14, clock_x, ty + 1, clock_w, TASKBAR_H - 1))
+            need_cursor = 1;
+        g_dirty_clock = 0;
+    }
+
+    if (need_cursor) {
+        draw_cursor_to_fb(g_mouse_x, g_mouse_y);
+        g_cur_x = g_mouse_x;
+        g_cur_y = g_mouse_y;
+        g_cur_drawn = 1;
+    }
 }
 
 /* Process X11 client setup handshake */
@@ -591,7 +750,7 @@ static void handle_client_request(int cidx, const uint8_t* pkt, size_t len) {
             g_accent_color = x11_get32(pkt, 16);
             uint32_t spd   = x11_get32(pkt, 20);
             if (spd >= 1 && spd <= 3) g_mouse_speed = spd;
-            g_dirty = 1;
+            g_dirty_full = 1;
         }
         break;
     }
@@ -612,7 +771,7 @@ static void handle_client_request(int cidx, const uint8_t* pkt, size_t len) {
     case X_UnmapWindow: {
         if (len < 8) break;
         int idx = find_win_by_id(x11_get32(pkt, 4));
-        if (idx >= 0) { g_wins[idx].mapped = 0; g_dirty = 1; }
+        if (idx >= 0) { g_wins[idx].mapped = 0; g_dirty_full = 1; }
         break;
     }
     case X_ChangeProperty: {
@@ -624,7 +783,7 @@ static void handle_client_request(int cidx, const uint8_t* pkt, size_t len) {
             size_t cp = nitems < sizeof(g_wins[idx].title) - 1 ? nitems : sizeof(g_wins[idx].title) - 1;
             memcpy(g_wins[idx].title, pkt + 24, cp);
             g_wins[idx].title[cp] = '\0';
-            g_dirty = 1;
+            g_dirty_full = 1;
         }
         break;
     }
@@ -677,8 +836,8 @@ static void handle_client_request(int cidx, const uint8_t* pkt, size_t len) {
             uint16_t rw = x11_get16(pkt, off + 4);
             uint16_t rh = x11_get16(pkt, off + 6);
             win_fill_rect(&g_wins[wi], rx, ry, rw, rh, g_gcs[gi].fg);
+            mark_win_dirty(wi, rx, ry, rw, rh);
         }
-        g_dirty = 1;
         break;
     }
     case X_ImageText8: {
@@ -691,7 +850,7 @@ static void handle_client_request(int cidx, const uint8_t* pkt, size_t len) {
         if (wi >= 0 && gi >= 0 && 16u + slen <= len) {
             win_draw_text(&g_wins[wi], tx, ty, (const char*)(pkt + 16), slen,
                           g_gcs[gi].fg, g_gcs[gi].bg);
-            g_dirty = 1;
+            mark_win_dirty(wi, tx, ty, (int)slen * 8, 8);
         }
         break;
     }
@@ -700,11 +859,13 @@ static void handle_client_request(int cidx, const uint8_t* pkt, size_t len) {
     }
 }
 
-static void poll_clients(int listen_fd) {
+static int poll_clients(int listen_fd) {
+    int activity = 0;
     /* Accept any new X11 client connections */
     for (;;) {
         int cfd = accept4(listen_fd, NULL, NULL, SOCK_NONBLOCK);
         if (cfd < 0) break;
+        activity++;
         int slot = -1;
         for (int i = 0; i < MAX_CLIENTS; ++i) {
             if (!g_clients[i].used) { slot = i; break; }
@@ -727,6 +888,7 @@ static void poll_clients(int listen_fd) {
             if (r < 0 && errno == EAGAIN) break;
             if (r <= 0) { close_client(i); goto next_client; }
             cl->rx_len += (size_t)r;
+            activity++;
         }
         if (!cl->handshaked) handle_client_handshake(i);
         while (cl->handshaked && cl->rx_len >= 4) {
@@ -740,6 +902,7 @@ static void poll_clients(int listen_fd) {
         }
 next_client:;
     }
+    return activity;
 }
 
 static void handle_mouse_button(int mx, int my, uint32_t prev_btn, uint32_t cur_btn) {
@@ -796,10 +959,10 @@ static void handle_mouse_button(int mx, int my, uint32_t prev_btn, uint32_t cur_
     }
 }
 
-static void poll_input(int input_fd) {
+static int poll_input(int input_fd) {
     struct BlockOSInputEvent evs[64];
     ssize_t nbytes = read(input_fd, evs, sizeof(evs));
-    if (nbytes <= 0) return;
+    if (nbytes <= 0) return 0;
     size_t count = (size_t)nbytes / sizeof(evs[0]);
 
     for (size_t i = 0; i < count; ++i) {
@@ -834,14 +997,15 @@ static void poll_input(int input_fd) {
                     if (g_wins[g_drag_win].y < 0) g_wins[g_drag_win].y = 0;
                     if (g_wins[g_drag_win].y > (int)g_fb_h - TASKBAR_H - TITLEBAR_H)
                         g_wins[g_drag_win].y = (int)g_fb_h - TASKBAR_H - TITLEBAR_H;
+                    g_dirty_full = 1;
+                } else {
+                    g_dirty_cursor = 1;
                 }
-                g_dirty = 1;
             }
             if (evs[i].buttons != g_mouse_buttons) {
                 uint32_t prev = g_mouse_buttons;
                 g_mouse_buttons = evs[i].buttons;
                 handle_mouse_button(g_mouse_x, g_mouse_y, prev, g_mouse_buttons);
-                g_dirty = 1;
             }
         } else if (evs[i].type == 2u) { /* Keyboard */
             uint8_t sc = (uint8_t)(evs[i].scancode & 0x7Fu);
@@ -851,8 +1015,7 @@ static void poll_input(int input_fd) {
             }
             if (!evs[i].pressed) continue;
 
-            /* ESC closes X11 session if no window focused? Keep Alt+F4 or Ctrl+Q?
-             * Forward all key presses to the focused X11 window. */
+            /* Forward all key presses to the focused X11 window. */
             if (g_focused_win >= 0 && g_wins[g_focused_win].used) {
                 XWin* fw = &g_wins[g_focused_win];
                 uint8_t ch = (uint8_t)(g_shift_down ? kScanShift[sc] : kScanBase[sc]);
@@ -862,6 +1025,7 @@ static void poll_input(int input_fd) {
             }
         }
     }
+    return (int)count;
 }
 
 int main(void) {
@@ -926,20 +1090,23 @@ int main(void) {
 
     g_mouse_x = (int)(g_fb_w / 2);
     g_mouse_y = (int)(g_fb_h / 2);
-    compose_frame();
+    g_dirty_full = 1;
+    present_frame();
 
-    uint32_t last_clock_sec = 0;
+    uint32_t last_clock_sec = now_ms() / 1000u;
     for (;;) {
-        poll_clients(listen_fd);
-        poll_input(input_fd);
+        int act = poll_clients(listen_fd) + poll_input(input_fd);
 
         uint32_t cur_sec = now_ms() / 1000u;
         if (cur_sec != last_clock_sec) {
             last_clock_sec = cur_sec;
-            g_dirty = 1;
+            g_dirty_clock = 1;
         }
-        if (g_dirty) compose_frame();
-        x11_sleep_ms(4);
+        if (g_dirty_full || g_win_dirty || g_dirty_clock || g_dirty_cursor) {
+            present_frame();
+        }
+        if (act > 0) x11_yield();
+        else x11_sleep_ms(2);
     }
     return 0;
 }

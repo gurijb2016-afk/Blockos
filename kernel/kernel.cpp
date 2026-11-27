@@ -657,13 +657,19 @@ static void flush_console()
         (uint8_t*) g_flush_backbuf,
         g_flush_fb->Width);
 
+    int dy = g_console_sink->y();
+    int dh = g_console_sink->h();
+    (void)g_console_sink->dirty_band(&dy, &dh);
+
     bb_blit_region_to_fb(
         g_flush_fb,
         (const uint8_t*) g_flush_backbuf,
         g_console_sink->x(),
-        g_console_sink->y(),
+        dy,
         g_console_sink->w(),
-        g_console_sink->h());
+        dh);
+
+    g_console_sink->clear_dirty_band();
 }
 
 extern "C" void blockos_panic_flush(void)
@@ -1478,6 +1484,16 @@ extern "C" EFI_STATUS efi_main(
         }
     }
 
+    if (have_gop && fb.Base)
+    {
+        const size_t fb_bytes =
+            static_cast<size_t>(fb.PixelsPerScanLine) *
+            static_cast<size_t>(fb.Height) * 4u;
+        (void)paging::mark_framebuffer_wc(
+            reinterpret_cast<uint64_t>(fb.Base),
+            fb_bytes);
+    }
+
     /*
      * ========================================================
      * GDT/IDT
@@ -1748,7 +1764,7 @@ extern "C" EFI_STATUS efi_main(
             break;
         }
 
-        __asm__ volatile("pause");
+        __asm__ volatile("hlt");
     }
 
 #endif

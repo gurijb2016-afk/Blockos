@@ -45,11 +45,20 @@ void bb_clear(uint8_t* buf, uint32_t width, uint32_t height, uint32_t color) {
 void bb_draw_char(uint8_t* buf, uint32_t width, uint32_t x, uint32_t y, char c, uint32_t color) {
     if ((unsigned char)c >= 128) return;
     const unsigned char *glyph = font8x8_basic[(unsigned char)c];
-    for (int row=0; row<8; ++row) {
+    uint32_t* dst = reinterpret_cast<uint32_t*>(buf) + static_cast<size_t>(y) * width + x;
+    for (int row = 0; row < 8; ++row) {
         unsigned char bits = glyph[row];
-        for (int col=0; col<8; ++col) {
-            if (bits & (1<<col)) bb_put_pixel(buf, width, x+col, y+row, color);
+        if (bits) {
+            if (bits & 0x01u) dst[0] = color;
+            if (bits & 0x02u) dst[1] = color;
+            if (bits & 0x04u) dst[2] = color;
+            if (bits & 0x08u) dst[3] = color;
+            if (bits & 0x10u) dst[4] = color;
+            if (bits & 0x20u) dst[5] = color;
+            if (bits & 0x40u) dst[6] = color;
+            if (bits & 0x80u) dst[7] = color;
         }
+        dst += width;
     }
 }
 

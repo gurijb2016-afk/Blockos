@@ -410,6 +410,29 @@ static void exec_command(char* cmd) {
     term_push_line(msg);
 }
 
+static void draw_prompt_line(X11Conn* c, uint32_t win, uint32_t gc, int cursor_on) {
+    int max_hist = TERM_ROWS - 1;
+    int count = g_line_head < max_hist ? g_line_head : max_hist;
+    int py = 8 + count * 11;
+
+    x11_set_gc_colors(c, gc, 0x000D1117u, 0x000D1117u);
+    x11_fill_rect(c, win, gc, 0, (int16_t)py, WIN_W, 11);
+
+    char prompt[192];
+    snprintf(prompt, sizeof(prompt), "blockos:%s$ %s", g_cwd, g_input);
+    x11_set_gc_colors(c, gc, 0x0058A6FFu, 0x000D1117u);
+    x11_draw_text(c, win, gc, 8, (int16_t)py, prompt);
+
+    if (cursor_on) {
+        int cx = 8 + (int)strlen(prompt) * 8;
+        if (cx + 8 < WIN_W) {
+            x11_set_gc_colors(c, gc, 0x0058A6FFu, 0x0058A6FFu);
+            x11_fill_rect(c, win, gc, (int16_t)cx, (int16_t)py, 7, 9);
+        }
+    }
+    x11_flush(c);
+}
+
 static void draw_term(X11Conn* c, uint32_t win, uint32_t gc, int cursor_on) {
     /* Dark terminal canvas */
     x11_set_gc_colors(c, gc, 0x000D1117u, 0x000D1117u);
@@ -425,20 +448,7 @@ static void draw_term(X11Conn* c, uint32_t win, uint32_t gc, int cursor_on) {
         x11_draw_text(c, win, gc, 8, (int16_t)(8 + i * 11), g_lines[slot]);
     }
 
-    /* Prompt + active input line */
-    char prompt[192];
-    snprintf(prompt, sizeof(prompt), "blockos:%s$ %s", g_cwd, g_input);
-    int py = 8 + count * 11;
-    x11_set_gc_colors(c, gc, 0x0058A6FFu, 0x000D1117u);
-    x11_draw_text(c, win, gc, 8, (int16_t)py, prompt);
-
-    if (cursor_on) {
-        int cx = 8 + (int)strlen(prompt) * 8;
-        if (cx + 8 < WIN_W) {
-            x11_set_gc_colors(c, gc, 0x0058A6FFu, 0x0058A6FFu);
-            x11_fill_rect(c, win, gc, (int16_t)cx, (int16_t)py, 7, 9);
-        }
-    }
+    draw_prompt_line(c, win, gc, cursor_on);
 }
 
 int main(void) {
@@ -459,42 +469,62 @@ int main(void) {
     draw_term(&c, win, gc, cursor_on);
 
     for (;;) {
-        X11Event ev;
-        int r = x11_poll_event(&c, &ev);
-        if (r < 0) break;
-        if (r == 0) {
-            x11_sleep_ms(20);
-            if (++ticks >= 25) {
+        int need_full = 0;
+        int need_prompt = 0;
+        int closed = 0;
+        int got_any = 0;
+
+        for (;;) {
+            X11Event ev;
+            int r = x11_poll_event(&c, &ev);
+            if (r < 0) { closed = 1; break; }
+            if (r == 0) break;
+            got_any = 1;
+
+            if (ev.type == X_EV_DestroyNotify) { closed = 1; break; }
+            if (ev.type == X_EV_Expose) {
+                need_full = 1;
+            } else if (ev.type == X_EV_KeyPress) {
+                char ch = (char)ev.ascii;
+                if (ch == '\b' || ch == 0x7F) {
+                    if (g_input_len > 0) g_input[--g_input_len] = '\0';
+                    need_prompt = 1;
+                } else if (ch == '\n' || ch == '\r') {
+                    char echo[192];
+                    snprintf(echo, sizeof(echo), "blockos:%s$ %s", g_cwd, g_input);
+                    term_push_line(echo);
+                    exec_command(g_input);
+                    g_input_len = 0;
+                    g_input[0] = '\0';
+                    need_full = 1;
+                } else if (ch >= 0x20 && ch <= 0x7E) {
+                    if (g_input_len < (int)sizeof(g_input) - 1) {
+                        g_input[g_input_len++] = ch;
+                        g_input[g_input_len] = '\0';
+                    }
+                    need_prompt = 1;
+                }
+                cursor_on = 1;
                 ticks = 0;
-                cursor_on = !cursor_on;
-                draw_term(&c, win, gc, cursor_on);
             }
-            continue;
+        }
+        if (closed) break;
+
+        if (need_full) {
+            draw_term(&c, win, gc, cursor_on);
+        } else if (need_prompt) {
+            draw_prompt_line(&c, win, gc, cursor_on);
         }
 
-        if (ev.type == X_EV_DestroyNotify) break;
-        if (ev.type == X_EV_Expose) {
-            draw_term(&c, win, gc, cursor_on);
-        } else if (ev.type == X_EV_KeyPress) {
-            char ch = (char)ev.ascii;
-            if (ch == '\b' || ch == 0x7F) {
-                if (g_input_len > 0) g_input[--g_input_len] = '\0';
-            } else if (ch == '\n' || ch == '\r') {
-                char echo[192];
-                snprintf(echo, sizeof(echo), "blockos:%s$ %s", g_cwd, g_input);
-                term_push_line(echo);
-                exec_command(g_input);
-                g_input_len = 0;
-                g_input[0] = '\0';
-            } else if (ch >= 0x20 && ch <= 0x7E) {
-                if (g_input_len < (int)sizeof(g_input) - 1) {
-                    g_input[g_input_len++] = ch;
-                    g_input[g_input_len] = '\0';
-                }
+        if (got_any) {
+            x11_yield();
+        } else {
+            x11_sleep_ms(4);
+            if (++ticks >= 125) {
+                ticks = 0;
+                cursor_on = !cursor_on;
+                draw_prompt_line(&c, win, gc, cursor_on);
             }
-            cursor_on = 1;
-            ticks = 0;
-            draw_term(&c, win, gc, cursor_on);
         }
     }
     close(c.fd);

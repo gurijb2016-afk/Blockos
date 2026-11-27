@@ -479,8 +479,10 @@ static int64_t do_mmap(uint64_t addr,uint64_t len,uint64_t prot,uint64_t flags,u
         const auto* di=reinterpret_cast<const vfs::DeviceNodeInfo*>(fs[fd].data);
         if(!di || offset>=di->size || rounded>di->size-offset){return EINVAL;}
         if(di->type==vfs::DEVICE_GPU) blockos_display_claim();
+        /* Map GPU framebuffer with Write-Combining (PWT=1, PCD=0 -> PAT1=WC) for fast X11 blits */
+        uint64_t dev_pf = ((prot&2)?2:0) | 4 | ((prot&4)?0:(1ULL<<63)) | ((di->type==vfs::DEVICE_GPU) ? 8ULL : 24ULL);
         for(uint64_t va=addr,po=offset;va<addr+rounded;va+=PAGE,po+=PAGE){
-            if(!paging::map_4k(p->pml4,va,di->base+po,((prot&2)?2:0)|4|((prot&4)?0:(1ULL<<63)))) return ENOMEM;
+            if(!paging::map_4k(p->pml4,va,di->base+po,dev_pf)) return ENOMEM;
         }
         return (int64_t)addr;
     }
@@ -631,9 +633,22 @@ static void fill_random_bytes(uint8_t* dst, size_t len) {
 static inline bool inet_of(int fd,int* ns){auto* t=fdtable();if(fd<0||fd>=(int)process::MAX_RUNTIME_FDS||!t||!t[fd].used||t[fd].kind!=process::RuntimeFd::InetSocket)return false;*ns=(int)t[fd].object;return true;}
 extern "C" void blockos_syscall_dispatch_frame(BlockOSSyscallFrame* f){
     if(!f)return;
-    /* Poll hardware AND route the events to the tty; poll_hardware() alone
-     * leaves keystrokes in the input queue where read(0) never sees them. */
-    blockos_kernel_poll_input();
+    /* Poll hardware input only on input/wait/yield syscalls instead of every
+     * write/stat/clock_gettime, avoiding costly inb(0x64)/COM1 VMEXITs per syscall. */
+    switch(f->rax){
+    case blockos::syscall::SYS_read:
+    case blockos::syscall::SYS_readv:
+    case blockos::syscall::SYS_poll:
+    case blockos::syscall::SYS_ppoll:
+    case blockos::syscall::SYS_epoll_wait:
+    case blockos::syscall::SYS_sched_yield:
+    case blockos::syscall::SYS_nanosleep:
+    case blockos::syscall::SYS_ioctl:
+        blockos_kernel_poll_input();
+        break;
+    default:
+        break;
+    }
     int64_t r=ENOSYS; auto* p=process::current(); auto* fs=fdtable();
     /* A space replaced by exec is freed here: this syscall runs on the new space. */
     if(p&&p->pml4_pending_free){ if(pml4_used_elsewhere(p->pml4_pending_free,p)) g_pml4_skips++; else paging::destroy_user_space(p->pml4_pending_free); p->pml4_pending_free=0; }
@@ -768,10 +783,13 @@ extern "C" void blockos_syscall_dispatch_frame(BlockOSSyscallFrame* f){
                 if(p && preempt::yield_from_syscall(f)) return;
                 f->rip+=2;
                 for(;;){
-                    __asm__ volatile("pause");
                     blockos_kernel_poll_input();
                     r=blockos_tty_read((void*)(uintptr_t)f->rsi,(size_t)f->rdx);
                     if(r!=0) break;
+                    /* Yield the CPU with HLT until the next keyboard IRQ (instant)
+                     * or 500 Hz PIT tick (<=2 ms for VirtIO/serial/USB), avoiding
+                     * 100% host-CPU VMEXIT spin loops inside VMs. */
+                    __asm__ volatile("sti; hlt; cli" ::: "memory");
                 }
             }
         }

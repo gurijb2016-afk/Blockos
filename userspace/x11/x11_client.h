@@ -68,6 +68,8 @@ typedef struct {
     uint32_t root;
     uint16_t screen_w;
     uint16_t screen_h;
+    uint8_t tx[4096];
+    size_t tx_len;
 } X11Conn;
 
 typedef struct {
@@ -104,6 +106,11 @@ static inline uint32_t x11_get32(const uint8_t* b, size_t o) {
            ((uint32_t)b[o + 2] << 16) | ((uint32_t)b[o + 3] << 24);
 }
 
+static inline void x11_yield(void) {
+    long r;
+    __asm__ volatile("int $0x80" : "=a"(r) : "a"(46L /* SYS_sched_yield */) : "rcx", "r11", "memory", "cc");
+}
+
 static inline void x11_sleep_ms(long ms) {
     struct timespec ts;
     ts.tv_sec = ms / 1000;
@@ -118,7 +125,8 @@ static inline int x11_send_all(int fd, const void* buf, size_t n) {
         ssize_t w = write(fd, p, n);
         if (w < 0 && errno == EAGAIN) {
             if (++retries > 2000) return -1;
-            x11_sleep_ms(1);
+            if (retries <= 32) x11_yield();
+            else x11_sleep_ms(1);
             continue;
         }
         if (w <= 0) return -1;
@@ -129,6 +137,26 @@ static inline int x11_send_all(int fd, const void* buf, size_t n) {
     return 0;
 }
 
+static inline int x11_flush(X11Conn* c) {
+    if (!c || c->fd < 0 || c->tx_len == 0) return 0;
+    size_t n = c->tx_len;
+    c->tx_len = 0;
+    return x11_send_all(c->fd, c->tx, n);
+}
+
+static inline int x11_queue(X11Conn* c, const void* buf, size_t n) {
+    if (!c || c->fd < 0 || n == 0) return 0;
+    if (n > sizeof(c->tx) - c->tx_len) {
+        if (x11_flush(c) < 0) return -1;
+    }
+    if (n <= sizeof(c->tx)) {
+        memcpy(c->tx + c->tx_len, buf, n);
+        c->tx_len += n;
+        return 0;
+    }
+    return x11_send_all(c->fd, buf, n);
+}
+
 static inline int x11_recv_all(int fd, void* buf, size_t n) {
     uint8_t* p = (uint8_t*)buf;
     int retries = 0;
@@ -136,7 +164,8 @@ static inline int x11_recv_all(int fd, void* buf, size_t n) {
         ssize_t r = read(fd, p, n);
         if (r < 0 && errno == EAGAIN) {
             if (++retries > 5000) return -1;
-            x11_sleep_ms(1);
+            if (retries <= 32) x11_yield();
+            else x11_sleep_ms(1);
             continue;
         }
         if (r <= 0) return -1;
@@ -222,7 +251,7 @@ static inline uint32_t x11_create_window(X11Conn* c, int16_t x, int16_t y,
     x11_put32(pkt, 28, X_CWBackPixel | X_CWEventMask);
     x11_put32(pkt, 32, bg);
     x11_put32(pkt, 36, ev_mask);
-    if (x11_send_all(c->fd, pkt, sizeof(pkt)) < 0) return 0;
+    if (x11_queue(c, pkt, sizeof(pkt)) < 0) return 0;
     return wid;
 }
 
@@ -242,7 +271,7 @@ static inline void x11_set_title(X11Conn* c, uint32_t wid, const char* title) {
     pkt[16] = 8;
     x11_put32(pkt, 20, (uint32_t)len);
     memcpy(pkt + 24, title, len);
-    (void)x11_send_all(c->fd, pkt, total);
+    (void)x11_queue(c, pkt, total);
 }
 
 static inline void x11_map_window(X11Conn* c, uint32_t wid) {
@@ -251,7 +280,8 @@ static inline void x11_map_window(X11Conn* c, uint32_t wid) {
     pkt[0] = X_MapWindow;
     x11_put16(pkt, 2, 2);
     x11_put32(pkt, 4, wid);
-    (void)x11_send_all(c->fd, pkt, sizeof(pkt));
+    (void)x11_queue(c, pkt, sizeof(pkt));
+    (void)x11_flush(c);
 }
 
 static inline uint32_t x11_create_gc(X11Conn* c, uint32_t wid, uint32_t fg, uint32_t bg) {
@@ -265,7 +295,7 @@ static inline uint32_t x11_create_gc(X11Conn* c, uint32_t wid, uint32_t fg, uint
     x11_put32(pkt, 12, X_GCForeground | X_GCBackground);
     x11_put32(pkt, 16, fg);
     x11_put32(pkt, 20, bg);
-    if (x11_send_all(c->fd, pkt, sizeof(pkt)) < 0) return 0;
+    if (x11_queue(c, pkt, sizeof(pkt)) < 0) return 0;
     return gc;
 }
 
@@ -278,7 +308,7 @@ static inline void x11_set_gc_colors(X11Conn* c, uint32_t gc, uint32_t fg, uint3
     x11_put32(pkt, 8, X_GCForeground | X_GCBackground);
     x11_put32(pkt, 12, fg);
     x11_put32(pkt, 16, bg);
-    (void)x11_send_all(c->fd, pkt, sizeof(pkt));
+    (void)x11_queue(c, pkt, sizeof(pkt));
 }
 
 static inline void x11_fill_rect(X11Conn* c, uint32_t wid, uint32_t gc,
@@ -293,7 +323,7 @@ static inline void x11_fill_rect(X11Conn* c, uint32_t wid, uint32_t gc,
     x11_put16(pkt, 14, (uint16_t)y);
     x11_put16(pkt, 16, w);
     x11_put16(pkt, 18, h);
-    (void)x11_send_all(c->fd, pkt, sizeof(pkt));
+    (void)x11_queue(c, pkt, sizeof(pkt));
 }
 
 static inline void x11_draw_text(X11Conn* c, uint32_t wid, uint32_t gc,
@@ -314,7 +344,7 @@ static inline void x11_draw_text(X11Conn* c, uint32_t wid, uint32_t gc,
     x11_put16(pkt, 12, (uint16_t)x);
     x11_put16(pkt, 14, (uint16_t)y);
     memcpy(pkt + 16, text, len);
-    (void)x11_send_all(c->fd, pkt, total);
+    (void)x11_queue(c, pkt, total);
 }
 
 /* Custom X11 client message to update server desktop theme or mouse speed */
@@ -328,11 +358,13 @@ static inline void x11_send_desktop_cfg(X11Conn* c, uint32_t bg_color, uint32_t 
     x11_put32(pkt, 12, bg_color);
     x11_put32(pkt, 16, accent_color);
     x11_put32(pkt, 20, mouse_speed);
-    (void)x11_send_all(c->fd, pkt, sizeof(pkt));
+    (void)x11_queue(c, pkt, sizeof(pkt));
+    (void)x11_flush(c);
 }
 
 /* Non-blocking poll for one 32-byte X11 event. Returns 1 if event read, 0 if none, -1 on EOF. */
 static inline int x11_poll_event(X11Conn* c, X11Event* ev) {
+    if (c->tx_len > 0) (void)x11_flush(c);
     uint8_t raw[32];
     ssize_t r = read(c->fd, raw, sizeof(raw));
     if (r < 0 && errno == EAGAIN) return 0;
@@ -340,7 +372,7 @@ static inline int x11_poll_event(X11Conn* c, X11Event* ev) {
     size_t got = (size_t)r;
     while (got < sizeof(raw)) {
         ssize_t m = read(c->fd, raw + got, sizeof(raw) - got);
-        if (m < 0 && errno == EAGAIN) { x11_sleep_ms(1); continue; }
+        if (m < 0 && errno == EAGAIN) { x11_yield(); continue; }
         if (m <= 0) return -1;
         got += (size_t)m;
     }

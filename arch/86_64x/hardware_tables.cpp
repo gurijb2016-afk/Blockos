@@ -10,7 +10,7 @@ extern "C" void blockos_syscall_entry();
 __attribute__((aligned(4096))) static GDTEntry gdt[7]; static GDTDescriptor gdt_desc; __attribute__((aligned(16))) static IDTEntry idt[256]; __attribute__((aligned(16))) static TSS tss; __attribute__((aligned(16))) static uint8_t df_stack[8192]; __attribute__((aligned(16))) static uint8_t user_kernel_stack[16384];
 HardwareTablesManager cpu_tables;
 void HardwareTablesManager::register_stubs(){for(int i=0;i<256;i++)register_interrupt_handler(i,(void*)default_stubs[i],0x8E);register_interrupt_handler(128,(void*)blockos_syscall_entry,0xEE);}
-void HardwareTablesManager::init(){setup_cpu_security();register_stubs();idt[8].ist=1;load_idt();pic_remap();pit_init(100);__asm__ volatile("sti");}
+void HardwareTablesManager::init(){setup_cpu_security();register_stubs();idt[8].ist=1;load_idt();pic_remap();pit_init(500);__asm__ volatile("sti");}
 void HardwareTablesManager::setup_cpu_security(){__asm__ volatile("cli");gdt[0]={0,0,0,0,0,0};gdt[1]={0,0,0,0x9A,0x20,0};gdt[2]={0,0,0,0x92,0,0};gdt[3]={0,0,0,0xFA,0x20,0};gdt[4]={0,0,0,0xF2,0,0};setup_tss();gdt_desc.limit=sizeof(gdt)-1;gdt_desc.base=(uint64_t)&gdt;__asm__ volatile("lgdt %0"::"m"(gdt_desc));reload_segments();__asm__ volatile("ltr %w0"::"r"((uint16_t)0x28));}
 void HardwareTablesManager::setup_tss(){memset(&tss,0,sizeof(tss));tss.rsp0=(uint64_t)user_kernel_stack+sizeof(user_kernel_stack);tss.ist1=(uint64_t)df_stack+sizeof(df_stack);tss.iomap_base=sizeof(tss);uint64_t b=(uint64_t)&tss;uint32_t l=sizeof(tss)-1;gdt[5]={(uint16_t)(l&0xffff),(uint16_t)(b&0xffff),(uint8_t)((b>>16)&0xff),0x89,(uint8_t)((l>>16)&0x0f),(uint8_t)((b>>24)&0xff)};gdt[6]={0,(uint16_t)((b>>32)&0xffff),(uint8_t)((b>>48)&0xff),0,0,(uint8_t)((b>>56)&0xff)};}
 
@@ -75,9 +75,12 @@ extern "C" void interrupt_handler_c(InterruptFrame* f){
         return;
     }
     if(f->vector<48){
-        if(f->vector==32) pit_handler_c();
-        if(f->vector==33 || f->vector==44) blockos::input::poll_hardware();
-        pic_send_eoi((uint8_t)f->vector);
+        if(f->vector==32) {
+            pit_handler_c();
+        } else {
+            if(f->vector==33 || f->vector==44) blockos::input::poll_hardware();
+            pic_send_eoi((uint8_t)f->vector);
+        }
 
         /* EOI is sent BEFORE switching, so the PIC is ready for the next
          * tick regardless of which task we return into. on_timer() only

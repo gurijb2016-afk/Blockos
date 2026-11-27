@@ -215,6 +215,7 @@ static void draw_ui(X11Conn* c, uint32_t win, uint32_t gc) {
     /* Persistence notice */
     x11_set_gc_colors(c, gc, 0x00718096u, 0x001E242Cu);
     x11_draw_text(c, win, gc, 12, 290, "Settings saved to /etc/blockos.settings");
+    x11_flush(c);
 }
 
 int main(void) {
@@ -238,7 +239,7 @@ int main(void) {
         X11Event ev;
         int r = x11_poll_event(&c, &ev);
         if (r < 0) break;
-        if (r == 0) { x11_sleep_ms(20); continue; }
+        if (r == 0) { x11_sleep_ms(4); continue; }
 
         if (ev.type == X_EV_DestroyNotify) break;
         if (ev.type == X_EV_Expose) {
