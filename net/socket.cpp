@@ -46,6 +46,12 @@ int listen(int fd,int) {
     return sockets[fd].local_port ? 0 : -1;
 }
 
+int accept(int fd) {
+    if(fd<0||fd>=32||!sockets[fd].used||sockets[fd].type!=SOCK_STREAM||!sockets[fd].local_port)
+        return -1;
+    return -2; // EAGAIN: no pending TCP connection
+}
+
 int send(int fd,const void* buf,size_t len) {
     if(fd<0||fd>=32||!sockets[fd].used||!buf) return -1;
     if(sockets[fd].type==SOCK_STREAM)

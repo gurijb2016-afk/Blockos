@@ -1,5 +1,6 @@
 #pragma once
 #include <cstddef>
+#include <cstdint>
 
 namespace allocator
 {
@@ -20,6 +21,8 @@ struct AllocRecord
 
 // Snapshot of the running counters.
 const AllocRecord& get_record();
+uint64_t bad_op();
+uint64_t heap_begin();
 
 void init(void* base, size_t size);
 void* alloc(size_t size, size_t align = 8); // Should match GRANULARITY

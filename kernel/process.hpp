@@ -9,7 +9,10 @@ namespace process {
 enum class State : uint8_t { EMPTY = 0, READY, RUNNING, BLOCKED, TERMINATED };
 
 struct RuntimeFd {
-    enum Kind : uint8_t { None = 0, Tty, File, Directory, Device, UnixSocket, Null, Random };
+    enum Kind : uint8_t {
+        None = 0, Tty, File, Directory, Device, UnixSocket, Null, Random,
+        InetSocket, Memfd, EventFd, TimerFd, SignalFd
+    };
     bool used;
     Kind kind;
     uint32_t flags;
@@ -39,6 +42,8 @@ struct Process {
     uint64_t pgid;
     uint64_t sid;
     uint32_t uid, euid, gid, egid; /* credentials; 0 = root */
+    uint16_t umask_val;
+    bool umask_set;
     uint32_t wait_sock_plus1; /* unix socket index + 1 this task sleeps on (0 = none) */
     uint64_t tid;
     uint64_t fs_base;

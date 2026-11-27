@@ -68,6 +68,13 @@ bool remove_file(const char* path);
 bool remove_directory(const char* path);
 bool rename_path(const char* old_path, const char* new_path);
 
+bool set_mode(const char* path, uint32_t mode);
+bool get_mode(const char* path, uint32_t* out_mode);
+bool set_owner(const char* path, uint32_t uid, uint32_t gid);
+bool get_owner(const char* path, uint32_t* out_uid, uint32_t* out_gid);
+bool create_symlink(const char* target, const char* link_path);
+const char* read_symlink(const char* path);
+
 bool create_device_node(
     const char* path,
     const DeviceNodeInfo& info
