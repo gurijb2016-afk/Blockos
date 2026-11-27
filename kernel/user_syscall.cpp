@@ -1142,7 +1142,7 @@ if(x->pml4_owned&&x->pml4&&x->pml4!=(paging::read_cr3()&0x000ffffffffff000ULL)){
         if(f->rax==blockos::syscall::SYS_getrlimit){uint64_t* q=(uint64_t*)(uintptr_t)f->rsi;q[0]=0x7fffffffffffffffULL;q[1]=0x7fffffffffffffffULL;} r=0; break;
     }
     case blockos::syscall::SYS_sched_getaffinity: { if(!paging::is_user_range(f->r9,8,true)){r=EFAULT;break;} *(uint64_t*)(uintptr_t)f->r9=1ULL; r=8; break; }
-    case blockos::syscall::SYS_access:{char path[256];if(!copy_user_string(f->rdi,path,sizeof(path))){r=EFAULT;break;}uint32_t sz=0;r=(vfs::read_file(path,&sz)||vfs::is_directory(path)||vfs::is_device(path))?0:ENOENT;break;}
+    case blockos::syscall::SYS_access:{char raw[256],path[256];if(!copy_user_string(f->rdi,raw,sizeof(raw))){r=EFAULT;break;}if(!resolve_path_for_process(p,raw,path,sizeof(path))){r=ENAMETOOLONG;break;}uint32_t sz=0;r=(vfs::read_file(path,&sz)||vfs::is_directory(path)||vfs::is_device(path))?0:ENOENT;break;}
     case blockos::syscall::SYS_stat: case blockos::syscall::SYS_lstat:{
         char raw[256],path[256];if(!copy_user_string(f->rdi,raw,sizeof(raw))){r=EFAULT;break;}
         if(!resolve_path_for_process(p,raw,path,sizeof(path))){r=ENAMETOOLONG;break;}

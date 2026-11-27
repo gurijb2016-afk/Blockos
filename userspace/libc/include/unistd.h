@@ -135,3 +135,7 @@ int execve(const char *path, char *const argv[], char *const envp[]);
 #ifdef __cplusplus
 }
 #endif
+
+#ifndef _PC_PIPE_BUF
+#define _PC_PIPE_BUF 5
+#endif

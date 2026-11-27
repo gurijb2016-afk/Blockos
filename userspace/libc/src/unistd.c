@@ -58,7 +58,9 @@ int dup2(int oldfd, int newfd) {
 }
 
 int isatty(int fd) {
-    long r = __blockos_syscall(__SYS_fstat, fd, 0, 0, 0, 0, 0);
-    if (r < 0) { errno = (int)-r; return 0; }
-    return fd >= 0 && fd <= 2 ? 1 : 0;
+    /* A descriptor is a terminal when the kernel accepts the termios get request on it. */
+    unsigned char termios_buf[64];
+    long r = __blockos_syscall(__SYS_ioctl, fd, 0x424F5303UL, (long)termios_buf, 0, 0, 0);
+    if (r < 0) { errno = ENOTTY; return 0; }
+    return 1;
 }

@@ -56,24 +56,24 @@ public:
 };
 
 enum LocalFlag : std::uint32_t {
-    LFLAG_ECHO   = 1u << 0,
-    LFLAG_ECHOE  = 1u << 1,
-    LFLAG_ECHOK  = 1u << 2,
-    LFLAG_ICANON = 1u << 3,
-    LFLAG_ISIG   = 1u << 4,
-    LFLAG_IEXTEN = 1u << 5
+    LFLAG_ECHO   = 8u,       /* Linux ECHO 010 */
+    LFLAG_ECHOE  = 16u,      /* Linux ECHOE 020 */
+    LFLAG_ECHOK  = 32u,      /* Linux ECHOK 040 */
+    LFLAG_ICANON = 2u,       /* Linux ICANON 02 */
+    LFLAG_ISIG   = 1u,       /* Linux ISIG 01 */
+    LFLAG_IEXTEN = 32768u    /* Linux IEXTEN 0100000 */
 };
 
 enum InputFlag : std::uint32_t {
-    IFLAG_ICRNL  = 1u << 0,
-    IFLAG_INLCR  = 1u << 1,
-    IFLAG_IGNCR  = 1u << 2,
-    IFLAG_ISTRIP = 1u << 3
+    IFLAG_ICRNL  = 256u,     /* Linux ICRNL 0400 */
+    IFLAG_INLCR  = 64u,      /* Linux INLCR 0100 */
+    IFLAG_IGNCR  = 128u,     /* Linux IGNCR 0200 */
+    IFLAG_ISTRIP = 32u       /* Linux ISTRIP 040 */
 };
 
 enum OutputFlag : std::uint32_t {
-    OFLAG_OPOST = 1u << 0,
-    OFLAG_ONLCR = 1u << 1
+    OFLAG_OPOST = 1u,        /* Linux OPOST 01 */
+    OFLAG_ONLCR = 4u         /* Linux ONLCR 04 */
 };
 
 struct WindowSize {
@@ -118,13 +118,13 @@ static constexpr std::uint64_t IOCTL_SET_NONBLOCK =
 static constexpr std::uint64_t IOCTL_GET_NONBLOCK =
     0x424F5309ULL;
 
-static constexpr std::uint8_t CC_VINTR  = 3;
+static constexpr std::uint8_t CC_VINTR  = 0;   /* indices follow Linux termios c_cc[] */
 static constexpr std::uint8_t CC_VEOF   = 4;
-static constexpr std::uint8_t CC_VERASE = 127;
-static constexpr std::uint8_t CC_VKILL  = 21;
-static constexpr std::uint8_t CC_VSTART = 17;
-static constexpr std::uint8_t CC_VSTOP  = 19;
-static constexpr std::uint8_t CC_VSUSP  = 26;
+static constexpr std::uint8_t CC_VERASE = 2;
+static constexpr std::uint8_t CC_VKILL  = 3;
+static constexpr std::uint8_t CC_VSTART = 8;
+static constexpr std::uint8_t CC_VSTOP  = 9;
+static constexpr std::uint8_t CC_VSUSP  = 10;
 
 using OutputCallback =
     void (*)(const char*, std::size_t, void*);
@@ -422,7 +422,7 @@ public:
             LFLAG_ISIG |
             LFLAG_IEXTEN;
 
-        termios_.cc[CC_VINTR]  = 3;
+        termios_.cc[CC_VINTR]  = 3;   /* default values (^C, ^D, DEL, ^U, ^Q, ^S, ^Z) */
         termios_.cc[CC_VEOF]   = 4;
         termios_.cc[CC_VERASE] = 127;
         termios_.cc[CC_VKILL]  = 21;

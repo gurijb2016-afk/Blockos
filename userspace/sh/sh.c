@@ -12,8 +12,8 @@ enum {
 struct termios_k { uint32_t iflag, oflag, cflag, lflag; uint8_t cc[20]; };
 #define TIOC_GETTERMIOS 0x424F5303UL
 #define TIOC_SETTERMIOS 0x424F5304UL
-#define LFLAG_ECHO   (1u << 0)
-#define LFLAG_ICANON (1u << 3)
+#define LFLAG_ECHO   8u      /* Linux ECHO */
+#define LFLAG_ICANON 2u      /* Linux ICANON */
 
 static long sc3(long n, long a0, long a1, long a2) {
     long r;
@@ -184,7 +184,11 @@ int main(int argc, char** argv, char** envp) {
     tty_setup();
     out("BlockOS shell. Type 'help'.\n");
     for (;;) {
-        out("blockos$ ");
+        /* green host name, grey-blue working directory, then the usual "$ " */
+        out("\x1b[?1049l");   /* leave the alternate screen if a full-screen program left it */
+        out("\x1b[32mblockos\x1b[0m:\x1b[34m");
+        out(cwd);
+        out("\x1b[0m$ ");
         readline(line, sizeof line);
         run(line);
     }

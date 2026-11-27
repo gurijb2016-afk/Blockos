@@ -19,7 +19,6 @@ struct FILE {
     off_t offset;
     unsigned char ungot_has;   /* one-character pushback for ungetc() */
     unsigned char ungot_ch;
-    volatile unsigned int lock; /* per-stream spinlock for thread safety */
 };
 
 #define EOF (-1)
@@ -72,6 +71,13 @@ int asprintf(char **out, const char *fmt, ...);
 int vasprintf(char **out, const char *fmt, va_list ap);
 int vfscanf(FILE *f, const char *fmt, va_list ap);
 int fscanf(FILE *f, const char *fmt, ...);
+int scanf(const char *fmt, ...);
+int getchar(void);
+int rename(const char *from, const char *to);
+FILE *tmpfile(void);
+typedef long long fpos_t;
+int fgetpos(FILE *f, fpos_t *pos);
+int fsetpos(FILE *f, const fpos_t *pos);
 
 /* Single-threaded libc: the _unlocked variants are plain functions that call the locked ones
  * (busybox_compat.c). They must not be macros: BusyBox's libbb.h redefines fgetc/putc on top of them. */
@@ -89,4 +95,8 @@ FILE* freopen(const char*, const char*, FILE*);
 
 #ifdef __cplusplus
 }
+#endif
+
+#ifndef P_tmpdir
+#define P_tmpdir "/tmp"
 #endif

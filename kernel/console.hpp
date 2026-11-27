@@ -96,4 +96,32 @@ class Console
 
     uint32_t fg_ = 0x00000000;
     uint32_t bg_ = 0x00FFFFC0;
+
+    // Per-cell colour index (0 = default fg_), set by the ANSI SGR sequences ESC[...m
+    uint8_t attrs_[SCROLLBACK][COLS] = {};
+    uint8_t cur_attr_ = 0;
+    // ANSI parser: 0 = normal, 1 = after ESC, 2 = inside CSI
+    uint8_t esc_state_ = 0;
+    uint32_t esc_params_[4] = {};
+    uint8_t esc_count_ = 0;
+    void apply_sgr();
+
+    // Screen mode (alternate screen, used by full-screen programs such as nano):
+    // the visible rows are screen_top_ .. screen_top_ + visible_rows() - 1
+    size_t screen_top_ = 0;
+    bool screen_mode_ = false;
+    bool esc_private_ = false;   // '?' prefix seen in the current CSI
+    size_t saved_line_ = 0;      // ESC 7 / ESC[s cursor save
+    size_t saved_col_ = 0;
+    size_t hw_line_ = 0;         // highest line ever used (bottom of the content)
+
+    size_t screen_base() const;
+    void goto_line(size_t line);
+    void clear_line_range(size_t line);
+    void screen_enter();
+    void screen_leave();
+    void csi_dispatch(char final_byte);
+    void erase_display(uint32_t mode);
+    void erase_line(uint32_t mode);
+    void cursor_to(uint32_t row, uint32_t col);
 };
