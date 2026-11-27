@@ -3,6 +3,7 @@
 #include "ps2keyboard.hpp"
 #include "ps2mouse.hpp"
 #include "virtio_input.hpp"
+#include "spinlock.hpp"
 
 namespace blockos::input {
 namespace {
@@ -15,9 +16,50 @@ PS2Mouse mouse;
 uint8_t mouse_packet[3] = {0,0,0};
 uint8_t mouse_packet_pos = 0;
 bool hardware_ready = false;
+Blockos::Spinlock input_lock;
+
+inline uint8_t inb_8042(uint16_t port) {
+    uint8_t val;
+    __asm__ volatile("inb %1, %0" : "=a"(val) : "Nd"(port));
+    return val;
 }
 
+void push_locked(const Event& e) {
+    const size_t next = (tail + 1) % CAP;
+    if (next == head) {
+        /* Drop oldest input rather than blocking kernel input producers. */
+        head = (head + 1) % CAP;
+    }
+    queue[tail] = e;
+    tail = next;
+}
+
+void push_keyboard_locked(uint32_t scancode, bool pressed, bool extended) {
+    Event e{};
+    e.magic = MAGIC;
+    e.version = VERSION;
+    e.type = EVENT_KEYBOARD;
+    e.scancode = scancode;
+    e.pressed = pressed ? 1u : 0u;
+    e.extended = extended ? 1u : 0u;
+    push_locked(e);
+}
+
+void push_mouse_locked(int32_t dx, int32_t dy, int32_t wheel, uint32_t buttons) {
+    Event e{};
+    e.magic = MAGIC;
+    e.version = VERSION;
+    e.type = EVENT_MOUSE;
+    e.dx = dx;
+    e.dy = dy;
+    e.wheel = wheel;
+    e.buttons = buttons;
+    push_locked(e);
+}
+} // namespace
+
 void init() {
+    Blockos::ScopedLock guard(input_lock);
     head = tail = 0;
     memset(queue, 0, sizeof(queue));
     mouse_packet_pos = 0;
@@ -27,26 +69,35 @@ void init() {
 }
 
 void poll_hardware() {
+    Blockos::ScopedLock guard(input_lock);
     if (!hardware_ready) return;
-    for (;;) {
-        KeyEvent e;
-        if (!keyboard.poll(e)) break;
-        push_keyboard(e.scancode, e.is_pressed, e.is_extended);
-    }
-    for (;;) {
-        int16_t b = mouse.read_byte_nonblocking();
-        if (b < 0) break;
-        uint8_t byte = (uint8_t)b;
-        if (mouse_packet_pos == 0 && !(byte & 0x08u)) continue;
-        mouse_packet[mouse_packet_pos++] = byte;
-        if (mouse_packet_pos == 3) {
-            int32_t dx = (mouse_packet[0] & 0x10u) ? (int32_t)(int8_t)mouse_packet[1] : (int32_t)mouse_packet[1];
-            int32_t dy = (mouse_packet[0] & 0x20u) ? (int32_t)(int8_t)mouse_packet[2] : (int32_t)mouse_packet[2];
-            uint32_t buttons = mouse_packet[0] & 0x07u;
-            push_mouse(dx, -dy, 0, buttons);
-            mouse_packet_pos = 0;
+
+    // Drain the shared 8042 PS/2 controller output buffer in one interleaved
+    // loop so mouse AUX bytes can never block keyboard scancodes (or vice versa).
+    for (int budget = 0; budget < 64; ++budget) {
+        uint8_t st = inb_8042(0x64);
+        if ((st & 0x01u) == 0) break;
+        if (st & 0x20u) {
+            int16_t b = mouse.read_byte_nonblocking();
+            if (b < 0) break;
+            uint8_t byte = static_cast<uint8_t>(b);
+            if (mouse_packet_pos == 0 && !(byte & 0x08u)) continue;
+            mouse_packet[mouse_packet_pos++] = byte;
+            if (mouse_packet_pos == 3) {
+                int32_t dx = (mouse_packet[0] & 0x10u) ? static_cast<int32_t>(static_cast<int8_t>(mouse_packet[1])) : static_cast<int32_t>(mouse_packet[1]);
+                int32_t dy = (mouse_packet[0] & 0x20u) ? static_cast<int32_t>(static_cast<int8_t>(mouse_packet[2])) : static_cast<int32_t>(mouse_packet[2]);
+                uint32_t buttons = mouse_packet[0] & 0x07u;
+                push_mouse_locked(dx, -dy, 0, buttons);
+                mouse_packet_pos = 0;
+            }
+        } else {
+            KeyEvent e{};
+            if (keyboard.poll(e)) {
+                push_keyboard_locked(e.scancode, e.is_pressed, e.is_extended);
+            }
         }
     }
+
     int32_t v_dx = 0, v_dy = 0, v_wheel = 0;
     static uint32_t v_buttons = 0;
     bool v_motion = false;
@@ -58,58 +109,36 @@ void poll_hardware() {
                 if (ve.value) v_buttons |= bit; else v_buttons &= ~bit;
                 v_motion = true;
             } else if (ve.code > 0 && ve.code < 0x80) {
-                push_keyboard(ve.code, ve.value != 0, false);
+                push_keyboard_locked(ve.code, ve.value != 0, false);
             }
         } else if (ve.type == 2) { // EV_REL
             if (ve.code == 0) { v_dx += ve.value; v_motion = true; }
             else if (ve.code == 1) { v_dy += ve.value; v_motion = true; }
             else if (ve.code == 8) { v_wheel += ve.value; v_motion = true; }
         } else if (ve.type == 0 && v_motion) { // EV_SYN
-            push_mouse(v_dx, v_dy, v_wheel, v_buttons);
+            push_mouse_locked(v_dx, v_dy, v_wheel, v_buttons);
             v_dx = v_dy = v_wheel = 0;
             v_motion = false;
         }
     }
     if (v_motion) {
-        push_mouse(v_dx, v_dy, v_wheel, v_buttons);
+        push_mouse_locked(v_dx, v_dy, v_wheel, v_buttons);
     }
-}
-
-static void push(const Event& e) {
-    const size_t next = (tail + 1) % CAP;
-    if (next == head) {
-        /* Drop oldest input rather than blocking kernel input producers. */
-        head = (head + 1) % CAP;
-    }
-    queue[tail] = e;
-    tail = next;
 }
 
 void push_keyboard(uint32_t scancode, bool pressed, bool extended) {
-    Event e{};
-    e.magic = MAGIC;
-    e.version = VERSION;
-    e.type = EVENT_KEYBOARD;
-    e.scancode = scancode;
-    e.pressed = pressed ? 1u : 0u;
-    e.extended = extended ? 1u : 0u;
-    push(e);
+    Blockos::ScopedLock guard(input_lock);
+    push_keyboard_locked(scancode, pressed, extended);
 }
 
 void push_mouse(int32_t dx, int32_t dy, int32_t wheel, uint32_t buttons) {
-    Event e{};
-    e.magic = MAGIC;
-    e.version = VERSION;
-    e.type = EVENT_MOUSE;
-    e.dx = dx;
-    e.dy = dy;
-    e.wheel = wheel;
-    e.buttons = buttons;
-    push(e);
+    Blockos::ScopedLock guard(input_lock);
+    push_mouse_locked(dx, dy, wheel, buttons);
 }
 
 size_t read(Event* out, size_t max_events) {
     if (!out || max_events == 0) return 0;
+    Blockos::ScopedLock guard(input_lock);
     size_t n = 0;
     while (head != tail && n < max_events) {
         out[n++] = queue[head];
@@ -119,10 +148,11 @@ size_t read(Event* out, size_t max_events) {
 }
 
 size_t pending() {
+    Blockos::ScopedLock guard(input_lock);
     return tail >= head ? tail - head : CAP - head + tail;
 }
 
-}
+} // namespace blockos::input
 
 extern "C" void blockos_input_push_keyboard(uint32_t scancode, int pressed, int extended) {
     blockos::input::push_keyboard(scancode, pressed != 0, extended != 0);

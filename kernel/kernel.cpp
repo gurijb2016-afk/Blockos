@@ -31,6 +31,7 @@ extern uint64_t g_alias_first_va;
 #include "drivers/nvme.hpp"
 #include "drivers/audio.hpp"
 #include "drivers/power.hpp"
+#include "drivers/serial.hpp"
 #include "fs/vfs_blk_adapter.hpp"
 #include "net/net.hpp"
 #include "drivers/uefi_smp.hpp"
@@ -583,6 +584,17 @@ static void service_tty_input()
 
         for (size_t i = 0; i < n; ++i)
             route_keyboard_event_to_tty(events[i]);
+    }
+
+    // Also accept interactive input from 16550 serial console (COM1).
+    for (int i = 0; i < 64; ++i)
+    {
+        const int16_t ch = serial::read_char_nonblocking();
+        if (ch < 0)
+            break;
+        uint8_t c = static_cast<uint8_t>(ch);
+        if (c == '\r') c = '\n';
+        blockos_tty_input_char(c);
     }
 }
 
@@ -1596,6 +1608,11 @@ extern "C" EFI_STATUS efi_main(
             }
         }
 
+        if (!dismiss && serial::read_char_nonblocking() >= 0)
+        {
+            dismiss = true;
+        }
+
         if (dismiss)
         {
             /*
@@ -1621,6 +1638,18 @@ extern "C" EFI_STATUS efi_main(
     }
 
 #endif
+
+    // Render color-coded kernel boot hardware checklist ([  OK  ] / [ N/A  ] / [ FAIL ])
+    // onto both the framebuffer console and serial output before starting /bin/sh.
+    {
+        auto emit_boot_check = [](const char* text, void*) {
+            if (!text) return;
+            size_t len = strlen(text);
+            console_sink(text, len, nullptr);
+            serial::write_string(text);
+        };
+        blockos_hw::print_boot_checklist(emit_boot_check, nullptr);
+    }
 
     /*
      * ========================================================

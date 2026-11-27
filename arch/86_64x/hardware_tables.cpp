@@ -4,6 +4,7 @@
 #include "libc/include/stdio.h"
 #include "libc/include/string.h"
 #include "preempt.hpp"
+#include "input_bridge.hpp"
 extern "C" void reload_segments();
 extern "C" void blockos_syscall_entry();
 __attribute__((aligned(4096))) static GDTEntry gdt[7]; static GDTDescriptor gdt_desc; __attribute__((aligned(16))) static IDTEntry idt[256]; __attribute__((aligned(16))) static TSS tss; __attribute__((aligned(16))) static uint8_t df_stack[8192]; __attribute__((aligned(16))) static uint8_t user_kernel_stack[16384];
@@ -75,6 +76,7 @@ extern "C" void interrupt_handler_c(InterruptFrame* f){
     }
     if(f->vector<48){
         if(f->vector==32) pit_handler_c();
+        if(f->vector==33 || f->vector==44) blockos::input::poll_hardware();
         pic_send_eoi((uint8_t)f->vector);
 
         /* EOI is sent BEFORE switching, so the PIC is ready for the next
