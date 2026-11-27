@@ -382,7 +382,25 @@ void Console::putc(char c)
     {
         newline();
     }
-
+    else if (c == '\r')
+    {
+        col_ = 0;
+    }
+    else if (c == '\b' || c == 0x7f)
+    {
+        if (col_ > 0)
+            col_--;
+    }
+    else if (c == '\t')
+    {
+        size_t next_tab = (col_ + 4) & ~static_cast<size_t>(3);
+        while (col_ < next_tab && col_ < visible_cols())
+        {
+            slot(line_)[col_] = ' ';
+            attrs_[line_ % SCROLLBACK][col_] = cur_attr_;
+            col_++;
+        }
+    }
     else if (c >= 0x20 && c <= 0x7E)
     {
         slot(line_)[col_] = c;
