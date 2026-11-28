@@ -6,8 +6,8 @@
 class Console
 {
    public:
-    static constexpr size_t ROWS = 24;
-    static constexpr size_t COLS = 80;
+    static constexpr size_t ROWS = 72;
+    static constexpr size_t COLS = 120;
 
     // Retained lines, including those scrolled off the top of the view
     static constexpr size_t SCROLLBACK = 512;
@@ -27,6 +27,9 @@ class Console
     void print_uint(uint64_t value);
 
     void render(uint8_t* backbuf, uint32_t fb_width);
+    // Returns true if only a single horizontal band (y..y+h) changed since last render
+    bool dirty_band(int* out_y, int* out_h) const;
+    void clear_dirty_band();
 
     // View movement, in lines, toward older and newer output respectively
     void scroll_up(size_t rows);
@@ -88,6 +91,13 @@ class Console
     size_t view_offset_ = 0;
 
     bool dirty_ = true;
+    bool full_redraw_ = true;
+    size_t last_first_ = 0;
+    size_t dirty_row_min_ = 0;
+    size_t dirty_row_max_ = 0;
+    bool has_dirty_rows_ = false;
+    void mark_line_dirty(size_t abs_line);
+    void mark_full_dirty();
 
     int x_ = 0;
     int y_ = 0;

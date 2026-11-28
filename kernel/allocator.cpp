@@ -1,4 +1,5 @@
 #include "allocator.hpp"
+#include "spinlock.hpp"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -6,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 
+static Blockos::Spinlock g_heap_lock;
 static uint8_t* heap_base = nullptr;
 static size_t heap_size = 0;
 static size_t heap_off = 0;
@@ -48,6 +50,7 @@ static constexpr size_t ARENA_ALIGNMENT = 4 * 1024;
 
 void init(void* base, size_t size)
 {
+    Blockos::ScopedLock guard(g_heap_lock);
     heap_base = (uint8_t*) base;
     uintptr_t addr = (uintptr_t) heap_base;
     uintptr_t aligned_addr =
@@ -78,6 +81,7 @@ static constexpr size_t GRANULARITY =
 // Assumes commitment to payload + header convention
 void* alloc(size_t size, size_t align)
 {
+    Blockos::ScopedLock guard(g_heap_lock);
     if (align < GRANULARITY)
         align = GRANULARITY; // Ensure alignment is at least the size of the header
     // to avoid header/general misalignment issues
@@ -187,7 +191,8 @@ void* alloc(size_t size, size_t align)
 void free(void* ptr)
 {
     if (!ptr) return; // freeing nullptr is legal and is not an error
-    if (!heap_base)
+    Blockos::ScopedLock guard(g_heap_lock);
+    if (!heap_base || reinterpret_cast<uintptr_t>(ptr) < reinterpret_cast<uintptr_t>(heap_base) + sizeof(header))
     {
         record.free_rejected++;
         return;
@@ -247,6 +252,7 @@ void free(void* ptr)
 
 void reset()
 {
+    Blockos::ScopedLock guard(g_heap_lock);
     heap_off = 0;
     record.used = 0;
     record.reset_count++;
@@ -254,8 +260,19 @@ void reset()
 
 const AllocRecord& get_record()
 {
+    Blockos::ScopedLock guard(g_heap_lock);
     record.offset = heap_off;
     return record;
+}
+
+uint64_t bad_op()
+{
+    return static_cast<uint64_t>(record.free_rejected);
+}
+
+uint64_t heap_begin()
+{
+    return static_cast<uint64_t>(reinterpret_cast<uintptr_t>(heap_base));
 }
 } // namespace allocator
 

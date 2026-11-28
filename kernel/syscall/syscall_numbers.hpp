@@ -114,6 +114,16 @@ enum Number : std::uint64_t {
     SYS_symlink = 106,
     SYS_blockos_disk = 107,
     SYS_blockos_reboot = 108,
+    SYS_getsid = 109,
+    SYS_umask = 110,
+    SYS_memfd_create = 111,
+    SYS_prlimit64 = 112,
+    SYS_sigaltstack = 113,
+    SYS_eventfd2 = 114,
+    SYS_timerfd_create = 115,
+    SYS_timerfd_settime = 116,
+    SYS_timerfd_gettime = 117,
+    SYS_signalfd4 = 118,
     SYS_unknown = 0xFFFFFFFFFFFFFFFFULL
 };
 

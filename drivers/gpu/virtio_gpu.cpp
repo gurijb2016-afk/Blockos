@@ -137,6 +137,7 @@ bool init() {
     g.cmd=dma::alloc(4096,64);
     g.resp=dma::alloc(4096,64);
     if(!g.queue_mem||!g.cmd||!g.resp) return false;
+    memset(g.queue_mem,0,g.queue_mem_size);
     if(!virtio_common::setup_queue(&g.dev,0,g.queue_mem,q,&g.queue)) return false;
     uint8_t st=virtio_common::get_device_status(&g.dev);
     virtio_common::set_device_status(&g.dev, static_cast<uint8_t>(st | 0x04));

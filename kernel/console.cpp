@@ -52,6 +52,59 @@ size_t Console::retained() const
     return (line_ + 1 < SCROLLBACK) ? line_ + 1 : SCROLLBACK;
 }
 
+void Console::mark_full_dirty()
+{
+    dirty_ = true;
+    full_redraw_ = true;
+    has_dirty_rows_ = false;
+}
+
+void Console::mark_line_dirty(size_t abs_line)
+{
+    dirty_ = true;
+    if (!has_dirty_rows_)
+    {
+        dirty_row_min_ = abs_line;
+        dirty_row_max_ = abs_line;
+        has_dirty_rows_ = true;
+    }
+    else
+    {
+        if (abs_line < dirty_row_min_) dirty_row_min_ = abs_line;
+        if (abs_line > dirty_row_max_) dirty_row_max_ = abs_line;
+    }
+}
+
+bool Console::dirty_band(int* out_y, int* out_h) const
+{
+    if (!out_y || !out_h) return false;
+    if (full_redraw_ || !has_dirty_rows_)
+    {
+        *out_y = y_;
+        *out_h = h_;
+        return false;
+    }
+    const size_t rows = visible_rows();
+    if (dirty_row_max_ < last_first_ || dirty_row_min_ >= last_first_ + rows)
+    {
+        *out_y = y_;
+        *out_h = h_;
+        return false;
+    }
+    size_t r0 = dirty_row_min_ > last_first_ ? (dirty_row_min_ - last_first_) : 0;
+    size_t r1 = (dirty_row_max_ - last_first_) + 1;
+    if (r1 > rows) r1 = rows;
+    *out_y = y_ + static_cast<int>(r0 * LINE_H);
+    *out_h = static_cast<int>((r1 - r0) * LINE_H);
+    return true;
+}
+
+void Console::clear_dirty_band()
+{
+    full_redraw_ = false;
+    has_dirty_rows_ = false;
+}
+
 void Console::clear()
 {
     for (size_t r = 0; r < SCROLLBACK; ++r)
@@ -68,7 +121,7 @@ void Console::clear()
     line_ = 0;
     col_ = 0;
     view_offset_ = 0;
-    dirty_ = true;
+    mark_full_dirty();
 }
 
 void Console::newline()
@@ -84,7 +137,7 @@ void Console::newline()
     for (size_t c = 0; c < COLS; ++c)
         attrs_[line_ % SCROLLBACK][c] = 0;
 
-    dirty_ = true;
+    mark_line_dirty(line_);
 }
 
 // First absolute line of the visible screen
@@ -191,7 +244,7 @@ void Console::erase_display(uint32_t mode)
         const size_t top = screen_top_;
         for (size_t k = top; k <= top + visible_rows() - 1; ++k)
             clear_line_range(k);
-        dirty_ = true;
+        mark_full_dirty();
         return;
     }
 
@@ -207,7 +260,7 @@ void Console::erase_display(uint32_t mode)
         for (size_t k = base; k < line_; ++k)
             clear_line_range(k);
     }
-    dirty_ = true;
+    mark_full_dirty();
 }
 
 void Console::csi_dispatch(char final_byte)
@@ -382,7 +435,25 @@ void Console::putc(char c)
     {
         newline();
     }
-
+    else if (c == '\r')
+    {
+        col_ = 0;
+    }
+    else if (c == '\b' || c == 0x7f)
+    {
+        if (col_ > 0)
+            col_--;
+    }
+    else if (c == '\t')
+    {
+        size_t next_tab = (col_ + 4) & ~static_cast<size_t>(3);
+        while (col_ < next_tab && col_ < visible_cols())
+        {
+            slot(line_)[col_] = ' ';
+            attrs_[line_ % SCROLLBACK][col_] = cur_attr_;
+            col_++;
+        }
+    }
     else if (c >= 0x20 && c <= 0x7E)
     {
         slot(line_)[col_] = c;
@@ -395,7 +466,7 @@ void Console::putc(char c)
         newline();
     }
 
-    dirty_ = true;
+    mark_line_dirty(line_);
 }
 
 void Console::print(const char* text)
@@ -496,15 +567,6 @@ size_t Console::visible_cols() const
 
 void Console::render(uint8_t* backbuf, uint32_t fb_width)
 {
-    bb_draw_rect(
-        backbuf,
-        fb_width,
-        x_,
-        y_,
-        w_,
-        h_,
-        bg_);
-
     const size_t rows = visible_rows();
 
     // attach() can shrink the view out from under an existing offset
@@ -526,26 +588,58 @@ void Console::render(uint8_t* backbuf, uint32_t fb_width)
         first = (bottom + 1 > rows) ? bottom + 1 - rows : 0;
     }
 
-    for (size_t r = 0; first + r <= bottom; ++r)
+    if (first != last_first_)
+        full_redraw_ = true;
+    last_first_ = first;
+
+    size_t r_start = 0;
+    size_t r_end = (bottom >= first) ? (bottom - first) : 0;
+    if (full_redraw_ || !has_dirty_rows_)
+    {
+        bb_draw_rect(backbuf, fb_width, x_, y_, w_, h_, bg_);
+        full_redraw_ = true;
+    }
+    else
+    {
+        if (dirty_row_min_ > first)
+            r_start = dirty_row_min_ - first;
+        if (dirty_row_max_ >= first && dirty_row_max_ - first < r_end)
+            r_end = dirty_row_max_ - first;
+        if (r_start > r_end)
+        {
+            dirty_ = false;
+            return;
+        }
+        bb_draw_rect(
+            backbuf,
+            fb_width,
+            x_,
+            y_ + static_cast<int>(r_start * LINE_H),
+            w_,
+            static_cast<int>((r_end - r_start + 1) * LINE_H),
+            bg_);
+    }
+
+    for (size_t r = r_start; r <= r_end && first + r <= bottom; ++r)
     {
         const char* row = slot(first + r);
         const uint8_t* ar = attrs_[(first + r) % SCROLLBACK];
 
         // Columns past the last written cell are blank
-        size_t limit = 0;
+        size_t row_limit = 0;
         for (size_t k = 0; k < COLS; ++k)
             if (row[k])
-                limit = k + 1;
+                row_limit = k + 1;
 
         // Draw runs of cells with the same colour
         size_t c = 0;
-        while (c < limit)
+        while (c < row_limit)
         {
             const uint8_t a = ar[c];
             char tmp[COLS + 1];
             size_t n = 0;
             size_t e = c;
-            while (e < limit && ar[e] == a)
+            while (e < row_limit && ar[e] == a)
             {
                 tmp[n++] = row[e] ? row[e] : ' ';
                 ++e;

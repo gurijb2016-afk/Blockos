@@ -511,6 +511,7 @@ X11_CC    ?= gcc
 x11:
 	sh userspace/sh/build-sh.sh
 	CC=$(X11_CC) AS=as AR=ar OUTDIR=userspace/libc/build sh userspace/libc/build-libc.sh
+	$(MAKE) -C userspace/x11 CC=$(X11_CC)
 	CC=$(X11_CC) LIBC_DIR=userspace/libc/build OUT_DIR=rootfs/bin sh userspace/tests/build-x11-sock.sh
 	@if [ -n "$(X11_BUILD)" ]; then \
 		rm -f $(X11_BUILD)/hw/kdrive/blockos/X && ninja -C $(X11_BUILD) && \

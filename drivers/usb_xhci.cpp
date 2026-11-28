@@ -227,7 +227,7 @@ static bool take_legacy_ownership(volatile uint8_t* mmio, uint32_t hcc1, uint64_
         }
         if (next == 0)
             break;
-        const uint32_t next_offset = static_cast<uint32_t>(next) * 4u;
+        const uint32_t next_offset = offset + static_cast<uint32_t>(next) * 4u;
         if (next_offset <= offset || next_offset > 0x10000u ||
             next_offset > bar_size || bar_size - next_offset < 4)
             return false; // malformed/cyclic or out-of-BAR capability chain

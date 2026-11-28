@@ -19,6 +19,11 @@ struct vfs_entry
 
     vfs::NodeType type;
 
+    uint32_t mode;
+    uint32_t uid;
+    uint32_t gid;
+    char* symlink_target;
+
     vfs::DeviceNodeInfo device_info;
     bool has_device_info;
 
@@ -233,6 +238,10 @@ static vfs_entry* allocate_entry(
     entry->data = nullptr;
     entry->size = 0;
     entry->type = type;
+    entry->mode = (type == vfs::NODE_DIRECTORY) ? 0755u : ((type == vfs::NODE_DEVICE) ? 0666u : 0644u);
+    entry->uid = 0;
+    entry->gid = 0;
+    entry->symlink_target = nullptr;
     entry->device_info = {};
     entry->has_device_info = false;
     entry->next = nullptr;
@@ -263,6 +272,12 @@ static void free_entry(vfs_entry* entry)
     {
         allocator::free(entry->data);
         entry->data = nullptr;
+    }
+
+    if (entry->symlink_target)
+    {
+        allocator::free(entry->symlink_target);
+        entry->symlink_target = nullptr;
     }
 
     if (entry->name)
@@ -1063,6 +1078,61 @@ void initialize_devices()
 
     if (!find_entry("/devices/console"))
         create_directory("/devices/console");
+}
+
+bool set_mode(const char* path, uint32_t mode)
+{
+    vfs_entry* e = find_entry(path);
+    if (!e) return false;
+    e->mode = mode & 07777u;
+    return true;
+}
+
+bool get_mode(const char* path, uint32_t* out_mode)
+{
+    vfs_entry* e = find_entry(path);
+    if (!e || !out_mode) return false;
+    *out_mode = e->mode;
+    return true;
+}
+
+bool set_owner(const char* path, uint32_t uid, uint32_t gid)
+{
+    vfs_entry* e = find_entry(path);
+    if (!e) return false;
+    e->uid = uid;
+    e->gid = gid;
+    return true;
+}
+
+bool get_owner(const char* path, uint32_t* out_uid, uint32_t* out_gid)
+{
+    vfs_entry* e = find_entry(path);
+    if (!e) return false;
+    if (out_uid) *out_uid = e->uid;
+    if (out_gid) *out_gid = e->gid;
+    return true;
+}
+
+bool create_symlink(const char* target, const char* link_path)
+{
+    if (!target || !link_path) return false;
+    vfs_entry* e = allocate_entry(link_path, NODE_FILE);
+    if (!e) return false;
+    size_t len = string_length(target);
+    char* copy = static_cast<char*>(allocator::alloc(len + 1));
+    if (!copy) return false;
+    for (size_t i = 0; i <= len; ++i) copy[i] = target[i];
+    e->symlink_target = copy;
+    e->mode = 0777u;
+    return true;
+}
+
+const char* read_symlink(const char* path)
+{
+    vfs_entry* e = find_entry(path);
+    if (!e) return nullptr;
+    return e->symlink_target;
 }
 
 } // namespace vfs

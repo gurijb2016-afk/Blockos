@@ -3,10 +3,13 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <string.h>
 
 #include "../kernel/allocator.hpp"
 #include "../arch/86_64x/irq.hpp"
 #include "../kernel/sysmem.hpp"
+#include "../drivers/hardware_autoprobe.hpp"
+#include "../drivers/pci_subsystem.hpp"
 #include "vfs.hpp"
 
 namespace blockos::proc
@@ -21,11 +24,13 @@ static const char* const top_files[] = {
     "cmdline",
     "cpuinfo",
     "devices",
+    "drivers",
     "filesystems",
     "loadavg",
     "meminfo",
     "mounts",
     "partitions",
+    "pci",
     "stat",
     "swaps",
     "uptime",
@@ -417,8 +422,121 @@ static size_t render_cpuinfo(char* out, size_t cap)
     if (!out || !cap) return 0;
     out[0] = 0;
     size_t pos = 0;
-    append_text(out, cap, pos, "processor\t: 0\nmodel name\t: BlockOS x86_64\n");
-    append_text(out, cap, pos, "cpu family\t: 6\nmodel\t\t: 0\nstepping\t: 0\n\n");
+
+    uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
+    __asm__ volatile("cpuid" : "+a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx));
+    char vendor[13]{};
+    memcpy(vendor + 0, &ebx, 4);
+    memcpy(vendor + 4, &edx, 4);
+    memcpy(vendor + 8, &ecx, 4);
+    vendor[12] = '\0';
+
+    uint32_t f_eax = 1, f_ebx = 0, f_ecx = 0, f_edx = 0;
+    __asm__ volatile("cpuid" : "+a"(f_eax), "=b"(f_ebx), "=c"(f_ecx), "=d"(f_edx));
+    uint32_t stepping = f_eax & 0xFu;
+    uint32_t model = ((f_eax >> 4) & 0xFu) | (((f_eax >> 16) & 0xFu) << 4);
+    uint32_t family = ((f_eax >> 8) & 0xFu) + ((f_eax >> 20) & 0xFFu);
+
+    char brand[49]{};
+    uint32_t ext_max = 0x80000000u, b0 = 0, c0 = 0, d0 = 0;
+    __asm__ volatile("cpuid" : "+a"(ext_max), "=b"(b0), "=c"(c0), "=d"(d0));
+    if (ext_max >= 0x80000004u) {
+        size_t boff = 0;
+        for (uint32_t leaf = 0x80000002u; leaf <= 0x80000004u; ++leaf) {
+            uint32_t a = leaf, b = 0, c = 0, d = 0;
+            __asm__ volatile("cpuid" : "+a"(a), "=b"(b), "=c"(c), "=d"(d));
+            memcpy(brand + boff + 0, &a, 4);
+            memcpy(brand + boff + 4, &b, 4);
+            memcpy(brand + boff + 8, &c, 4);
+            memcpy(brand + boff + 12, &d, 4);
+            boff += 16;
+        }
+        brand[48] = '\0';
+    }
+    const char* model_name = brand[0] ? brand : "BlockOS x86_64 Processor";
+    while (*model_name == ' ') ++model_name;
+
+    append_text(out, cap, pos, "processor\t: 0\nvendor_id\t: ");
+    append_text(out, cap, pos, vendor[0] ? vendor : "GenuineBlockOS");
+    append_text(out, cap, pos, "\ncpu family\t: ");
+    append_u64(out, cap, pos, family);
+    append_text(out, cap, pos, "\nmodel\t\t: ");
+    append_u64(out, cap, pos, model);
+    append_text(out, cap, pos, "\nmodel name\t: ");
+    append_text(out, cap, pos, model_name);
+    append_text(out, cap, pos, "\nstepping\t: ");
+    append_u64(out, cap, pos, stepping);
+    append_text(out, cap, pos, "\nflags\t\t: fpu tsc msr pae apic cmov pat clflush mmx fxsr sse sse2");
+    if (f_ecx & (1u << 0))  append_text(out, cap, pos, " sse3");
+    if (f_ecx & (1u << 9))  append_text(out, cap, pos, " ssse3");
+    if (f_ecx & (1u << 19)) append_text(out, cap, pos, " sse4_1");
+    if (f_ecx & (1u << 20)) append_text(out, cap, pos, " sse4_2");
+    if (f_ecx & (1u << 21)) append_text(out, cap, pos, " x2apic");
+    if (f_ecx & (1u << 28)) append_text(out, cap, pos, " avx");
+    if (f_ecx & (1u << 30)) append_text(out, cap, pos, " rdrand");
+    if (f_ecx & (1u << 31)) append_text(out, cap, pos, " hypervisor");
+    append_text(out, cap, pos, "\n\n");
+    return finish(out, cap, pos);
+}
+
+struct ProcEmitCtx {
+    char* out;
+    size_t cap;
+    size_t pos;
+};
+
+static void proc_checklist_sink(const char* text, void* raw_ctx)
+{
+    if (!text || !raw_ctx) return;
+    ProcEmitCtx* ctx = static_cast<ProcEmitCtx*>(raw_ctx);
+    append_text(ctx->out, ctx->cap, ctx->pos, text);
+}
+
+static size_t render_drivers(char* out, size_t cap)
+{
+    if (!out || !cap) return 0;
+    out[0] = 0;
+    ProcEmitCtx ctx{out, cap, 0};
+    blockos_hw::print_boot_checklist(proc_checklist_sink, &ctx);
+    return finish(out, cap, ctx.pos);
+}
+
+static bool append_hex_fixed(char* out, size_t cap, size_t& pos, uint32_t val, int digits)
+{
+    static const char hex[] = "0123456789abcdef";
+    for (int i = (digits - 1) * 4; i >= 0; i -= 4) {
+        if (!append_char(out, cap, pos, hex[(val >> i) & 0xFu])) return false;
+    }
+    return true;
+}
+
+static size_t render_pci(char* out, size_t cap)
+{
+    if (!out || !cap) return 0;
+    out[0] = 0;
+    size_t pos = 0;
+    const uint32_t n = pci_bus_manager.device_count();
+    append_text(out, cap, pos, "BDF       VID:DID   CLASS  IRQ\n");
+    for (uint32_t i = 0; i < n; ++i) {
+        const PciDevice* d = pci_bus_manager.device_at(i);
+        if (!d || !d->is_valid) continue;
+        append_hex_fixed(out, cap, pos, d->bus, 2);
+        append_char(out, cap, pos, ':');
+        append_hex_fixed(out, cap, pos, d->slot, 2);
+        append_char(out, cap, pos, '.');
+        append_hex_fixed(out, cap, pos, d->func, 1);
+        append_text(out, cap, pos, "   ");
+        append_hex_fixed(out, cap, pos, d->vendor_id, 4);
+        append_char(out, cap, pos, ':');
+        append_hex_fixed(out, cap, pos, d->device_id, 4);
+        append_text(out, cap, pos, " ");
+        append_hex_fixed(out, cap, pos, d->class_id, 2);
+        append_hex_fixed(out, cap, pos, d->subclass, 2);
+        append_hex_fixed(out, cap, pos, d->prog_if, 2);
+        append_text(out, cap, pos, " ");
+        append_u64(out, cap, pos, d->irq_line);
+        append_char(out, cap, pos, '\n');
+    }
     return finish(out, cap, pos);
 }
 
@@ -593,7 +711,9 @@ static size_t render_leaf(const char* path, process::Process* current, char* out
     if (eq(p, "loadavg")) return render_loadavg(out, cap);
     if (eq(p, "cpuinfo")) return render_cpuinfo(out, cap);
     if (eq(p, "devices")) return render_devices(out, cap);
+    if (eq(p, "drivers")) return render_drivers(out, cap);
     if (eq(p, "partitions")) return render_partitions(out, cap);
+    if (eq(p, "pci")) return render_pci(out, cap);
     if (eq(p, "swaps")) return render_swaps(out, cap);
     return 0;
 }
@@ -606,7 +726,7 @@ static bool create_dir(const char* path)
 
 static bool write_proc_file(const char* path, process::Process* current)
 {
-    char data[PROC_BUFFER_MAX];
+    static char data[PROC_BUFFER_MAX];
     size_t n = render_leaf(path, current, data, sizeof(data));
     return vfs::write_file(path, reinterpret_cast<const uint8_t*>(data), static_cast<uint32_t>(n));
 }
@@ -793,12 +913,11 @@ bool refresh(process::Process* current)
     if (!current) current = process::current();
     if (!create_dir("/proc")) return false;
 
-    char data[PROC_BUFFER_MAX];
-    const char* files[] = {"cmdline","cpuinfo","devices","filesystems","loadavg","meminfo","mounts","partitions","stat","swaps","uptime","version"};
-    for (size_t i = 0; i < sizeof(files)/sizeof(files[0]); ++i) {
+    static char data[PROC_BUFFER_MAX];
+    for (size_t i = 0; i < TOP_FILE_COUNT; ++i) {
         char path[64];
         path[0]='/'; path[1]='p'; path[2]='r'; path[3]='o'; path[4]='c'; path[5]='/';
-        copy_text(path + 6, sizeof(path) - 6, files[i]);
+        copy_text(path + 6, sizeof(path) - 6, top_files[i]);
         size_t n = render_leaf(path, current, data, sizeof(data));
         if (!vfs::write_file(path, reinterpret_cast<const uint8_t*>(data), static_cast<uint32_t>(n))) return false;
     }

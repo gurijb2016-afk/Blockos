@@ -408,3 +408,49 @@ bool paging::install_kernel_identity_map(uint64_t max_phys) {
     switch_pml4((uint64_t)(uintptr_t)pml4);
     return true;
 }
+
+bool paging::map_mmio_range(uint64_t phys_base, size_t len) {
+    if (!phys_base || !len) return false;
+    uint64_t cr3 = read_cr3();
+    if (!cr3) return false;
+    uint64_t start = phys_base & PAGE_MASK;
+    uint64_t end = (phys_base + len + 0xFFFULL) & PAGE_MASK;
+    for (uint64_t p = start; p < end; p += 0x1000ULL) {
+        if (!map_4k(cr3, p, p, PTE_WRITABLE | PTE_PWT | PTE_PCD))
+            return false;
+    }
+    return true;
+}
+
+/*
+ * Program x86-64 IA32_PAT MSR (0x277) so PAT index 1 (PWT=1, PCD=0, PAT=0) is
+ * Write-Combining (WC = 0x01) instead of Write-Through (WT = 0x04), then map
+ * the GOP framebuffer physical range as WC in the kernel identity map.
+ * This turns uncacheable (UC) VRAM writes into burst-combined writes (10-50x faster
+ * in both bare-metal and hypervisors like VirtualBox, VMware, Hyper-V, QEMU).
+ */
+static void setup_pat_wc() {
+    uint32_t eax = 1, ebx = 0, ecx = 0, edx = 0;
+    __asm__ volatile("cpuid" : "+a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx));
+    if ((edx & (1u << 16)) == 0) return; /* CPUID.01h:EDX.PAT[16] */
+
+    uint32_t lo = 0, hi = 0;
+    __asm__ volatile("rdmsr" : "=a"(lo), "=d"(hi) : "c"(0x277u));
+    /* PAT0=WB(06), PAT1=WC(01), PAT2=UC-(07), PAT3=UC(00) */
+    lo = (lo & ~0x0000FF00u) | 0x00000100u;
+    __asm__ volatile("wrmsr" :: "a"(lo), "d"(hi), "c"(0x277u) : "memory");
+}
+
+bool paging::mark_framebuffer_wc(uint64_t phys_base, size_t len) {
+    if (!phys_base || !len) return false;
+    setup_pat_wc();
+    uint64_t cr3 = read_cr3();
+    if (!cr3) return false;
+    uint64_t start = phys_base & PAGE_MASK;
+    uint64_t end = (phys_base + len + 0xFFFULL) & PAGE_MASK;
+    for (uint64_t p = start; p < end; p += 0x1000ULL) {
+        if (!map_4k(cr3, p, p, PTE_WRITABLE | PTE_PWT)) /* PWT=1, PCD=0 -> PAT1 (WC) */
+            return false;
+    }
+    return true;
+}

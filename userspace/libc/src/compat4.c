@@ -63,7 +63,7 @@ struct hostent *gethostbyname(const char *name) { (void)name; return NULL; }
 #include <arpa/inet.h>
 #include <sys/stat.h>
 
-int umask(int mask) { (void)mask; return 022; }
+mode_t umask(mode_t mask) { (void)mask; return 022; }
 int chmod(const char *path, unsigned int mode) { (void)path; (void)mode; return 0; }
 int setuid(uid_t uid) { (void)uid; return 0; }
 int setgid(gid_t gid) { (void)gid; return 0; }
